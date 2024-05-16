@@ -4,14 +4,16 @@ import "mvec" for MVec
 
 class Game {
 	static init() {
+		__time = 0
 	}
 
 	static update(dt) {
 		Utils.drawGrid(100, 100, -0.5, 100, 0x5FFFFFFF)
-
-		var mouseX = (App.mouseX / App.width) - 0.5
-		var mouseY = 0.5 - (App.mouseY / App.height)
-		App.drawPoint3(mouseX, mouseY, -0.5, 0xFFFFFFFF)
+		
+		__time = __time + dt
+		var x = (__time * 0.5).cos * 2 //(App.mouseX / App.width) - 0.5
+		var y = (__time * 0.5).sin * 2 //0.5 - (App.mouseY / App.height)
+		App.drawPoint3(x, y, -5, 0xFF00FFFF)
 		
 		App.drawLine3(-0.5, -0.5, -5, 0.5, 0.5, -5, 0xFF0000FF)
 		App.drawQuad3(-0.5, -0.5, -5, 0.5, 0.5, -5, 0x5F0000FF)
