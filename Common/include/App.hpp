@@ -4,6 +4,8 @@
 #include <cstddef>
 
 // Util
+#define PATH(x) (PROJECT_PATH x)
+
 using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
@@ -31,7 +33,7 @@ struct ScriptClass
 
 // Application
 using AppConfigureFn = struct AppConfig(*)();
-using AppPostInitializeFn = void (*)();
+using AppBindApiFn = void (*)();
 
 struct AppConfig
 {
@@ -40,6 +42,8 @@ struct AppConfig
 	bool fullscreen = false;
 
 	i32 msaa = 8;
+
+	const char* gamefile = PATH("/Common/Game.wren");
 };
 
 class App
@@ -48,35 +52,62 @@ private:
 	static bool Initialize(const AppConfig& config);
 	static void Shutdown();
 
-	static void Update();
+	static void Reload(AppBindApiFn BindApi);
+
+	static void Update(f64 dt);
 	static void Render();
 
 public:
-	static int Run(AppConfigureFn Configure, AppPostInitializeFn PostInitialize);
+	static int Run(AppConfigureFn Configure, AppBindApiFn BindApi);
 
 	// Window
-	static void GetSize(i32& w, i32& h);
-	static void Close();
+	static i32 GetWidth();
+	static i32 GetHeight();
 
-	// Input
-	static void GetMouse(f64& x, f64& y);
+	static f64 GetMouseX();
+	static f64 GetMouseY();
 	static bool GetButton(i32 b);
 	static bool GetKey(i32 k);
 
+	static void Close();
+
 	// Graphics
-	static void SetCamera(f32 px, f32 py, f32 pz, f32 vx, f32 vy, f32 vz, f32 zn, f32 zf, bool ortho, f32 param);
+	static void SetCamera(
+		f32 m00, f32 m01, f32 m02, f32 m03,
+		f32 m10, f32 m11, f32 m12, f32 m13,
+		f32 m20, f32 m21, f32 m22, f32 m23,
+		f32 m30, f32 m31, f32 m32, f32 m33);
 
 	static void DrawLine2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c);
-	static void DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c);
-
 	static void DrawQuad2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c);
+
+	static void DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c);
 	static void DrawQuad3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c);
 
 	// Script
-	static void Reload();
-	static void ParseFile(const char* moduleName, const char* filename);
+	static void ParseFile(const char* moduleName, const char* filepath);
 	static void ParseSource(const char* moduleName, const char* source);
 
 	static void BindClass(const char* moduleName, const char* className, ScriptClass scriptClass);
 	static void BindMethod(const char* moduleName, const char* className, bool isStatic, const char* signature, ScriptMethodFn scriptMethod);
+
+	static void EnsureSlots(ScriptVM* vm, i32 count);
+
+	static bool GetSlotBool(ScriptVM* vm, i32 slot);
+	static u32 GetSlotUInt(ScriptVM* vm, i32 slot);
+	static i32 GetSlotInt(ScriptVM* vm, i32 slot);
+	static f32 GetSlotFloat(ScriptVM* vm, i32 slot);
+	static f64 GetSlotDouble(ScriptVM* vm, i32 slot);
+	static const char* GetSlotString(ScriptVM* vm, i32 slot);
+	static void* GetSlotObject(ScriptVM* vm, i32 slot);
+	static const char* GetSlotBytes(ScriptVM* vm, i32 slot, i32* length);
+
+	static void SetSlotBool(ScriptVM* vm, i32 slot, bool value);
+	static void SetSlotUInt(ScriptVM* vm, i32 slot, u32 value);
+	static void SetSlotInt(ScriptVM* vm, i32 slot, i32 value);
+	static void SetSlotFloat(ScriptVM* vm, i32 slot, f32 value);
+	static void SetSlotDouble(ScriptVM* vm, i32 slot, f64 value);
+	//static const char* GetSlotString(ScriptVM* vm, i32 slot);
+	//static void* GetSlotObject(ScriptVM* vm, i32 slot);
+	//static const char* GetSlotBytes(ScriptVM* vm, i32 slot, i32* length);
 };

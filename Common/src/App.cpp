@@ -18,6 +18,12 @@
 #include <vector>
 #include <unordered_map>
 
+struct Vertex
+{
+	f32 pos[3] = { 0, 0, 0 };
+	u32 col = 0;
+};
+
 struct AppData
 {
 	// Window
@@ -27,16 +33,21 @@ struct AppData
 	GLuint shader = 0;
 	GLuint vao = 0;
 	GLuint vbo = 0;
+	std::vector<Vertex> lines;
+	std::vector<Vertex> quads;
 	std::vector<u8> cmds;
 
 	// Script
 	WrenVM* vm = nullptr;
 	WrenHandle* gameClass = nullptr;
+	WrenHandle* initMethod = nullptr;
 	WrenHandle* updateMethod = nullptr;
 	bool error = false;
 	bool reload = true;
+	bool paused = false;
 
-	std::string gameSource;
+	std::string filepath;
+	std::string script;
 	std::unordered_map<size_t, ScriptClass> classes;
 	std::unordered_map<size_t, ScriptMethodFn> methods;
 
@@ -46,20 +57,32 @@ struct AppData
 static AppData g_app;
 
 // Window
-void App::GetSize(i32& w, i32& h)
+i32 App::GetWidth()
 {
+	i32 w, h;
 	glfwGetWindowSize(g_app.window, &w, &h);
+	return w;
 }
 
-void App::Close()
+i32 App::GetHeight()
 {
-	glfwSetWindowShouldClose(g_app.window, GLFW_TRUE);
+	i32 w, h;
+	glfwGetWindowSize(g_app.window, &w, &h);
+	return h;
 }
 
-// Input
-void App::GetMouse(f64& x, f64& y)
+f64 App::GetMouseX()
 {
+	f64 x, y;
 	glfwGetCursorPos(g_app.window, &x, &y);
+	return x;
+}
+
+f64 App::GetMouseY()
+{
+	f64 x, y;
+	glfwGetCursorPos(g_app.window, &x, &y);
+	return y;
 }
 
 bool App::GetButton(i32 b)
@@ -72,22 +95,22 @@ bool App::GetKey(i32 k)
 	return glfwGetKey(g_app.window, k) == GLFW_PRESS;
 }
 
+void App::Close()
+{
+	glfwSetWindowShouldClose(g_app.window, GLFW_TRUE);
+}
+
 // Graphics
 struct Camera
 {
-	static constexpr u8 CmdId = 0;
-
-	f32 px = 0, py = 0, pz = 0;
-	f32 vx = 0, vy = 0, vz = 0;
-	f32 zn = 0, zf = 0;
-	bool ortho = false;
-	f32 param = 0;
+	f32 m00 = 0, m01 = 0, m02 = 0, m03 = 0;
+	f32 m10 = 0, m11 = 0, m12 = 0, m13 = 0;
+	f32 m20 = 0, m21 = 0, m22 = 0, m23 = 0;
+	f32 m30 = 0, m31 = 0, m32 = 0, m33 = 0;
 };
 
 struct Line2
 {
-	static constexpr u8 CmdId = 1;
-
 	f32 x1 = 0, y1 = 0;
 	f32 x2 = 0, y2 = 0;
 	u32 c = 0;
@@ -95,8 +118,6 @@ struct Line2
 
 struct Line3
 {
-	static constexpr u8 CmdId = 2;
-
 	f32 x1 = 0, y1 = 0, z1 = 0;
 	f32 x2 = 0, y2 = 0, z2 = 0;
 	u32 c = 0;
@@ -104,8 +125,6 @@ struct Line3
 
 struct Quad2
 {
-	static constexpr u8 CmdId = 3;
-
 	f32 x1 = 0, y1 = 0;
 	f32 x2 = 0, y2 = 0;
 	u32 c = 0;
@@ -113,32 +132,96 @@ struct Quad2
 
 struct Quad3
 {
-	static constexpr u8 CmdId = 4;
-
 	f32 x1 = 0, y1 = 0, z1 = 0;
 	f32 x2 = 0, y2 = 0, z2 = 0;
 	u32 c = 0;
 };
 
-void App::SetCamera(f32 px, f32 py, f32 pz, f32 vx, f32 vy, f32 vz, f32 zn, f32 zf, bool ortho, f32 param)
+struct CmdIdCounter
 {
-	g_app.cmds.resize(1 + sizeof(Camera));
-	g_app.cmds.emplace_back(Camera::CmdId);
+	static u32 Id()
+	{
+		static u32 counter = 0;
+		return ++counter;
+	}
+};
+
+template <typename T>
+struct CmdIdImpl
+{
+	static u32 Id()
+	{
+		static const u32 id = CmdIdCounter::Id();
+		return id;
+	}
+};
+
+template <typename T>
+struct CmdId
+{
+	static u32 Id()
+	{
+		return CmdIdImpl<std::decay_t<T>>::Id();
+	}
+};
+
+static u32 cmd_get_id(u8*& ptr)
+{
+	//u8* ptr = g_app.cmds.data() + i;
+	u32 id = *reinterpret_cast<u32*>(ptr);
+	ptr += sizeof(u32);
+	return id;
+}
+
+template <typename T>
+static const T& cmd_get(u8*& ptr)
+{
+	const auto& cmd = *reinterpret_cast<T*>(ptr);
+	ptr += sizeof(u32) + sizeof(T);
+	return cmd;
+}
+
+template <typename T>
+static void cmd_push(const T& cmd)
+{
+	const size_t offset = g_app.cmds.size();
+	g_app.cmds.resize(g_app.cmds.size() + sizeof(u32) + sizeof(T));
+	u8* ptr = g_app.cmds.data() + offset;
+
+	u32& id = *reinterpret_cast<u32*>(ptr);
+	id = CmdId<T>::Id();
+	ptr += sizeof(u32);
+
+	std::memcpy(ptr, &cmd, sizeof(T));
+}
+
+void App::SetCamera(
+	f32 m00, f32 m01, f32 m02, f32 m03,
+	f32 m10, f32 m11, f32 m12, f32 m13,
+	f32 m20, f32 m21, f32 m22, f32 m23,
+	f32 m30, f32 m31, f32 m32, f32 m33)
+{
+	cmd_push(Camera{ m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33 });
 }
 
 void App::DrawLine2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c)
 {
-}
-
-void App::DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c)
-{
+	cmd_push(Line2{ x1, y1, x2, y2, c});
 }
 
 void App::DrawQuad2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c)
 {
+	cmd_push(Quad2{ x1, y1, x2, y2, c });
 }
+
+void App::DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c)
+{
+	cmd_push(Line3{ x1, y1, z1, x2, y2, z2, c });
+}
+
 void App::DrawQuad3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c)
 {
+	cmd_push(Quad3{ x1, y1, z1, x2, y2, z2, c });
 }
 
 // Script
@@ -257,49 +340,37 @@ static void wren_error(WrenVM* vm, WrenErrorType errorType, const char* module, 
 	//s_error = true;
 }
 
-void App::Reload()
+static std::string file_load(const char* filepath)
 {
-	if (g_app.vm != nullptr)
-	{
-		wrenFreeVM(g_app.vm);
-	}
-
-	WrenConfiguration config;
-	wrenInitConfiguration(&config);
-	config.writeFn = wren_write;
-	config.errorFn = wren_error;
-	config.bindForeignMethodFn = wren_bind_method;
-	config.bindForeignClassFn = wren_bind_class;
-	config.loadModuleFn = wren_load_module;
-	config.initialHeapSize = 1024LL * 1024 * 32;
-	config.minHeapSize = 1024LL * 1024 * 16;
-	config.heapGrowthPercent = 80;
-	g_app.vm = wrenNewVM(&config);
-
-	ParseSource("game", g_app.gameSource.c_str());
-	if (!g_app.error)
-	{
-		wrenEnsureSlots(g_app.vm, 1);
-		wrenGetVariable(g_app.vm, "game", "Game", 0);
-		g_app.gameClass = wrenGetSlotHandle(g_app.vm, 0);
-		wrenSetSlotHandle(g_app.vm, 0, g_app.gameClass);
-		g_app.updateMethod = wrenMakeCallHandle(g_app.vm, "update()");
-	}
-}
-
-void App::ParseFile(const char* moduleName, const char* filename)
-{
-	std::ifstream file(filename);
+	std::ifstream file(filepath);
 	if (!file.is_open()) {
-		std::cerr << "Error opening file: " << filename << std::endl;
-		return;
+		std::cerr << "Error opening file: " << filepath << std::endl;
+		return "";
 	}
 
 	std::stringstream buffer;
 	buffer << file.rdbuf();
 	file.close();
 
-	ParseSource(moduleName, buffer.str().c_str());
+	return buffer.str();
+}
+
+static void file_save(const char* filepath, const std::string& src)
+{
+	std::ofstream file(filepath);
+	if (!file.is_open()) {
+		std::cerr << "Error opening file: " << filepath << std::endl;
+		return;
+	}
+
+	file << src;
+	file.close();
+}
+
+void App::ParseFile(const char* moduleName, const char* filepath)
+{
+	auto src = file_load(filepath);
+	ParseSource(moduleName, src.c_str());
 }
 
 void App::ParseSource(const char* moduleName, const char* source)
@@ -317,6 +388,7 @@ void App::ParseSource(const char* moduleName, const char* source)
 		break;
 
 	case WREN_RESULT_SUCCESS:
+		g_app.error = false;
 		std::cout << "Wren successfully compiled module: " << moduleName << std::endl;
 		break;
 	}
@@ -332,6 +404,76 @@ void App::BindMethod(const char* moduleName, const char* className, bool isStati
 {
 	const size_t hash = wren_method_hash(moduleName, className, isStatic, signature);
 	g_app.methods.insert(std::make_pair(hash, scriptMethod));
+}
+
+void App::EnsureSlots(ScriptVM* vm, i32 count)
+{
+	wrenEnsureSlots(vm, count);
+}
+
+bool App::GetSlotBool(ScriptVM* vm, i32 slot)
+{
+	return wrenGetSlotBool(vm, slot);
+}
+
+u32 App::GetSlotUInt(ScriptVM* vm, i32 slot)
+{
+	return (u32)wrenGetSlotDouble(vm, slot);
+}
+
+i32 App::GetSlotInt(ScriptVM* vm, i32 slot)
+{
+	return (i32)wrenGetSlotDouble(vm, slot);
+}
+
+f32 App::GetSlotFloat(ScriptVM* vm, i32 slot)
+{
+	return (f32)wrenGetSlotDouble(vm, slot);
+}
+
+f64 App::GetSlotDouble(ScriptVM* vm, i32 slot)
+{
+	return wrenGetSlotDouble(vm, slot);
+}
+
+const char* App::GetSlotString(ScriptVM* vm, i32 slot)
+{
+	return wrenGetSlotString(vm, slot);
+}
+
+void* App::GetSlotObject(ScriptVM* vm, i32 slot)
+{
+	return wrenGetSlotForeign(vm, slot);
+}
+
+const char* App::GetSlotBytes(ScriptVM* vm, i32 slot, i32* length)
+{
+	return wrenGetSlotBytes(vm, slot, length);
+}
+
+void App::SetSlotBool(ScriptVM* vm, i32 slot, bool value)
+{
+	wrenSetSlotBool(vm, slot, value);
+}
+
+void App::SetSlotUInt(ScriptVM* vm, i32 slot, u32 value)
+{
+	wrenSetSlotDouble(vm, slot, (f64)value);
+}
+
+void App::SetSlotInt(ScriptVM* vm, i32 slot, i32 value)
+{
+	wrenSetSlotDouble(vm, slot, (f64)value);
+}
+
+void App::SetSlotFloat(ScriptVM* vm, i32 slot, f32 value)
+{
+	wrenSetSlotDouble(vm, slot, (f64)value);
+}
+
+void App::SetSlotDouble(ScriptVM* vm, i32 slot, f64 value)
+{
+	wrenSetSlotDouble(vm, slot, (f64)value);
 }
 
 // Setup
@@ -398,6 +540,47 @@ static void APIENTRY opengl_debug_callback(GLenum source, GLenum type, u32 id, G
 	std::cout << "GL Severity [ID]: Message" << std::endl;// -Source:({}) - Type : ({}) - Severity : ({})\n{}", id, GetGlSource(source), GetGlType(type), GetGlSeverity(severity), message);
 }
 
+static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
+{
+	// Compile vertex shader
+	GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vshader, 1, &vsrc, NULL);
+	glCompileShader(vshader);
+
+	i32 success = 0;
+	char log[1024];
+	glGetShaderiv(vshader, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(vshader, 1024, NULL, log);
+		std::cout << "Failed to compile vertex shader: " << log << std::endl;
+	}
+
+	// Compile fragment shader
+	GLuint fshader(glCreateShader(GL_FRAGMENT_SHADER));
+	glShaderSource(fshader, 1, &fsrc, NULL);
+	glCompileShader(fshader);
+
+	glGetShaderiv(fshader, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(fshader, 1024, NULL, log);
+		std::cout << "Failed to compile fragment shader: " << log << std::endl;
+	}
+
+	// Link vertex and fragment shader together
+	GLuint program = glCreateProgram();
+	glAttachShader(program, vshader);
+	glAttachShader(program, fshader);
+	glLinkProgram(program);
+
+	// Delete shaders objects
+	glDeleteShader(vshader);
+	glDeleteShader(fshader);
+
+	return program;
+}
+
 static bool opengl_initialize(const AppConfig& config)
 {
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -418,6 +601,35 @@ static bool opengl_initialize(const AppConfig& config)
 	//
 	//	return true;
 	//}
+
+	static const char* vert_src =
+		"#version 330 core\n"
+		"layout (location = 0) in vec3 v_pos;\n"
+		"layout (location = 1) in vec4 v_col;\n"
+		"layout (location = 0) out vec4 o_col;\n"
+		"layout (location = 0) uniform mat4 VP;\n"
+		"void main() { gl_Position = VP * vec4(v_pos, 1); o_col = v_col; }";
+	static const char* frag_src =
+		"precision mediump float;\n"
+		"layout (location = 0) in vec4 i_col;\n"
+		"layout (location = 0) out vec4 o_col;\n"
+		"void main() { o_col = i_col; }";
+
+	g_app.shader = opengl_load_shader(vert_src, frag_src);
+
+	glGenVertexArrays(1, &g_app.vao);
+	glBindVertexArray(g_app.vao);
+
+	glGenBuffers(1, &g_app.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
+
+	const GLsizei stride = 3 * sizeof(f32) + sizeof(u32);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 4, GL_UNSIGNED_INT, GL_TRUE, stride, (GLvoid*)(3 * sizeof(f32)));
+
+	glBindVertexArray(0);
 }
 
 static bool imgui_initialize(const AppConfig& config)
@@ -443,6 +655,21 @@ static bool imgui_initialize(const AppConfig& config)
 	ImGui::StyleColorsDark();
 }
 
+static void wren_initialize()
+{
+	WrenConfiguration config;
+	wrenInitConfiguration(&config);
+	config.writeFn = wren_write;
+	config.errorFn = wren_error;
+	config.bindForeignMethodFn = wren_bind_method;
+	config.bindForeignClassFn = wren_bind_class;
+	config.loadModuleFn = wren_load_module;
+	config.initialHeapSize = 1024LL * 1024 * 32;
+	config.minHeapSize = 1024LL * 1024 * 16;
+	config.heapGrowthPercent = 80;
+	g_app.vm = wrenNewVM(&config);
+}
+
 bool App::Initialize(const AppConfig& config)
 {
 	if (!glfw_initialize(config))
@@ -454,65 +681,301 @@ bool App::Initialize(const AppConfig& config)
 	if (!imgui_initialize(config))
 		return false;
 
-	g_app.gameSource =
-		"class Game {\n"
-		"	static update() {\n"
-		"		System.print(\"Update!\")\n"
-		"	}\n"
-		"}";
+	g_app.filepath = config.gamefile;
+	g_app.script = file_load(g_app.filepath.c_str());
 
 	return true;
 }
 
-void App::Shutdown()
+static void glfw_shutdown()
 {
-	wrenFreeVM(g_app.vm);
-
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
-
 	glfwDestroyWindow(g_app.window);
 	glfwTerminate();
 }
 
-void App::Update()
+static void opengl_shutdown()
+{
+	glDeleteProgram(g_app.shader);
+	glDeleteBuffers(1, &g_app.vbo);
+	glDeleteVertexArrays(1, &g_app.vao);
+}
+
+static void imgui_shutdown()
+{
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+}
+
+static void wren_shutdown()
+{
+	if (g_app.gameClass) wrenReleaseHandle(g_app.vm, g_app.gameClass);
+	if (g_app.initMethod) wrenReleaseHandle(g_app.vm, g_app.initMethod);
+	if (g_app.updateMethod) wrenReleaseHandle(g_app.vm, g_app.updateMethod);
+	if (g_app.vm) wrenFreeVM(g_app.vm);
+
+	g_app.vm = nullptr;
+	g_app.gameClass = nullptr;
+	g_app.initMethod = nullptr;
+	g_app.updateMethod = nullptr;
+}
+
+void App::Shutdown()
+{
+	wren_shutdown();
+	imgui_shutdown();
+	opengl_shutdown();
+	glfw_shutdown();
+}
+
+#define SCRIPT_ARGS_ARR(s, n, t) f32 v[n]; for (u8 i = s; i < n; ++i) v[i] = GetSlot##t##(vm, i + 1);
+
+void App::Reload(AppBindApiFn BindApi)
+{
+	if (g_app.vm != nullptr)
+	{
+		wren_shutdown();
+	}
+
+	wren_initialize();
+
+	BindApi();
+
+	// Window
+	BindMethod("app", "App", true, "getWidth()",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 0);
+			SetSlotInt(vm, 1, GetWidth());
+		});
+
+	BindMethod("app", "App", true, "getHeight()",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 0);
+			SetSlotInt(vm, 1, GetHeight());
+		});
+
+	BindMethod("app", "App", true, "getMouseX()",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 0);
+			SetSlotDouble(vm, 1, GetMouseX());
+		});
+
+	BindMethod("app", "App", true, "getMouseY()",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 0);
+			SetSlotDouble(vm, 1, GetMouseY());
+		});
+
+	BindMethod("app", "App", true, "getButton(_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 1);
+			SetSlotBool(vm, 1, GetButton(GetSlotInt(vm, 1)));
+		});
+
+	BindMethod("app", "App", true, "getKey(_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 1);
+			SetSlotBool(vm, 1, GetKey(GetSlotInt(vm, 1)));
+		});
+
+	BindMethod("app", "App", true, "close()",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 0);
+			Close();
+		});
+
+	// Graphics
+	BindMethod("app", "App", true, "setCamera(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 10);
+			SCRIPT_ARGS_ARR(0, 16, Float);
+			SetCamera(
+				v[0], v[1], v[2], v[3],
+				v[4], v[5], v[6], v[7],
+				v[8], v[9], v[10], v[11],
+				v[12], v[13], v[14], v[15]);
+		});
+
+	BindMethod("app", "App", true, "drawLine2(_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 5);
+			SCRIPT_ARGS_ARR(0, 4, Float);
+			DrawLine2(v[0], v[1], v[2], v[3], GetSlotUInt(vm, 5));
+		});
+
+	BindMethod("app", "App", true, "drawQuad2(_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 5);
+			SCRIPT_ARGS_ARR(0, 4, Float);
+			DrawQuad2(v[0], v[1], v[2], v[3], GetSlotUInt(vm, 5));
+		});
+
+	BindMethod("app", "App", true, "drawLine3(_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 7);
+			SCRIPT_ARGS_ARR(0, 6, Float);
+			DrawLine3(v[0], v[1], v[2], v[3], v[4], v[5], GetSlotUInt(vm, 7));
+		});
+
+	BindMethod("app", "App", true, "drawQuad3(_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 7);
+			SCRIPT_ARGS_ARR(0, 6, Float);
+			DrawQuad3(v[0], v[1], v[2], v[3], v[4], v[5], GetSlotUInt(vm, 7));
+		});
+
+	ParseFile("app", PATH("/Common/App.wren"));
+
+	// Game callbacks
+	ParseSource("game", g_app.script.c_str());
+	if (!g_app.error)
+	{
+		wrenEnsureSlots(g_app.vm, 1);
+		wrenGetVariable(g_app.vm, "game", "Game", 0);
+		g_app.gameClass = wrenGetSlotHandle(g_app.vm, 0);
+		wrenSetSlotHandle(g_app.vm, 0, g_app.gameClass);
+		g_app.initMethod = wrenMakeCallHandle(g_app.vm, "init()");
+		g_app.updateMethod = wrenMakeCallHandle(g_app.vm, "update(_)");
+
+		wrenEnsureSlots(g_app.vm, 1);
+		wrenSetSlotHandle(g_app.vm, 0, g_app.gameClass);
+		wrenCall(g_app.vm, g_app.initMethod);
+	}
+	else
+	{
+		wren_shutdown();
+	}
+}
+
+void App::Update(f64 dt)
 {
 	glfwPollEvents();
 
-	wrenEnsureSlots(g_app.vm, 1);
-	wrenSetSlotHandle(g_app.vm, 0, g_app.gameClass);
-	wrenCall(g_app.vm, g_app.updateMethod);
+	if (!g_app.error && !g_app.paused)
+	{
+		wrenEnsureSlots(g_app.vm, 2);
+		wrenSetSlotHandle(g_app.vm, 0, g_app.gameClass);
+		wrenSetSlotDouble(g_app.vm, 1, dt);
+		wrenCall(g_app.vm, g_app.updateMethod);
+	}
 }
 
-void App::Render()
+static void app_render_graphics()
 {
-	glClearColor(0, 0, 0, 1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	u8* ptr = g_app.cmds.data();
+	while (ptr != g_app.cmds.data() + g_app.cmds.size())
+	{
+		u32 id = cmd_get_id(ptr);
 
+		if (id == CmdId<Camera>::Id())
+		{
+			const auto& cam = cmd_get<Camera>(ptr);
+			glBindVertexArray(g_app.vao);
+
+			glUseProgram(g_app.shader);
+			glUniformMatrix4fv(0, 1, GL_FALSE, (f32*)&cam);
+
+			glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
+			glBufferData(GL_ARRAY_BUFFER, g_app.lines.size() * sizeof(Vertex), g_app.lines.data(), GL_DYNAMIC_DRAW);
+			glDrawArrays(GL_LINES, 0, 2 * (GLsizei)g_app.lines.size());
+
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glUseProgram(0);
+			glBindVertexArray(0);
+
+			g_app.lines.clear();
+			g_app.quads.clear();
+			continue;
+		}
+
+		if (id == CmdId<Line2>::Id())
+		{
+			const auto& v = cmd_get<Line2>(ptr);
+			g_app.lines.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
+			g_app.lines.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+			continue;
+		}
+
+		if (id == CmdId<Quad2>::Id())
+		{
+			const auto& v = cmd_get<Quad2>(ptr);
+			g_app.quads.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
+			g_app.quads.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+			g_app.quads.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
+
+			g_app.quads.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+			g_app.quads.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
+			g_app.quads.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+			continue;
+		}
+
+		if (id == CmdId<Line3>::Id())
+		{
+			const auto& cam = cmd_get<Line3>(ptr);
+			continue;
+		}
+
+		if (id == CmdId<Quad3>::Id())
+		{
+			const auto& cam = cmd_get<Quad3>(ptr);
+			continue;
+		}
+
+		break;
+	}
+	g_app.cmds.clear();
+}
+
+static void app_render_gui()
+{
 	ImGui_ImplGlfw_NewFrame();
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::Begin("Game", 0, ImGuiWindowFlags_MenuBar);
+	ImGui::Begin("App", 0, ImGuiWindowFlags_MenuBar);
 
 	if (ImGui::BeginMenuBar()) {
 		if (ImGui::BeginMenu("File")) {
-			if (ImGui::MenuItem("Open")) {
-				//LoadFile(filename, code);
-			}
-			if (ImGui::MenuItem("Save")) {
-				//SaveFile(filename, code);
-			}
 			if (ImGui::MenuItem("Exit"))
-				Close();
+				App::Close();
 			ImGui::EndMenu();
 		}
 		ImGui::EndMenuBar();
 	}
 
+	// Script loader
+	ImGui::InputText("Path", &g_app.filepath);
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Load"))
+		g_app.script = file_load(g_app.filepath.c_str());
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Save"))
+		file_save(g_app.filepath.c_str(), g_app.script);
+
+	// Code editor
 	if (ImGui::Button("Reload"))
 		g_app.reload = true;
+
+	ImGui::SameLine();
+
+	if (ImGui::Button(g_app.paused ? "Play" : "Pause"))
+		g_app.paused = !g_app.paused;
 
 	ImGui::SameLine();
 
@@ -520,37 +983,50 @@ void App::Render()
 	g_app.fontSize = std::max(0.5f, g_app.fontSize);
 
 	ImGui::SetWindowFontScale(g_app.fontSize);
-	ImGui::InputTextMultiline("##Source", &g_app.gameSource, ImGui::GetContentRegionAvail(), ImGuiInputTextFlags_AllowTabInput);
+	ImGui::InputTextMultiline("##Source", &g_app.script, ImGui::GetContentRegionAvail(), ImGuiInputTextFlags_AllowTabInput);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::End();
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void App::Render()
+{
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+	app_render_graphics();
+	app_render_gui();
 
 	glfwSwapBuffers(g_app.window);
 }
 
-int App::Run(AppConfigureFn Configure, AppPostInitializeFn PostInitialize)
+int App::Run(AppConfigureFn Configure, AppBindApiFn BindApi)
 {
 	if (!Initialize(Configure()))
 	{
-		return 1;
+		return EXIT_FAILURE;
 	}
 
+	f64 lastTime = glfwGetTime();
 	while (!glfwWindowShouldClose(g_app.window))
 	{
 		if (g_app.reload)
 		{
 			g_app.reload = false;
 
-			Reload();
-			PostInitialize();
+			Reload(BindApi);
 		}
 
-		Update();
+		f64 currentTime = glfwGetTime();
+		f64 deltaTime = currentTime - lastTime;
+		lastTime = currentTime;
+
+		Update(deltaTime);
 		Render();
 	}
 
 	Shutdown();
-	return 0;
+	return EXIT_SUCCESS;
 }
