@@ -1,0 +1,9 @@
+[submodule "ThirdParty/imgui"]
+	path = ThirdParty/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "ThirdParty/glfw"]
+	path = ThirdParty/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "ThirdParty/wren"]
+	path = ThirdParty/wren
+	url = https://github.com/wren-lang/wren.git
