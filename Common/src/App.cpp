@@ -12,11 +12,19 @@
 #include <wren.hpp>
 
 #include <iostream>
+#include <cstdarg>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <unordered_map>
+
+struct LogData
+{
+	u32 color = 0xFFFFFFFF;
+	std::string message;
+};
 
 struct Vertex
 {
@@ -26,6 +34,9 @@ struct Vertex
 
 struct AppData
 {
+	// Util
+	std::vector<LogData> logs;
+
 	// Window
 	GLFWwindow* window = nullptr;
 
@@ -33,6 +44,7 @@ struct AppData
 	GLuint shader = 0;
 	GLuint vao = 0;
 	GLuint vbo = 0;
+	std::vector<Vertex> points;
 	std::vector<Vertex> lines;
 	std::vector<Vertex> quads;
 	std::vector<u8> cmds;
@@ -55,6 +67,46 @@ struct AppData
 	f32 fontSize = 1.0f;
 };
 static AppData g_app;
+
+// Util
+void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...)
+{
+	// Initialize the argument list
+	va_list args;
+	va_start(args, format);
+
+	// Determine the size of the formatted string
+	va_list args_copy;
+	va_copy(args_copy, args);
+	int size = std::vsnprintf(nullptr, 0, format, args_copy);
+	va_end(args_copy);
+
+	if (size < 0)
+	{
+		va_end(args);
+		throw std::runtime_error("Error during formatting.");
+	}
+
+	// Allocate memory for the formatted string
+	std::vector<char> buffer(size + 1);
+	std::vsnprintf(buffer.data(), buffer.size(), format, args);
+
+	va_end(args);
+
+	// Output the formatted string to the console
+	LogData log{};
+	log.color = color;
+
+	if (verbose)
+		log.message = "[" + std::string(file) + ":" + std::to_string(line) + " (" + func + ")]\n" + buffer.data();
+	else
+		log.message = buffer.data();
+
+	g_app.logs.emplace_back(log);
+
+	if (g_app.logs.size() > 1024)
+		g_app.logs.erase(g_app.logs.begin());
+}
 
 // Window
 i32 App::GetWidth()
@@ -109,10 +161,22 @@ struct Camera
 	f32 m30 = 0, m31 = 0, m32 = 0, m33 = 0;
 };
 
+struct Point2
+{
+	f32 x1 = 0, y1 = 0;
+	u32 c = 0;
+};
+
 struct Line2
 {
 	f32 x1 = 0, y1 = 0;
 	f32 x2 = 0, y2 = 0;
+	u32 c = 0;
+};
+
+struct Point3
+{
+	f32 x1 = 0, y1 = 0, z1 = 0;
 	u32 c = 0;
 };
 
@@ -137,48 +201,23 @@ struct Quad3
 	u32 c = 0;
 };
 
-struct CmdIdCounter
+static u32 cmd_new_id()
 {
-	static u32 Id()
-	{
-		static u32 counter = 0;
-		return ++counter;
-	}
-};
+	static u32 counter = 0;
+	return ++counter;
+}
 
-template <typename T>
-struct CmdIdImpl
+static u32 cmd_id(u8* ptr)
 {
-	static u32 Id()
-	{
-		static const u32 id = CmdIdCounter::Id();
-		return id;
-	}
-};
-
-template <typename T>
-struct CmdId
-{
-	static u32 Id()
-	{
-		return CmdIdImpl<std::decay_t<T>>::Id();
-	}
-};
-
-static u32 cmd_get_id(u8*& ptr)
-{
-	//u8* ptr = g_app.cmds.data() + i;
 	u32 id = *reinterpret_cast<u32*>(ptr);
-	ptr += sizeof(u32);
 	return id;
 }
 
 template <typename T>
-static const T& cmd_get(u8*& ptr)
+static const T& cmd_data(u8* ptr)
 {
-	const auto& cmd = *reinterpret_cast<T*>(ptr);
-	ptr += sizeof(u32) + sizeof(T);
-	return cmd;
+	const auto& data = *reinterpret_cast<T*>(ptr + sizeof(u32));
+	return data;
 }
 
 template <typename T>
@@ -195,6 +234,41 @@ static void cmd_push(const T& cmd)
 	std::memcpy(ptr, &cmd, sizeof(T));
 }
 
+template <typename T>
+struct CmdIdImpl
+{
+	static u32 Id()
+	{
+		static const u32 id = cmd_new_id();
+		return id;
+	}
+};
+
+template <typename T>
+struct CmdId
+{
+	static u32 Id()
+	{
+		return CmdIdImpl<std::decay_t<T>>::Id();
+	}
+};
+
+template <typename T>
+static void cmd_impl(const T& v) { return false; }
+
+template <typename T>
+static bool cmd_execute(u8*& ptr)
+{
+	u32 id = cmd_id(ptr);
+	if (id != CmdId<T>::Id())
+		return false;
+
+	cmd_impl(cmd_data<T>(ptr));
+	ptr += sizeof(u32) + sizeof(T);
+
+	return true;
+}
+
 void App::SetCamera(
 	f32 m00, f32 m01, f32 m02, f32 m03,
 	f32 m10, f32 m11, f32 m12, f32 m13,
@@ -202,6 +276,11 @@ void App::SetCamera(
 	f32 m30, f32 m31, f32 m32, f32 m33)
 {
 	cmd_push(Camera{ m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33 });
+}
+
+void App::DrawPoint2(f32 x1, f32 y1, u32 c)
+{
+	cmd_push(Point2{ x1, y1, c });
 }
 
 void App::DrawLine2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c)
@@ -214,6 +293,11 @@ void App::DrawQuad2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c)
 	cmd_push(Quad2{ x1, y1, x2, y2, c });
 }
 
+void App::DrawPoint3(f32 x1, f32 y1, f32 z1, u32 c)
+{
+	cmd_push(Point3{ x1, y1, z1, c });
+}
+
 void App::DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c)
 {
 	cmd_push(Line3{ x1, y1, z1, x2, y2, z2, c });
@@ -222,6 +306,98 @@ void App::DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c)
 void App::DrawQuad3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c)
 {
 	cmd_push(Quad3{ x1, y1, z1, x2, y2, z2, c });
+}
+
+template <>
+static void cmd_impl(const Camera& v)
+{
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendEquation(GL_FUNC_ADD);
+
+	glEnable(GL_DEPTH_TEST);
+
+	glPointSize(5.0f);
+	glLineWidth(2.0f);
+
+	glBindVertexArray(g_app.vao);
+
+	glUseProgram(g_app.shader);
+	glUniformMatrix4fv(glGetUniformLocation(g_app.shader, "ProjMtx"), 1, GL_FALSE, (GLfloat*)&v);
+
+	glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
+
+	glBufferData(GL_ARRAY_BUFFER, g_app.points.size() * sizeof(Vertex), g_app.points.data(), GL_DYNAMIC_DRAW);
+	glDrawArrays(GL_POINTS, 0, (GLsizei)g_app.points.size());
+
+	glBufferData(GL_ARRAY_BUFFER, g_app.lines.size() * sizeof(Vertex), g_app.lines.data(), GL_DYNAMIC_DRAW);
+	glDrawArrays(GL_LINES, 0, (GLsizei)g_app.lines.size());
+
+	glBufferData(GL_ARRAY_BUFFER, g_app.quads.size() * sizeof(Vertex), g_app.quads.data(), GL_DYNAMIC_DRAW);
+	glDrawArrays(GL_TRIANGLES, 0, (GLsizei)g_app.quads.size());
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glUseProgram(0);
+	glBindVertexArray(0);
+
+	glDisable(GL_DEPTH_TEST);
+
+	glDisable(GL_BLEND);
+
+	g_app.points.clear();
+	g_app.lines.clear();
+	g_app.quads.clear();
+}
+
+template <>
+static void cmd_impl(const Point2& v)
+{
+	g_app.points.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
+}
+
+template <>
+static void cmd_impl(const Line2& v)
+{
+	g_app.lines.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
+	g_app.lines.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+}
+
+template <>
+static void cmd_impl(const Quad2& v)
+{
+	g_app.quads.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
+	g_app.quads.emplace_back(Vertex{ v.x2, v.y1, 0, v.c });
+	g_app.quads.emplace_back(Vertex{ v.x1, v.y2, 0, v.c });
+
+	g_app.quads.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+	g_app.quads.emplace_back(Vertex{ v.x1, v.y2, 0, v.c });
+	g_app.quads.emplace_back(Vertex{ v.x2, v.y1, 0, v.c });
+}
+
+template <>
+static void cmd_impl(const Point3& v)
+{
+	g_app.points.emplace_back(Vertex{ v.x1, v.y1, v.z1, v.c });
+}
+
+template <>
+static void cmd_impl(const Line3& v)
+{
+	g_app.lines.emplace_back(Vertex{ v.x1, v.y1, v.z1, v.c });
+	g_app.lines.emplace_back(Vertex{ v.x2, v.y2, v.z2, v.c });
+}
+
+template <>
+static void cmd_impl(const Quad3& v)
+{
+	g_app.quads.emplace_back(Vertex{ v.x1, v.y1, v.z1, v.c });
+	g_app.quads.emplace_back(Vertex{ v.x2, v.y1, v.z1, v.c });
+	g_app.quads.emplace_back(Vertex{ v.x1, v.y2, v.z2, v.c });
+
+	g_app.quads.emplace_back(Vertex{ v.x2, v.y2, v.z2, v.c });
+	g_app.quads.emplace_back(Vertex{ v.x1, v.y2, v.z2, v.c });
+	g_app.quads.emplace_back(Vertex{ v.x2, v.y1, v.z1, v.c });
 }
 
 // Script
@@ -319,7 +495,10 @@ static WrenLoadModuleResult wren_load_module(WrenVM* vm, const char* name)
 
 static void wren_write(WrenVM* vm, const char* text)
 {
-	printf("%s", text);
+	if (strcmp(text, "\n") == 0)
+		return;
+
+	App::Log(false, "", 0, "", 0xFFFFFFFF, "%s", text);
 }
 
 static void wren_error(WrenVM* vm, WrenErrorType errorType, const char* module, const int line, const char* msg)
@@ -327,17 +506,17 @@ static void wren_error(WrenVM* vm, WrenErrorType errorType, const char* module, 
 	switch (errorType)
 	{
 	case WREN_ERROR_COMPILE:
-		std::cout << "Wren Error Compile" << std::endl;
-		break;// Log::Error("[{} line {}] {}", module, line, msg); break;
+		LOGE("Wren Error Compile [%s line %d] %s", module, line, msg);
+		break;
 	case WREN_ERROR_STACK_TRACE:
-		std::cout << "Wren Error Stack Trace" << std::endl;
-		break;//Log::Error("[{} line {}] in {}", module, line, msg); break;
+		LOGE("Wren Error Stack Trace [%s line %d] %s", module, line, msg);
+		break;
 	case WREN_ERROR_RUNTIME:
-		std::cout << "Wren Error Runtime" << std::endl;
-		break;//Log::Error("[Runtime] {}", msg); break;
+		LOGE("Wren Error Runtime [%s line %d] %s", module, line, msg);
+		break;
 	}
 
-	//s_error = true;
+	g_app.error = true;
 }
 
 static std::string file_load(const char* filepath)
@@ -379,17 +558,17 @@ void App::ParseSource(const char* moduleName, const char* source)
 	{
 	case WREN_RESULT_COMPILE_ERROR:
 		g_app.error = true;
-		std::cout << "Wren compilation error on module: " << moduleName << std::endl;
+		LOGE("Wren compilation error on module: %s", moduleName);
 		break;
 
 	case WREN_RESULT_RUNTIME_ERROR:
 		g_app.error = true;
-		std::cout << "Wren runtime error on module: " << moduleName << std::endl;
+		LOGE("Wren runtime error on module: %s", moduleName);
 		break;
 
 	case WREN_RESULT_SUCCESS:
 		g_app.error = false;
-		std::cout << "Wren successfully compiled module: " << moduleName << std::endl;
+		LOGI("Wren successfully compiled module: %s", moduleName);
 		break;
 	}
 }
@@ -479,7 +658,7 @@ void App::SetSlotDouble(ScriptVM* vm, i32 slot, f64 value)
 // Setup
 static void glfw_error_callback(int i, const char* c)
 {
-	std::cout << "GLFW Error [" << i << "]: " << c << std::endl;
+	LOGE("GLFW Error [%s]: ", c);
 }
 
 static bool glfw_initialize(const AppConfig& config)
@@ -487,7 +666,7 @@ static bool glfw_initialize(const AppConfig& config)
 	glfwSetErrorCallback(glfw_error_callback);
 	if (!glfwInit())
 	{
-		std::cout << "Failed to initialize GLFW!" << std::endl;
+		LOGE("Failed to initialize GLFW!");
 		return false;
 	}
 
@@ -523,12 +702,14 @@ static bool glfw_initialize(const AppConfig& config)
 	g_app.window = glfwCreateWindow(width, height, config.title, pMonitor, NULL);
 	if (g_app.window == NULL)
 	{
-		std::cout << "Failed to create GLFW window!" << std::endl;
+		LOGE("Failed to create GLFW window!");
 		return false;
 	}
 
 	glfwMakeContextCurrent(g_app.window);
 	glfwSwapInterval(1);
+
+	return true;
 }
 
 static void APIENTRY opengl_debug_callback(GLenum source, GLenum type, u32 id, GLenum severity, GLsizei length, const char* message, const void* userParam)
@@ -537,7 +718,7 @@ static void APIENTRY opengl_debug_callback(GLenum source, GLenum type, u32 id, G
 	if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
 		return;
 
-	std::cout << "GL Severity [ID]: Message" << std::endl;// -Source:({}) - Type : ({}) - Severity : ({})\n{}", id, GetGlSource(source), GetGlType(type), GetGlSeverity(severity), message);
+	LOGW("GL Severity [ID]: Message");// -Source:({}) - Type : ({}) - Severity : ({})\n{}", id, GetGlSource(source), GetGlType(type), GetGlSeverity(severity), message);
 }
 
 static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
@@ -553,7 +734,7 @@ static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
 	if (!success)
 	{
 		glGetShaderInfoLog(vshader, 1024, NULL, log);
-		std::cout << "Failed to compile vertex shader: " << log << std::endl;
+		LOGE("Failed to compile vertex shader: %s", log);
 	}
 
 	// Compile fragment shader
@@ -565,7 +746,7 @@ static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
 	if (!success)
 	{
 		glGetShaderInfoLog(fshader, 1024, NULL, log);
-		std::cout << "Failed to compile fragment shader: " << log << std::endl;
+		LOGE("Failed to compile fragment shader: %s", log);
 	}
 
 	// Link vertex and fragment shader together
@@ -573,6 +754,21 @@ static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
 	glAttachShader(program, vshader);
 	glAttachShader(program, fshader);
 	glLinkProgram(program);
+
+	glGetProgramiv(program, GL_LINK_STATUS, &success);
+	if (!success)
+	{
+		glGetProgramInfoLog(program, 1024, NULL, log);
+		LOGE("Failed to link shader program: %s", log);
+	}
+
+	glValidateProgram(program);
+	glGetProgramiv(program, GL_VALIDATE_STATUS, &success);
+	if (!success)
+	{
+		glGetProgramInfoLog(program, 1024, NULL, log);
+		LOGE("Shader validation error: %s", log);
+	}
 
 	// Delete shaders objects
 	glDeleteShader(vshader);
@@ -585,7 +781,7 @@ static bool opengl_initialize(const AppConfig& config)
 {
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
-		std::cout << "Failed to initialize GLAD!" << std::endl;
+		LOGE("Failed to initialize GLAD!");
 		return false;
 	}
 
@@ -604,32 +800,44 @@ static bool opengl_initialize(const AppConfig& config)
 
 	static const char* vert_src =
 		"#version 330 core\n"
-		"layout (location = 0) in vec3 v_pos;\n"
-		"layout (location = 1) in vec4 v_col;\n"
-		"layout (location = 0) out vec4 o_col;\n"
-		"layout (location = 0) uniform mat4 VP;\n"
-		"void main() { gl_Position = VP * vec4(v_pos, 1); o_col = v_col; }";
+		"precision highp float;\n"
+		"layout (location = 0) in vec3 Position;\n"
+		"layout (location = 1) in vec4 Color;\n"
+		"out vec4 Frag_Color;\n"
+		"uniform mat4 ProjMtx;\n"
+		"void main()\n"
+		"{\n"
+		"	Frag_Color = Color;\n"
+		"	gl_Position = ProjMtx * vec4(Position, 1);\n"
+		"}";
 	static const char* frag_src =
+		"#version 330 core\n"
 		"precision mediump float;\n"
-		"layout (location = 0) in vec4 i_col;\n"
-		"layout (location = 0) out vec4 o_col;\n"
-		"void main() { o_col = i_col; }";
+		"in vec4 Frag_Color;\n"
+		"layout (location = 0) out vec4 Out_Color;\n"
+		"void main()\n"
+		"{\n"
+		"	Out_Color = Frag_Color;\n"
+		"}";
 
 	g_app.shader = opengl_load_shader(vert_src, frag_src);
 
 	glGenVertexArrays(1, &g_app.vao);
-	glBindVertexArray(g_app.vao);
-
 	glGenBuffers(1, &g_app.vbo);
+
+	glBindVertexArray(g_app.vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
 
 	const GLsizei stride = 3 * sizeof(f32) + sizeof(u32);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)0);
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 4, GL_UNSIGNED_INT, GL_TRUE, stride, (GLvoid*)(3 * sizeof(f32)));
+	glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, (GLvoid*)(3 * sizeof(f32)));
 
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
+
+	return true;
 }
 
 static bool imgui_initialize(const AppConfig& config)
@@ -642,20 +850,22 @@ static bool imgui_initialize(const AppConfig& config)
 
 	if (!ImGui_ImplGlfw_InitForOpenGL(g_app.window, true))
 	{
-		std::cout << "Failed to initialize ImGui GLFW!" << std::endl;
+		LOGE("Failed to initialize ImGui GLFW!");
 		return false;
 	}
 
 	if (!ImGui_ImplOpenGL3_Init("#version 330 core\n"))
 	{
-		std::cout << "Failed to initialize ImGui OpenGL!" << std::endl;
+		LOGE("Failed to initialize ImGui OpenGL!");
 		return false;
 	}
 
 	ImGui::StyleColorsDark();
+
+	return true;
 }
 
-static void wren_initialize()
+static bool wren_initialize()
 {
 	WrenConfiguration config;
 	wrenInitConfiguration(&config);
@@ -668,6 +878,8 @@ static void wren_initialize()
 	config.minHeapSize = 1024LL * 1024 * 16;
 	config.heapGrowthPercent = 80;
 	g_app.vm = wrenNewVM(&config);
+
+	return true;
 }
 
 bool App::Initialize(const AppConfig& config)
@@ -728,10 +940,12 @@ void App::Shutdown()
 	glfw_shutdown();
 }
 
-#define SCRIPT_ARGS_ARR(s, n, t) f32 v[n]; for (u8 i = s; i < n; ++i) v[i] = GetSlot##t##(vm, i + 1);
-
 void App::Reload(AppBindApiFn BindApi)
 {
+	if (!g_app.reload)
+		return;
+	g_app.reload = false;
+
 	if (g_app.vm != nullptr)
 	{
 		wren_shutdown();
@@ -739,49 +953,47 @@ void App::Reload(AppBindApiFn BindApi)
 
 	wren_initialize();
 
-	BindApi();
-
 	// Window
-	BindMethod("app", "App", true, "getWidth()",
+	BindMethod("app", "App", true, "width",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 0);
-			SetSlotInt(vm, 1, GetWidth());
+			SetSlotInt(vm, 0, GetWidth());
 		});
 
-	BindMethod("app", "App", true, "getHeight()",
+	BindMethod("app", "App", true, "height",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 0);
-			SetSlotInt(vm, 1, GetHeight());
+			SetSlotInt(vm, 0, GetHeight());
 		});
 
-	BindMethod("app", "App", true, "getMouseX()",
+	BindMethod("app", "App", true, "mouseX",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 0);
-			SetSlotDouble(vm, 1, GetMouseX());
+			SetSlotDouble(vm, 0, GetMouseX());
 		});
 
-	BindMethod("app", "App", true, "getMouseY()",
+	BindMethod("app", "App", true, "mouseY",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 0);
-			SetSlotDouble(vm, 1, GetMouseY());
+			SetSlotDouble(vm, 0, GetMouseY());
 		});
 
 	BindMethod("app", "App", true, "getButton(_)",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 1);
-			SetSlotBool(vm, 1, GetButton(GetSlotInt(vm, 1)));
+			SetSlotBool(vm, 0, GetButton(GetSlotInt(vm, 1)));
 		});
 
 	BindMethod("app", "App", true, "getKey(_)",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 1);
-			SetSlotBool(vm, 1, GetKey(GetSlotInt(vm, 1)));
+			SetSlotBool(vm, 0, GetKey(GetSlotInt(vm, 1)));
 		});
 
 	BindMethod("app", "App", true, "close()",
@@ -792,6 +1004,8 @@ void App::Reload(AppBindApiFn BindApi)
 		});
 
 	// Graphics
+#define SCRIPT_ARGS_ARR(s, n, t) f32 v[n]; for (u8 i = s; i < n; ++i) v[i] = GetSlot##t##(vm, i + 1);
+
 	BindMethod("app", "App", true, "setCamera(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
@@ -802,6 +1016,14 @@ void App::Reload(AppBindApiFn BindApi)
 				v[4], v[5], v[6], v[7],
 				v[8], v[9], v[10], v[11],
 				v[12], v[13], v[14], v[15]);
+		});
+
+	BindMethod("app", "App", true, "drawPoint2(_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 5);
+			SCRIPT_ARGS_ARR(0, 2, Float);
+			DrawPoint2(v[0], v[1], GetSlotUInt(vm, 3));
 		});
 
 	BindMethod("app", "App", true, "drawLine2(_,_,_,_,_)",
@@ -820,6 +1042,14 @@ void App::Reload(AppBindApiFn BindApi)
 			DrawQuad2(v[0], v[1], v[2], v[3], GetSlotUInt(vm, 5));
 		});
 
+	BindMethod("app", "App", true, "drawPoint3(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 5);
+			SCRIPT_ARGS_ARR(0, 3, Float);
+			DrawPoint3(v[0], v[1], v[2], GetSlotUInt(vm, 4));
+		});
+
 	BindMethod("app", "App", true, "drawLine3(_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
@@ -836,7 +1066,9 @@ void App::Reload(AppBindApiFn BindApi)
 			DrawQuad3(v[0], v[1], v[2], v[3], v[4], v[5], GetSlotUInt(vm, 7));
 		});
 
-	ParseFile("app", PATH("/Common/App.wren"));
+	ParseFile("app", PATH("/Common/app.wren"));
+
+	BindApi();
 
 	// Game callbacks
 	ParseSource("game", g_app.script.c_str());
@@ -877,65 +1109,28 @@ static void app_render_graphics()
 	u8* ptr = g_app.cmds.data();
 	while (ptr != g_app.cmds.data() + g_app.cmds.size())
 	{
-		u32 id = cmd_get_id(ptr);
-
-		if (id == CmdId<Camera>::Id())
-		{
-			const auto& cam = cmd_get<Camera>(ptr);
-			glBindVertexArray(g_app.vao);
-
-			glUseProgram(g_app.shader);
-			glUniformMatrix4fv(0, 1, GL_FALSE, (f32*)&cam);
-
-			glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
-			glBufferData(GL_ARRAY_BUFFER, g_app.lines.size() * sizeof(Vertex), g_app.lines.data(), GL_DYNAMIC_DRAW);
-			glDrawArrays(GL_LINES, 0, 2 * (GLsizei)g_app.lines.size());
-
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
-			glUseProgram(0);
-			glBindVertexArray(0);
-
-			g_app.lines.clear();
-			g_app.quads.clear();
+		if (cmd_execute<Camera>(ptr))
 			continue;
-		}
-
-		if (id == CmdId<Line2>::Id())
-		{
-			const auto& v = cmd_get<Line2>(ptr);
-			g_app.lines.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
-			g_app.lines.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+		if (cmd_execute<Point2>(ptr))
 			continue;
-		}
-
-		if (id == CmdId<Quad2>::Id())
-		{
-			const auto& v = cmd_get<Quad2>(ptr);
-			g_app.quads.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
-			g_app.quads.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
-			g_app.quads.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
-
-			g_app.quads.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
-			g_app.quads.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
-			g_app.quads.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+		if (cmd_execute<Line2>(ptr))
 			continue;
-		}
-
-		if (id == CmdId<Line3>::Id())
-		{
-			const auto& cam = cmd_get<Line3>(ptr);
+		if (cmd_execute<Quad2>(ptr))
 			continue;
-		}
-
-		if (id == CmdId<Quad3>::Id())
-		{
-			const auto& cam = cmd_get<Quad3>(ptr);
+		if (cmd_execute<Point3>(ptr))
 			continue;
-		}
+		if (cmd_execute<Line3>(ptr))
+			continue;
+		if (cmd_execute<Quad3>(ptr))
+			continue;
 
 		break;
 	}
 	g_app.cmds.clear();
+
+	GLenum err;
+	while ((err = glGetError()) != GL_NO_ERROR)
+		LOGE("OpenGL error: %d", err);
 }
 
 static void app_render_gui()
@@ -954,38 +1149,81 @@ static void app_render_gui()
 		}
 		ImGui::EndMenuBar();
 	}
+	
+	if (ImGui::BeginTabBar("TabBar"))
+	{
+		if (ImGui::BeginTabItem("Code"))
+		{
+			// Script loader
+			ImGui::InputText("Path", &g_app.filepath);
 
-	// Script loader
-	ImGui::InputText("Path", &g_app.filepath);
+			ImGui::SameLine();
 
-	ImGui::SameLine();
+			if (ImGui::Button("Load"))
+				g_app.script = file_load(g_app.filepath.c_str());
 
-	if (ImGui::Button("Load"))
-		g_app.script = file_load(g_app.filepath.c_str());
+			ImGui::SameLine();
 
-	ImGui::SameLine();
+			if (ImGui::Button("Save"))
+				file_save(g_app.filepath.c_str(), g_app.script);
 
-	if (ImGui::Button("Save"))
-		file_save(g_app.filepath.c_str(), g_app.script);
+			// Code editor
+			if (ImGui::Button("Reload"))
+				g_app.reload = true;
 
-	// Code editor
-	if (ImGui::Button("Reload"))
-		g_app.reload = true;
+			ImGui::SameLine();
 
-	ImGui::SameLine();
+			if (ImGui::Button(g_app.paused ? "Play" : "Pause"))
+				g_app.paused = !g_app.paused;
 
-	if (ImGui::Button(g_app.paused ? "Play" : "Pause"))
-		g_app.paused = !g_app.paused;
+			ImGui::SameLine();
 
-	ImGui::SameLine();
+			ImGui::InputFloat("Font Size", &g_app.fontSize, 0.1f, 1.0f, "%.3f", 0);
+			g_app.fontSize = std::max(0.5f, g_app.fontSize);
 
-	ImGui::InputFloat("Font Size", &g_app.fontSize, 0.1f, 1.0f, "%.3f", 0);
-	g_app.fontSize = std::max(0.5f, g_app.fontSize);
+			ImGui::SetWindowFontScale(g_app.fontSize);
+			ImGui::InputTextMultiline("##Source", &g_app.script, ImGui::GetContentRegionAvail(), ImGuiInputTextFlags_AllowTabInput);
+			ImGui::SetWindowFontScale(1.0f);
 
-	ImGui::SetWindowFontScale(g_app.fontSize);
-	ImGui::InputTextMultiline("##Source", &g_app.script, ImGui::GetContentRegionAvail(), ImGuiInputTextFlags_AllowTabInput);
-	ImGui::SetWindowFontScale(1.0f);
+			ImGui::EndTabItem();
+		}
+
+		if (ImGui::BeginTabItem("Console"))
+		{
+			const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
+			if (ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
+			{
+				if (ImGui::BeginPopupContextWindow())
+				{
+					if (ImGui::Selectable("Clear"))
+						g_app.logs.clear();
+					ImGui::EndPopup();
+				}
+
+				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1));
+				for (const auto& log : g_app.logs)
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(((log.color >> 24) & 0xFF) / 255.0f, ((log.color >> 16) & 0xFF) / 255.0f, ((log.color >> 8) & 0xFF) / 255.0f, (log.color & 0xFF) / 255.0f));
+					ImGui::TextUnformatted(log.message.c_str());
+					ImGui::PopStyleColor();
+				}
+
+				if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+					ImGui::SetScrollHereY(1.0f);
+
+				ImGui::PopStyleVar();
+			}
+			ImGui::EndChild();
+
+			ImGui::EndTabItem();
+		}
+
+		ImGui::EndTabBar();
+	}
+	
 	ImGui::End();
+
+	//ImGui::ShowDemoWindow();
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -993,6 +1231,7 @@ static void app_render_gui()
 
 void App::Render()
 {
+	glViewport(0, 0, GetWidth(), GetHeight());
 	glClearColor(0, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -1012,12 +1251,7 @@ int App::Run(AppConfigureFn Configure, AppBindApiFn BindApi)
 	f64 lastTime = glfwGetTime();
 	while (!glfwWindowShouldClose(g_app.window))
 	{
-		if (g_app.reload)
-		{
-			g_app.reload = false;
-
-			Reload(BindApi);
-		}
+		Reload(BindApi);
 
 		f64 currentTime = glfwGetTime();
 		f64 deltaTime = currentTime - lastTime;

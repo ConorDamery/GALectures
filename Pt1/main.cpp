@@ -22,7 +22,8 @@ static void BindApi()
 			std::cout << "Hello";
 		});
 
-	App::ParseFile("mvec", PATH("/Pt1/MVec.wren"));
+	App::ParseFile("mvec", PATH("/Pt1/mvec.wren"));
+	App::ParseFile("utils", PATH("/Pt1/utils.wren"));
 }
 
 int main(int argc, char** args)

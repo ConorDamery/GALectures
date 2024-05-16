@@ -2,9 +2,21 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstdlib>
 
 // Util
 #define PATH(x) (PROJECT_PATH x)
+#define LOGI(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFFFFFF, format, ##__VA_ARGS__)
+#define LOGW(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFF00FF, format, ##__VA_ARGS__)
+#define LOGE(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFF0000FF, format, ##__VA_ARGS__)
+
+#define ASSERT(condition, message) \
+    do { \
+        if (!(condition)) { \
+			LOGE("Assertion failed: %s", message); \
+            std::abort(); \
+        } \
+    } while (false)
 
 using u8 = uint8_t;
 using u16 = uint16_t;
@@ -60,6 +72,9 @@ private:
 public:
 	static int Run(AppConfigureFn Configure, AppBindApiFn BindApi);
 
+	// Util
+	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
+
 	// Window
 	static i32 GetWidth();
 	static i32 GetHeight();
@@ -78,9 +93,11 @@ public:
 		f32 m20, f32 m21, f32 m22, f32 m23,
 		f32 m30, f32 m31, f32 m32, f32 m33);
 
+	static void DrawPoint2(f32 x1, f32 y1, u32 c);
 	static void DrawLine2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c);
 	static void DrawQuad2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c);
 
+	static void DrawPoint3(f32 x1, f32 y1, f32 z1, u32 c);
 	static void DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c);
 	static void DrawQuad3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c);
 

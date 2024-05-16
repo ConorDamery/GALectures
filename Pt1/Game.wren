@@ -1,4 +1,5 @@
 import "app" for App
+import "utils" for Utils
 import "mvec" for MVec
 
 class Game {
@@ -6,16 +7,15 @@ class Game {
 	}
 
 	static update(dt) {
-		App.drawLine2(0, 0, 1, 1, 0xFFFFFFFF)
-		App.drawQuad2(0, 0, 1, 1, 0xFFFFFFFF)
-		App.drawLine3(0, 0, 0, 1, 1, 1, 0xFFFFFFFF)
-		App.drawQuad3(0, 0, 0, 1, 1, 1, 0xFFFFFFFF)
+		Utils.drawGrid(100, 100, -0.5, 100, 0x5FFFFFFF)
 
-		var aspect = App.getWidth() / App.getHeight()
-		var f = 1 / (70 * 0.5).tan()
-		var zn = 0.1
-		var zf = 100.0
-		var rinv = 1.0f / (zn - zf)
-		App.setCamera(f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (zf + zn) * rinv, (2 * zf * zn) * rinv, 0, 0, -1, 0)
+		var mouseX = (App.mouseX / App.width) - 0.5
+		var mouseY = 0.5 - (App.mouseY / App.height)
+		App.drawPoint3(mouseX, mouseY, -0.5, 0xFFFFFFFF)
+		
+		App.drawLine3(-0.5, -0.5, -5, 0.5, 0.5, -5, 0xFF0000FF)
+		App.drawQuad3(-0.5, -0.5, -5, 0.5, 0.5, -5, 0x5F0000FF)
+		
+		Utils.setPerspective(1.22173, App.width / App.height, 0.1, 1000.0)
 	}
 }
