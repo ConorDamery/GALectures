@@ -1,5 +1,7 @@
 #include <App.hpp>
 
+#include <iostream>
+
 static AppConfig Configure()
 {
 	AppConfig config{};
@@ -15,6 +17,12 @@ static AppConfig Configure()
 
 static void BindApi()
 {
+	App::BindMethod("mvec", "MVec", true, "test(_)", [](ScriptVM* vm)
+		{
+			std::cout << "Hello";
+		});
+
+	App::ParseFile("mvec", PATH("/Pt2/mvec.wren"));
 }
 
 int main(int argc, char** args)

@@ -74,6 +74,8 @@ public:
 
 	// Util
 	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
+	static bool DebugBool(const char* label, bool v);
+	static f32 DebugFloat(const char* label, f32 v);
 
 	// Window
 	static i32 GetWidth();
@@ -87,19 +89,25 @@ public:
 	static void Close();
 
 	// Graphics
-	static void SetCamera(
+	static void BeginDraw(bool alpha, bool ztest, f32 pointSize, f32 lineWidth);
+	static void EndDraw(u32 mode);
+
+	static void SetViewport(u32 x, u32 y, u32 w, u32 h);
+	static void ClearScreen(f32 r, f32 g, f32 b, f32 a, f32 d, f32 s, u32 flags);
+
+	static void SetView(
 		f32 m00, f32 m01, f32 m02, f32 m03,
 		f32 m10, f32 m11, f32 m12, f32 m13,
 		f32 m20, f32 m21, f32 m22, f32 m23,
 		f32 m30, f32 m31, f32 m32, f32 m33);
 
-	static void DrawPoint2(f32 x1, f32 y1, u32 c);
-	static void DrawLine2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c);
-	static void DrawQuad2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c);
+	static void SetProjection(
+		f32 m00, f32 m01, f32 m02, f32 m03,
+		f32 m10, f32 m11, f32 m12, f32 m13,
+		f32 m20, f32 m21, f32 m22, f32 m23,
+		f32 m30, f32 m31, f32 m32, f32 m33);
 
-	static void DrawPoint3(f32 x1, f32 y1, f32 z1, u32 c);
-	static void DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c);
-	static void DrawQuad3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c);
+	static void AddVertex(f32 x, f32 y, f32 z, u32 c);
 
 	// Script
 	static void ParseFile(const char* moduleName, const char* filepath);

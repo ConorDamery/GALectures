@@ -26,6 +26,42 @@ struct LogData
 	std::string message;
 };
 
+struct Begin
+{
+	bool alpha = true;
+	bool ztest = true;
+	f32 pointSize = 5.0f;
+	f32 lineWidth = 2.0f;
+};
+
+struct End
+{
+	u32 mode = 0;
+};
+
+struct Viewport
+{
+	u32 x = 0, y = 0;
+	u32 w = 0, h = 0;
+};
+
+struct Clear
+{
+	f32 r = 0, g = 0, b = 0, a = 0;
+	f32 d = 0, s = 0;
+	u32 flags = 0;
+};
+
+struct View
+{
+	f32 m[16];
+};
+
+struct Projection
+{
+	f32 m[16];
+};
+
 struct Vertex
 {
 	f32 pos[3] = { 0, 0, 0 };
@@ -44,10 +80,11 @@ struct AppData
 	GLuint shader = 0;
 	GLuint vao = 0;
 	GLuint vbo = 0;
-	std::vector<Vertex> points;
-	std::vector<Vertex> lines;
-	std::vector<Vertex> quads;
+	std::vector<Vertex> vertices;
 	std::vector<u8> cmds;
+
+	View view;
+	Projection projection;
 
 	// Script
 	WrenVM* vm = nullptr;
@@ -108,6 +145,18 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 		g_app.logs.erase(g_app.logs.begin());
 }
 
+bool App::DebugBool(const char* label, bool v)
+{
+	ImGui::Checkbox(label, &v);
+	return v;
+}
+
+f32 App::DebugFloat(const char* label, f32 v)
+{
+	ImGui::DragFloat(label, &v, 0.1f);
+	return v;
+}
+
 // Window
 i32 App::GetWidth()
 {
@@ -153,54 +202,6 @@ void App::Close()
 }
 
 // Graphics
-struct Camera
-{
-	f32 m00 = 0, m01 = 0, m02 = 0, m03 = 0;
-	f32 m10 = 0, m11 = 0, m12 = 0, m13 = 0;
-	f32 m20 = 0, m21 = 0, m22 = 0, m23 = 0;
-	f32 m30 = 0, m31 = 0, m32 = 0, m33 = 0;
-};
-
-struct Point2
-{
-	f32 x1 = 0, y1 = 0;
-	u32 c = 0;
-};
-
-struct Line2
-{
-	f32 x1 = 0, y1 = 0;
-	f32 x2 = 0, y2 = 0;
-	u32 c = 0;
-};
-
-struct Point3
-{
-	f32 x1 = 0, y1 = 0, z1 = 0;
-	u32 c = 0;
-};
-
-struct Line3
-{
-	f32 x1 = 0, y1 = 0, z1 = 0;
-	f32 x2 = 0, y2 = 0, z2 = 0;
-	u32 c = 0;
-};
-
-struct Quad2
-{
-	f32 x1 = 0, y1 = 0;
-	f32 x2 = 0, y2 = 0;
-	u32 c = 0;
-};
-
-struct Quad3
-{
-	f32 x1 = 0, y1 = 0, z1 = 0;
-	f32 x2 = 0, y2 = 0, z2 = 0;
-	u32 c = 0;
-};
-
 static u32 cmd_new_id()
 {
 	static u32 counter = 0;
@@ -269,135 +270,131 @@ static bool cmd_execute(u8*& ptr)
 	return true;
 }
 
-void App::SetCamera(
+void App::BeginDraw(bool alpha, bool ztest, f32 pointSize, f32 lineWidth)
+{
+	cmd_push(Begin{ alpha, ztest, pointSize, lineWidth });
+}
+
+void App::EndDraw(u32 mode)
+{
+	cmd_push(End{ mode });
+}
+
+void App::SetViewport(u32 x, u32 y, u32 w, u32 h)
+{
+	cmd_push(Viewport{ x, y, w, h });
+}
+
+void App::ClearScreen(f32 r, f32 g, f32 b, f32 a, f32 d, f32 s, u32 flags)
+{
+	cmd_push(Clear{ r, g, b, a, d, s, flags });
+}
+
+void App::SetView(
 	f32 m00, f32 m01, f32 m02, f32 m03,
 	f32 m10, f32 m11, f32 m12, f32 m13,
 	f32 m20, f32 m21, f32 m22, f32 m23,
 	f32 m30, f32 m31, f32 m32, f32 m33)
 {
-	cmd_push(Camera{ m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33 });
+	cmd_push(View{ m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33 });
 }
 
-void App::DrawPoint2(f32 x1, f32 y1, u32 c)
+void App::SetProjection(
+	f32 m00, f32 m01, f32 m02, f32 m03,
+	f32 m10, f32 m11, f32 m12, f32 m13,
+	f32 m20, f32 m21, f32 m22, f32 m23,
+	f32 m30, f32 m31, f32 m32, f32 m33)
 {
-	cmd_push(Point2{ x1, y1, c });
+	cmd_push(Projection{ m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33 });
 }
 
-void App::DrawLine2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c)
+void App::AddVertex(f32 x, f32 y, f32 z, u32 c)
 {
-	cmd_push(Line2{ x1, y1, x2, y2, c});
-}
-
-void App::DrawQuad2(f32 x1, f32 y1, f32 x2, f32 y2, u32 c)
-{
-	cmd_push(Quad2{ x1, y1, x2, y2, c });
-}
-
-void App::DrawPoint3(f32 x1, f32 y1, f32 z1, u32 c)
-{
-	cmd_push(Point3{ x1, y1, z1, c });
-}
-
-void App::DrawLine3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c)
-{
-	cmd_push(Line3{ x1, y1, z1, x2, y2, z2, c });
-}
-
-void App::DrawQuad3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u32 c)
-{
-	cmd_push(Quad3{ x1, y1, z1, x2, y2, z2, c });
+	cmd_push(Vertex{ x, y, z, c});
 }
 
 template <>
-static void cmd_impl(const Camera& v)
+static void cmd_impl(const Begin& v)
 {
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glBlendEquation(GL_FUNC_ADD);
+	if (v.alpha)
+	{
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendEquation(GL_FUNC_ADD);
+	}
+	else
+	{
+		glDisable(GL_BLEND);
+	}
 
-	glEnable(GL_DEPTH_TEST);
+	if (v.ztest)
+		glEnable(GL_DEPTH_TEST);
+	else
+		glDisable(GL_DEPTH_TEST);
 
-	glPointSize(5.0f);
-	glLineWidth(2.0f);
+	glPointSize(v.pointSize);
+	glLineWidth(v.lineWidth);
+}
 
+template <>
+static void cmd_impl(const End& v)
+{
 	glBindVertexArray(g_app.vao);
 
 	glUseProgram(g_app.shader);
-	glUniformMatrix4fv(glGetUniformLocation(g_app.shader, "ProjMtx"), 1, GL_FALSE, (GLfloat*)&v);
+	glUniformMatrix4fv(glGetUniformLocation(g_app.shader, "ViewMtx"), 1, GL_FALSE, (GLfloat*)&g_app.view);
+	glUniformMatrix4fv(glGetUniformLocation(g_app.shader, "ProjMtx"), 1, GL_FALSE, (GLfloat*)&g_app.projection);
 
 	glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
 
-	glBufferData(GL_ARRAY_BUFFER, g_app.points.size() * sizeof(Vertex), g_app.points.data(), GL_DYNAMIC_DRAW);
-	glDrawArrays(GL_POINTS, 0, (GLsizei)g_app.points.size());
+	GLenum mode = GL_POINTS;
+	switch (v.mode)
+	{
+	case 0: mode = GL_POINTS; break;
+	case 1: mode = GL_LINES; break;
+	case 2: mode = GL_TRIANGLES; break;
+	}
 
-	glBufferData(GL_ARRAY_BUFFER, g_app.lines.size() * sizeof(Vertex), g_app.lines.data(), GL_DYNAMIC_DRAW);
-	glDrawArrays(GL_LINES, 0, (GLsizei)g_app.lines.size());
-
-	glBufferData(GL_ARRAY_BUFFER, g_app.quads.size() * sizeof(Vertex), g_app.quads.data(), GL_DYNAMIC_DRAW);
-	glDrawArrays(GL_TRIANGLES, 0, (GLsizei)g_app.quads.size());
+	glBufferData(GL_ARRAY_BUFFER, g_app.vertices.size() * sizeof(Vertex), g_app.vertices.data(), GL_DYNAMIC_DRAW);
+	glDrawArrays(mode, 0, (GLsizei)g_app.vertices.size());
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	glUseProgram(0);
 	glBindVertexArray(0);
 
-	glDisable(GL_DEPTH_TEST);
-
-	glDisable(GL_BLEND);
-
-	g_app.points.clear();
-	g_app.lines.clear();
-	g_app.quads.clear();
+	g_app.vertices.clear();
 }
 
 template <>
-static void cmd_impl(const Point2& v)
+static void cmd_impl(const Viewport& v)
 {
-	g_app.points.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
+	glViewport(v.x, v.y, v.w, v.h);
 }
 
 template <>
-static void cmd_impl(const Line2& v)
+static void cmd_impl(const Clear& v)
 {
-	g_app.lines.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
-	g_app.lines.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
+	glClearColor(v.r, v.g, v.b, v.a);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
 template <>
-static void cmd_impl(const Quad2& v)
+static void cmd_impl(const View& v)
 {
-	g_app.quads.emplace_back(Vertex{ v.x1, v.y1, 0, v.c });
-	g_app.quads.emplace_back(Vertex{ v.x2, v.y1, 0, v.c });
-	g_app.quads.emplace_back(Vertex{ v.x1, v.y2, 0, v.c });
-
-	g_app.quads.emplace_back(Vertex{ v.x2, v.y2, 0, v.c });
-	g_app.quads.emplace_back(Vertex{ v.x1, v.y2, 0, v.c });
-	g_app.quads.emplace_back(Vertex{ v.x2, v.y1, 0, v.c });
+	g_app.view = v;
 }
 
 template <>
-static void cmd_impl(const Point3& v)
+static void cmd_impl(const Projection& v)
 {
-	g_app.points.emplace_back(Vertex{ v.x1, v.y1, v.z1, v.c });
+	g_app.projection = v;
 }
 
 template <>
-static void cmd_impl(const Line3& v)
+static void cmd_impl(const Vertex& v)
 {
-	g_app.lines.emplace_back(Vertex{ v.x1, v.y1, v.z1, v.c });
-	g_app.lines.emplace_back(Vertex{ v.x2, v.y2, v.z2, v.c });
-}
-
-template <>
-static void cmd_impl(const Quad3& v)
-{
-	g_app.quads.emplace_back(Vertex{ v.x1, v.y1, v.z1, v.c });
-	g_app.quads.emplace_back(Vertex{ v.x2, v.y1, v.z1, v.c });
-	g_app.quads.emplace_back(Vertex{ v.x1, v.y2, v.z2, v.c });
-
-	g_app.quads.emplace_back(Vertex{ v.x2, v.y2, v.z2, v.c });
-	g_app.quads.emplace_back(Vertex{ v.x1, v.y2, v.z2, v.c });
-	g_app.quads.emplace_back(Vertex{ v.x2, v.y1, v.z1, v.c });
+	g_app.vertices.emplace_back(v);
 }
 
 // Script
@@ -804,11 +801,12 @@ static bool opengl_initialize(const AppConfig& config)
 		"layout (location = 0) in vec3 Position;\n"
 		"layout (location = 1) in vec4 Color;\n"
 		"out vec4 Frag_Color;\n"
+		"uniform mat4 ViewMtx;\n"
 		"uniform mat4 ProjMtx;\n"
 		"void main()\n"
 		"{\n"
 		"	Frag_Color = Color;\n"
-		"	gl_Position = ProjMtx * vec4(Position, 1);\n"
+		"	gl_Position = ProjMtx * ViewMtx * vec4(Position, 1);\n"
 		"}";
 	static const char* frag_src =
 		"#version 330 core\n"
@@ -953,6 +951,21 @@ void App::Reload(AppBindApiFn BindApi)
 
 	wren_initialize();
 
+	// Utils
+	BindMethod("app", "App", true, "debugBool(_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 2);
+			SetSlotBool(vm, 0, DebugBool(GetSlotString(vm, 1), GetSlotBool(vm, 2)));
+		});
+
+	BindMethod("app", "App", true, "debugFloat(_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 2);
+			SetSlotFloat(vm, 0, DebugFloat(GetSlotString(vm, 1), GetSlotFloat(vm, 2)));
+		});
+
 	// Window
 	BindMethod("app", "App", true, "width",
 		[](ScriptVM* vm)
@@ -1006,64 +1019,66 @@ void App::Reload(AppBindApiFn BindApi)
 	// Graphics
 #define SCRIPT_ARGS_ARR(s, n, t) f32 v[n]; for (u8 i = s; i < n; ++i) v[i] = GetSlot##t##(vm, i + 1);
 
-	BindMethod("app", "App", true, "setCamera(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
+	BindMethod("app", "App", true, "begin(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 3);
+			BeginDraw(GetSlotBool(vm, 1), GetSlotBool(vm, 2), GetSlotFloat(vm, 3), GetSlotFloat(vm, 4));
+		});
+
+	BindMethod("app", "App", true, "end(_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 1);
+			EndDraw(GetSlotUInt(vm, 1));
+		});
+
+	BindMethod("app", "App", true, "viewport(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 5);
+			SCRIPT_ARGS_ARR(0, 4, UInt);
+			SetViewport(v[0], v[1], v[2], v[3]);
+		});
+
+	BindMethod("app", "App", true, "clear(_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 7);
+			SCRIPT_ARGS_ARR(0, 6, Float);
+			ClearScreen(v[0], v[1], v[2], v[3], v[4], v[5], GetSlotUInt(vm, 7));
+		});
+
+	BindMethod("app", "App", true, "view(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 10);
 			SCRIPT_ARGS_ARR(0, 16, Float);
-			SetCamera(
+			SetView(
 				v[0], v[1], v[2], v[3],
 				v[4], v[5], v[6], v[7],
 				v[8], v[9], v[10], v[11],
 				v[12], v[13], v[14], v[15]);
 		});
 
-	BindMethod("app", "App", true, "drawPoint2(_,_,_)",
+	BindMethod("app", "App", true, "projection(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 5);
-			SCRIPT_ARGS_ARR(0, 2, Float);
-			DrawPoint2(v[0], v[1], GetSlotUInt(vm, 3));
+			EnsureSlots(vm, 10);
+			SCRIPT_ARGS_ARR(0, 16, Float);
+			SetProjection(
+				v[0], v[1], v[2], v[3],
+				v[4], v[5], v[6], v[7],
+				v[8], v[9], v[10], v[11],
+				v[12], v[13], v[14], v[15]);
 		});
 
-	BindMethod("app", "App", true, "drawLine2(_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			EnsureSlots(vm, 5);
-			SCRIPT_ARGS_ARR(0, 4, Float);
-			DrawLine2(v[0], v[1], v[2], v[3], GetSlotUInt(vm, 5));
-		});
-
-	BindMethod("app", "App", true, "drawQuad2(_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			EnsureSlots(vm, 5);
-			SCRIPT_ARGS_ARR(0, 4, Float);
-			DrawQuad2(v[0], v[1], v[2], v[3], GetSlotUInt(vm, 5));
-		});
-
-	BindMethod("app", "App", true, "drawPoint3(_,_,_,_)",
+	BindMethod("app", "App", true, "vertex(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 5);
 			SCRIPT_ARGS_ARR(0, 3, Float);
-			DrawPoint3(v[0], v[1], v[2], GetSlotUInt(vm, 4));
-		});
-
-	BindMethod("app", "App", true, "drawLine3(_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			EnsureSlots(vm, 7);
-			SCRIPT_ARGS_ARR(0, 6, Float);
-			DrawLine3(v[0], v[1], v[2], v[3], v[4], v[5], GetSlotUInt(vm, 7));
-		});
-
-	BindMethod("app", "App", true, "drawQuad3(_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			EnsureSlots(vm, 7);
-			SCRIPT_ARGS_ARR(0, 6, Float);
-			DrawQuad3(v[0], v[1], v[2], v[3], v[4], v[5], GetSlotUInt(vm, 7));
+			AddVertex(v[0], v[1], v[2], GetSlotUInt(vm, 4));
 		});
 
 	ParseFile("app", PATH("/Common/app.wren"));
@@ -1091,54 +1106,8 @@ void App::Reload(AppBindApiFn BindApi)
 	}
 }
 
-void App::Update(f64 dt)
+static void app_update_gui()
 {
-	glfwPollEvents();
-
-	if (!g_app.error && !g_app.paused)
-	{
-		wrenEnsureSlots(g_app.vm, 2);
-		wrenSetSlotHandle(g_app.vm, 0, g_app.gameClass);
-		wrenSetSlotDouble(g_app.vm, 1, dt);
-		wrenCall(g_app.vm, g_app.updateMethod);
-	}
-}
-
-static void app_render_graphics()
-{
-	u8* ptr = g_app.cmds.data();
-	while (ptr != g_app.cmds.data() + g_app.cmds.size())
-	{
-		if (cmd_execute<Camera>(ptr))
-			continue;
-		if (cmd_execute<Point2>(ptr))
-			continue;
-		if (cmd_execute<Line2>(ptr))
-			continue;
-		if (cmd_execute<Quad2>(ptr))
-			continue;
-		if (cmd_execute<Point3>(ptr))
-			continue;
-		if (cmd_execute<Line3>(ptr))
-			continue;
-		if (cmd_execute<Quad3>(ptr))
-			continue;
-
-		break;
-	}
-	g_app.cmds.clear();
-
-	GLenum err;
-	while ((err = glGetError()) != GL_NO_ERROR)
-		LOGE("OpenGL error: %d", err);
-}
-
-static void app_render_gui()
-{
-	ImGui_ImplGlfw_NewFrame();
-	ImGui_ImplOpenGL3_NewFrame();
-	ImGui::NewFrame();
-
 	ImGui::Begin("App", 0, ImGuiWindowFlags_MenuBar);
 
 	if (ImGui::BeginMenuBar()) {
@@ -1149,7 +1118,7 @@ static void app_render_gui()
 		}
 		ImGui::EndMenuBar();
 	}
-	
+
 	if (ImGui::BeginTabBar("TabBar"))
 	{
 		if (ImGui::BeginTabItem("Code"))
@@ -1220,13 +1189,60 @@ static void app_render_gui()
 
 		ImGui::EndTabBar();
 	}
-	
+
+	ImGui::End();
+}
+
+void App::Update(f64 dt)
+{
+	glfwPollEvents();
+
+	ImGui_ImplGlfw_NewFrame();
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui::NewFrame();
+
+	ImGui::Begin("Debug");
+
+	if (!g_app.error && !g_app.paused)
+	{
+		wrenEnsureSlots(g_app.vm, 2);
+		wrenSetSlotHandle(g_app.vm, 0, g_app.gameClass);
+		wrenSetSlotDouble(g_app.vm, 1, dt);
+		wrenCall(g_app.vm, g_app.updateMethod);
+	}
+
 	ImGui::End();
 
-	//ImGui::ShowDemoWindow();
+	app_update_gui();
+}
 
-	ImGui::Render();
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+static void app_render_graphics()
+{
+	u8* ptr = g_app.cmds.data();
+	while (ptr != g_app.cmds.data() + g_app.cmds.size())
+	{
+		if (cmd_execute<Begin>(ptr))
+			continue;
+		if (cmd_execute<End>(ptr))
+			continue;
+		if (cmd_execute<Viewport>(ptr))
+			continue;
+		if (cmd_execute<Clear>(ptr))
+			continue;
+		if (cmd_execute<View>(ptr))
+			continue;
+		if (cmd_execute<Projection>(ptr))
+			continue;
+		if (cmd_execute<Vertex>(ptr))
+			continue;
+
+		break;
+	}
+	g_app.cmds.clear();
+
+	GLenum err;
+	while ((err = glGetError()) != GL_NO_ERROR)
+		LOGE("OpenGL error: %d", err);
 }
 
 void App::Render()
@@ -1236,7 +1252,9 @@ void App::Render()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	app_render_graphics();
-	app_render_gui();
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	glfwSwapBuffers(g_app.window);
 }

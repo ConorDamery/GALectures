@@ -17,12 +17,6 @@ static AppConfig Configure()
 
 static void BindApi()
 {
-	App::BindMethod("mvec", "MVec", true, "test(_)", [](ScriptVM* vm)
-		{
-			std::cout << "Hello";
-		});
-
-	App::ParseFile("mvec", PATH("/Pt1/mvec.wren"));
 	App::ParseFile("utils", PATH("/Pt1/utils.wren"));
 }
 
