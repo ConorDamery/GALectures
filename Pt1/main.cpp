@@ -10,7 +10,7 @@ static AppConfig Configure()
 	config.title = "GA Lectures Pt1";
 	config.fullscreen = false;
 	config.msaa = 8;
-	config.gamefile = PATH("/Pt1/Game.wren");
+	config.gamefile = PATH("/Pt1/game.wren");
 
 	return config;
 }
