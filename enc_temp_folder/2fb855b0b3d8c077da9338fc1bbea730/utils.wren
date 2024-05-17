@@ -1,17 +1,6 @@
 import "app" for App
 
 class Utils {
-	static mouseX { (App.width / App.height) * ((2 * App.mouseX / App.width) - 1) }
-	static mouseY { 1 - (2 * App.mouseY / App.height) }
-
-	static setup(size) {
-		App.view(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -5, 1)
-		var aspect = App.width / App.height
-		Utils.orthographic(size, aspect, 0.1, 1000.0)
-
-		Utils.drawGrid(10, 10, -1, 10, 0x5FFFFFFF)
-	}
-
 	static orthographic(size, aspect, zn, zf) {
 		var w = size * aspect * 0.5
 		var h = size * 0.5

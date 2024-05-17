@@ -33,38 +33,34 @@ class C2 {
 class Game {
 	static init() {
 		__time = 0
+		__zoom = 5
 		__animate = true
-		__z1 = C2.new(1, 0)
-		__z2 = C2.new(0, 1)
 	}
 
 	static update(dt) {
+		Utils.setup(__zoom)
 		__time = __time + dt
-
-		App.view(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -5, 1)
-		var aspect = App.width / App.height
-		Utils.orthographic(5, aspect, 0.1, 1000.0)
-
-		Utils.drawGrid(10, 10, -1, 10, 0x5FFFFFFF)
 		
 		__animate = App.debugBool("animate", __animate)
-		__z1.debug("z1")
-		__z2.debug("z2")
 		
+		var z1 = C2.new(1, 0)
 		if (__animate) {
-			__z1.r = __time.cos
-			__z1.i = __time.sin
+			z1.r = __time.cos
+			z1.i = __time.sin
 		} else {
-			var mouseX = (2 * App.mouseX / App.width) - 1
-			var mouseY = 1 - (2 * App.mouseY / App.height)
-			__z1.r = mouseX * 2.5 * aspect
-			__z1.i = mouseY * 2.5
+			z1.r = Utils.mouseX * 2.5
+			z1.i = Utils.mouseY * 2.5
 		}
 		
-		var z3 = __z2 * __z1
+		var z2 = C2.new(0, 1)
+		var z3 = z2 * z1
 
-		__z1.draw(0xFF0000FF)
-		__z2.draw(0xFF00FF00)
+		z1.debug("z1")
+		z2.debug("z2")
+		z3.debug("z3")
+
+		z1.draw(0xFF0000FF)
+		z2.draw(0xFF00FF00)
 		z3.draw(0xFF00FFFF)
 	}
 }
