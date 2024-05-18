@@ -23,7 +23,7 @@
 struct LogData
 {
 	u32 color = 0xFFFFFFFF;
-	std::string message;
+	std::string message{};
 };
 
 struct Begin
@@ -54,12 +54,12 @@ struct Clear
 
 struct View
 {
-	f32 m[16];
+	f32 m[16]{};
 };
 
 struct Projection
 {
-	f32 m[16];
+	f32 m[16]{};
 };
 
 struct Vertex
@@ -71,7 +71,7 @@ struct Vertex
 struct AppData
 {
 	// Util
-	std::vector<LogData> logs;
+	std::vector<LogData> logs{};
 
 	// Window
 	GLFWwindow* window = nullptr;
@@ -80,11 +80,11 @@ struct AppData
 	GLuint shader = 0;
 	GLuint vao = 0;
 	GLuint vbo = 0;
-	std::vector<Vertex> vertices;
-	std::vector<u8> cmds;
+	std::vector<Vertex> vertices{};
+	std::vector<u8> cmds{};
 
-	View view;
-	Projection projection;
+	View view{};
+	Projection projection{};
 
 	// Script
 	WrenVM* vm = nullptr;
@@ -95,10 +95,10 @@ struct AppData
 	bool reload = true;
 	bool paused = false;
 
-	std::string filepath;
-	std::string script;
-	std::unordered_map<size_t, ScriptClass> classes;
-	std::unordered_map<size_t, ScriptMethodFn> methods;
+	std::string filepath{};
+	std::string script{};
+	std::unordered_map<size_t, ScriptClass> classes{};
+	std::unordered_map<size_t, ScriptMethodFn> methods{};
 
 	// Editor
 	f32 fontSize = 1.0f;
@@ -587,6 +587,11 @@ void App::EnsureSlots(ScriptVM* vm, i32 count)
 	wrenEnsureSlots(vm, count);
 }
 
+void App::GetVariable(ScriptVM* vm, const char* moduleName, const char* className, i32 slot)
+{
+	wrenGetVariable(vm, moduleName, className, slot);
+}
+
 bool App::GetSlotBool(ScriptVM* vm, i32 slot)
 {
 	return wrenGetSlotBool(vm, slot);
@@ -650,6 +655,11 @@ void App::SetSlotFloat(ScriptVM* vm, i32 slot, f32 value)
 void App::SetSlotDouble(ScriptVM* vm, i32 slot, f64 value)
 {
 	wrenSetSlotDouble(vm, slot, (f64)value);
+}
+
+void* App::SetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t size)
+{
+	return wrenSetSlotNewForeign(vm, slot, classSlot, size);
 }
 
 // Setup
@@ -1017,7 +1027,7 @@ void App::Reload(AppBindApiFn BindApi)
 		});
 
 	// Graphics
-#define SCRIPT_ARGS_ARR(s, n, t) f32 v[n]; for (u8 i = s; i < n; ++i) v[i] = GetSlot##t##(vm, i + 1);
+#define SCRIPT_ARGS_ARR(s, n, p, t) p v[n]; for (u8 i = s; i < n; ++i) v[i] = GetSlot##t##(vm, i + 1);
 
 	BindMethod("app", "App", true, "begin(_,_,_,_)",
 		[](ScriptVM* vm)
@@ -1037,7 +1047,7 @@ void App::Reload(AppBindApiFn BindApi)
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 5);
-			SCRIPT_ARGS_ARR(0, 4, UInt);
+			SCRIPT_ARGS_ARR(0, 4, u32, UInt);
 			SetViewport(v[0], v[1], v[2], v[3]);
 		});
 
@@ -1045,7 +1055,7 @@ void App::Reload(AppBindApiFn BindApi)
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 7);
-			SCRIPT_ARGS_ARR(0, 6, Float);
+			SCRIPT_ARGS_ARR(0, 6, f32, Float);
 			ClearScreen(v[0], v[1], v[2], v[3], v[4], v[5], GetSlotUInt(vm, 7));
 		});
 
@@ -1053,7 +1063,7 @@ void App::Reload(AppBindApiFn BindApi)
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 10);
-			SCRIPT_ARGS_ARR(0, 16, Float);
+			SCRIPT_ARGS_ARR(0, 16, f32, Float);
 			SetView(
 				v[0], v[1], v[2], v[3],
 				v[4], v[5], v[6], v[7],
@@ -1065,7 +1075,7 @@ void App::Reload(AppBindApiFn BindApi)
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 10);
-			SCRIPT_ARGS_ARR(0, 16, Float);
+			SCRIPT_ARGS_ARR(0, 16, f32, Float);
 			SetProjection(
 				v[0], v[1], v[2], v[3],
 				v[4], v[5], v[6], v[7],
@@ -1077,7 +1087,7 @@ void App::Reload(AppBindApiFn BindApi)
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 5);
-			SCRIPT_ARGS_ARR(0, 3, Float);
+			SCRIPT_ARGS_ARR(0, 3, f32, Float);
 			AddVertex(v[0], v[1], v[2], GetSlotUInt(vm, 4));
 		});
 

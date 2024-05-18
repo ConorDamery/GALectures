@@ -1,71 +1,6 @@
 import "app" for App
 import "utils" for Utils
-
-class MV2 {
-	construct new(r, i, j, ij) {
-        _r = r
-        _i = i
-		_j = j
-		_ij = ij
-    }
-
-	// Members
-    r { _r }
-    i { _i }
-	j { _j }
-    ij { _ij }
-	r=(v) { _r = v }
-    i=(v) { _i = v }
-    j=(v) { _j = v }
-    ij=(v) { _ij = v }
-	
-	// Geometric product
-	*(z) {
-		var tr = r*z.r + i*z.i + j*z.j - ij*z.ij
-		var ti = r*z.i + i*z.r - j*z.ij + ij*z.j
-		var tj = r*z.j + i*z.ij + j*z.r - ij*z.i
-		var tij = r*z.ij + i*z.j - j*z.i + ij*z.r
-		return MV2.new(tr, ti, tj, tij)
-	}
-
-	// Negate operator
-	- { MV2.new(r, -i, -j, -ij) }
-
-	// Meet operator
-	|(z) {
-		var t = this * z
-		var id = 1 / (z * z).r
-    	return MV2.new(t.r * id, t.i * id, t.j * id, t.ij * id)
-	}
-	
-	// Utils
-	draw(c) {
-		var a = ij.sign * ij.abs.sqrt
-		App.begin(true, false, 1, 1)
-		App.vertex(0, 0, 0, c)
-		App.vertex(a, 0, 0, c)
-		App.vertex(0, a, 0, c)
-		App.vertex(a, a, 0, c)
-		App.vertex(0, a, 0, c)
-		App.vertex(a, 0, 0, c)
-		App.end(App.triangles)
-		App.begin(true, false, 1, 5)
-		App.vertex(0, 0, 0, c)
-		App.vertex(i, j, 0, c)
-		App.end(App.lines)
-		App.begin(true, false, 10, 1)
-		App.vertex(i, j, 0, c)
-		App.vertex(r, 0, 0, c)
-		App.end(App.points)
-	}
-	
-	debug(s) {
-		r = App.debugFloat(s + "r", r)
-		i = App.debugFloat(s + "i", i)
-		j = App.debugFloat(s + "j", j)
-		ij = App.debugFloat(s + "ij", ij)
-	}
-}
+import "mvec2" for MVec2
 
 class Game {
 	static init() {
@@ -85,30 +20,43 @@ class Game {
 		__animate = App.debugBool("animate", __animate)
 		__angle = App.debugFloat("angle", __angle)
 		
-		var z1 = MV2.new(0, 1, 0, 0)
+		var z1 = MVec2.new(0, 1, 0, 0)
 		if (__animate) {
-			z1.i = __time.cos
-			z1.j = __time.sin
+			z1.e1 = __time.cos
+			z1.e2 = __time.sin
 		} else {
-			z1.i = Utils.mouseX * __zoom / 2
-			z1.j = Utils.mouseY * __zoom / 2
+			z1.e1 = Utils.mouseX * __zoom / 2
+			z1.e2 = Utils.mouseY * __zoom / 2
 		}
 
-		var z2 = MV2.new(0, 0, 0, 0)
-		var z3 = MV2.new(0, 0, 0, 0)
+		var z2 = MVec2.new(0, 0, 0, 0)
+		var z3 = MVec2.new(0, 0, 0, 0)
 		
+		// GA product
 		if (__mode == 0) {
-			var a = Num.pi * (__angle / 180)
-			z2 = MV2.new((a/2).cos, 0, 0, (a/2).sin)
-			z3 = -z2 * z1 * z2
-
+			z2 = MVec2.new(0, 0, 1, 0)
+			z3 = z1 * z2
+		
+		// Rotations
 		} else if (__mode == 1) {
-			z2 = MV2.new(0, 0, 1, 0)
-			z3 = z2 * z1 * z2
-
+			var a = Num.pi * (__angle / 180)
+			z2 = MVec2.new((a/2).cos, 0, 0, (a/2).sin)
+			z3 = -z2 * z1 * z2
+		
+		// Reflections
 		} else if (__mode == 2) {
-			z2 = MV2.new(0, 0, 1, 0)
+			z2 = MVec2.new(0, 0, 1, 0)
+			z3 = z2 * z1 * z2
+		
+		// Projections
+		} else if (__mode == 3) {
+			z2 = MVec2.new(0, 0, 1, 0)
 			z3 = z1 | z2
+		
+		// Intersections
+		} else if (__mode == 4) {
+			z2 = MVec2.new(0, 0, 1, 0)
+			z3 = (z1 ^ MVec2.new(0, 0, 0, 1)) | (z2 ^ MVec2.new(0, 0, 0, 1))
 		}
 
 		z1.debug("z1")

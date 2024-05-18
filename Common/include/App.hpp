@@ -117,6 +117,7 @@ public:
 	static void BindMethod(const char* moduleName, const char* className, bool isStatic, const char* signature, ScriptMethodFn scriptMethod);
 
 	static void EnsureSlots(ScriptVM* vm, i32 count);
+	static void GetVariable(ScriptVM* vm, const char* moduleName, const char* className, i32 slot);
 
 	static bool GetSlotBool(ScriptVM* vm, i32 slot);
 	static u32 GetSlotUInt(ScriptVM* vm, i32 slot);
@@ -124,8 +125,14 @@ public:
 	static f32 GetSlotFloat(ScriptVM* vm, i32 slot);
 	static f64 GetSlotDouble(ScriptVM* vm, i32 slot);
 	static const char* GetSlotString(ScriptVM* vm, i32 slot);
-	static void* GetSlotObject(ScriptVM* vm, i32 slot);
 	static const char* GetSlotBytes(ScriptVM* vm, i32 slot, i32* length);
+	static void* GetSlotObject(ScriptVM* vm, i32 slot);
+
+	template <typename T>
+	static T* GetSlotObjectT(ScriptVM* vm, i32 slot)
+	{
+		return (T*)GetSlotObject(vm, slot);
+	}
 
 	static void SetSlotBool(ScriptVM* vm, i32 slot, bool value);
 	static void SetSlotUInt(ScriptVM* vm, i32 slot, u32 value);
@@ -135,4 +142,11 @@ public:
 	//static const char* GetSlotString(ScriptVM* vm, i32 slot);
 	//static void* GetSlotObject(ScriptVM* vm, i32 slot);
 	//static const char* GetSlotBytes(ScriptVM* vm, i32 slot, i32* length);
+	static void* SetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t size);
+
+	template <typename T>
+	static T* SetSlotNewObjectT(ScriptVM* vm, i32 slot, i32 classSlot)
+	{
+		return (T*)SetSlotNewObject(vm, slot, classSlot, sizeof(T));
+	}
 };
