@@ -11,14 +11,27 @@ foreign class MVec2 {
 	foreign e2=(v)
 	foreign e12=(v)
 
+	foreign -
+	foreign ~
+	foreign dual
+	foreign inv
+
+	foreign +(z)
+	foreign -(z)
 	foreign *(z)
 	foreign %(z)
 	foreign ^(z)
-	foreign dual
-	foreign -
-	foreign ~
+	foreign /(z)
 	foreign |(z)
+
 	foreign grade(i)
+
+	foreign static exp(z)
+	foreign static pinf
+
+	static scalar(s) { MVec2.new(s, 0, 0, 0) }
+	static vector(x, y) { MVec2.new(0, x, y, 0) }
+	static bivector(xy) { MVec2.new(0, 0, 0, xy) }
 
 	foreign draw(c)
 	foreign debug(s)

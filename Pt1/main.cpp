@@ -52,7 +52,51 @@ static void BindApi()
 	App::BindMethod("mvec2", "MVec2", false, "e12=(_)",
 		[](ScriptVM* vm) { App::EnsureSlots(vm, 1); App::GetSlotObjectT<MVec2>(vm, 0)->SetE12(App::GetSlotFloat(vm, 1)); });
 
-	App::BindMethod("mvec2", "MVec2", false, "*(_)",
+	App::BindMethod("mvec2", "MVec2", false, "-",
+		[](ScriptVM* vm)
+		{
+			App::EnsureSlots(vm, 0);
+			auto z1 = App::GetSlotObjectT<MVec2>(vm, 0);
+
+			App::GetVariable(vm, "mvec2", "MVec2", 0);
+			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z2) MVec2(-(*z1));
+		});
+
+	App::BindMethod("mvec2", "MVec2", false, "~",
+		[](ScriptVM* vm)
+		{
+			App::EnsureSlots(vm, 0);
+			auto z1 = App::GetSlotObjectT<MVec2>(vm, 0);
+
+			App::GetVariable(vm, "mvec2", "MVec2", 0);
+			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z2) MVec2(~(*z1));
+		});
+
+	App::BindMethod("mvec2", "MVec2", false, "dual",
+		[](ScriptVM* vm)
+		{
+			App::EnsureSlots(vm, 0);
+			auto z1 = App::GetSlotObjectT<MVec2>(vm, 0);
+
+			App::GetVariable(vm, "mvec2", "MVec2", 0);
+			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z2) MVec2(z1->GetDual());
+		});
+
+	App::BindMethod("mvec2", "MVec2", false, "inv",
+		[](ScriptVM* vm)
+		{
+			App::EnsureSlots(vm, 0);
+			auto z1 = App::GetSlotObjectT<MVec2>(vm, 0);
+
+			App::GetVariable(vm, "mvec2", "MVec2", 0);
+			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z2) MVec2(z1->GetInverse());
+		});
+
+	App::BindMethod("mvec2", "MVec2", false, "+(_)",
 		[](ScriptVM* vm)
 		{
 			App::EnsureSlots(vm, 1);
@@ -61,7 +105,19 @@ static void BindApi()
 
 			App::GetVariable(vm, "mvec2", "MVec2", 0);
 			auto z3 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
-			new (z3) MVec2((*z1) * (*z2));
+			new (z3) MVec2((*z1) + (*z2));
+		});
+
+	App::BindMethod("mvec2", "MVec2", false, "-(_)",
+		[](ScriptVM* vm)
+		{
+			App::EnsureSlots(vm, 1);
+			auto z1 = App::GetSlotObjectT<MVec2>(vm, 0);
+			auto z2 = App::GetSlotObjectT<MVec2>(vm, 1);
+
+			App::GetVariable(vm, "mvec2", "MVec2", 0);
+			auto z3 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z3) MVec2((*z1) - (*z2));
 		});
 
 	App::BindMethod("mvec2", "MVec2", false, "%(_)",
@@ -88,37 +144,28 @@ static void BindApi()
 			new (z3) MVec2((*z1) ^ (*z2));
 		});
 
-	App::BindMethod("mvec2", "MVec2", false, "dual",
+	App::BindMethod("mvec2", "MVec2", false, "*(_)",
 		[](ScriptVM* vm)
 		{
-			App::EnsureSlots(vm, 0);
+			App::EnsureSlots(vm, 1);
 			auto z1 = App::GetSlotObjectT<MVec2>(vm, 0);
-			
+			auto z2 = App::GetSlotObjectT<MVec2>(vm, 1);
+
 			App::GetVariable(vm, "mvec2", "MVec2", 0);
-			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
-			new (z2) MVec2(z1->GetDual());
+			auto z3 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z3) MVec2((*z1) * (*z2));
 		});
 
-	App::BindMethod("mvec2", "MVec2", false, "-",
+	App::BindMethod("mvec2", "MVec2", false, "/(_)",
 		[](ScriptVM* vm)
 		{
-			App::EnsureSlots(vm, 0);
+			App::EnsureSlots(vm, 1);
 			auto z1 = App::GetSlotObjectT<MVec2>(vm, 0);
+			auto z2 = App::GetSlotObjectT<MVec2>(vm, 1);
 
 			App::GetVariable(vm, "mvec2", "MVec2", 0);
-			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
-			new (z2) MVec2(-(*z1));
-		});
-
-	App::BindMethod("mvec2", "MVec2", false, "~",
-		[](ScriptVM* vm)
-		{
-			App::EnsureSlots(vm, 0);
-			auto z1 = App::GetSlotObjectT<MVec2>(vm, 0);
-
-			App::GetVariable(vm, "mvec2", "MVec2", 0);
-			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
-			new (z2) MVec2(~(*z1));
+			auto z3 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z3) MVec2((*z1) / (*z2));
 		});
 
 	App::BindMethod("mvec2", "MVec2", false, "|(_)",
@@ -143,6 +190,26 @@ static void BindApi()
 			App::GetVariable(vm, "mvec2", "MVec2", 0);
 			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
 			new (z2) MVec2((*z1).GetGrade(i));
+		});
+
+	App::BindMethod("mvec2", "MVec2", true, "exp(_)",
+		[](ScriptVM* vm)
+		{
+			App::EnsureSlots(vm, 1);
+			auto z = App::GetSlotObjectT<MVec2>(vm, 1);
+
+			App::GetVariable(vm, "mvec2", "MVec2", 0);
+			auto z2 = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z2) MVec2(MVec2::Exp(*z));
+		});
+
+	App::BindMethod("mvec2", "MVec2", true, "pinf",
+		[](ScriptVM* vm)
+		{
+			App::EnsureSlots(vm, 0);
+			App::GetVariable(vm, "mvec2", "MVec2", 0);
+			auto z = App::SetSlotNewObjectT<MVec2>(vm, 0, 0);
+			new (z) MVec2(MVec2::PInf());
 		});
 
 	App::BindMethod("mvec2", "MVec2", false, "draw(_)",

@@ -12,9 +12,9 @@ class Game {
 		Utils.setup(__zoom)
 		__time = __time + dt
 
-		var z1 = MVec2.new(0, 1, 0, 0)
-		var z2 = MVec2.new(0, 0, 1, 0)
-		var z3 = z1 * z2
+		var z1 = MVec2.new(2, 2, 2, 2)
+		var z2 = MVec2.new(2, 0, 0, 0)
+		var z3 = z1 / z2
 
 		z1.debug("z1")
 		z2.debug("z2")

@@ -22,15 +22,58 @@ public:
 	inline void SetE2(f32 v) { e2 = v; }
 	inline void SetE12(f32 v) { e12 = v; }
 
-	// Geometric product
-	inline MVec2 operator*(const MVec2& z) const
+	// Negate operator
+	inline MVec2 operator-() const { return MVec2(-e0, -e1, -e2, -e12); }
+
+	// Reverse operator
+	inline MVec2 operator~() const { return MVec2(e0, e1, e2, -e12); }
+
+	// Dual
+	inline MVec2 GetDual() const { return MVec2(-e12, -e2, e1, e0); }
+
+	// Inverse
+	inline MVec2 GetInverse() const
+	{
+		const auto& z0 = *this;
+		const f32 norm = (z0 % z0).e0;
+		const f32 inorm = norm == 0.f ? 0.f : 1.f / norm;
+		return ~z0 * inorm;
+	}
+
+	// Addition
+	inline MVec2 operator+(const MVec2& z) const
 	{
 		return MVec2
 		{
-			e0 * z.e0 + e1 * z.e1 + e2 * z.e2 - e12 * z.e12,
-			e0 * z.e1 + e1 * z.e0 - e2 * z.e12 + e12 * z.e2,
-			e0 * z.e2 + e1 * z.e12 + e2 * z.e0 - e12 * z.e1,
-			e0 * z.e12 + e1 * z.e2 - e2 * z.e1 + e12 * z.e0
+			e0 + z.e0, e1 + z.e1, e2 + z.e2, e12 + z.e12
+		};
+	}
+
+	// Subtraction
+	inline MVec2 operator-(const MVec2& z) const
+	{
+		return MVec2
+		{
+			e0 - z.e0, e1 - z.e1, e2 - z.e2, e12 - z.e12
+		};
+	}
+
+	// Scalar product
+	inline MVec2 operator*(f32 s) const
+	{
+		return MVec2
+		{
+			e0 * s, e1 * s, e2 * s, e12 * s
+		};
+	}
+
+	// Scalar division
+	inline MVec2 operator/(f32 s) const
+	{
+		s = s == 0.f ? 0.f : s;
+		return MVec2
+		{
+			e0 / s, e1 / s, e2 / s, e12 / s
 		};
 	}
 
@@ -57,15 +100,19 @@ public:
 			e0 * z.e12 + e1 * z.e2 - e2 * z.e1 + e12 * z.e0
 		};
 	}
-	
-	// Dual
-	inline MVec2 GetDual() const { return MVec2(e12, e2, -e1, e0); }
 
-	// Negate operator
-	inline MVec2 operator-() const { return MVec2(e0, -e1, -e2, -e12); }
+	// Geometric product
+	inline MVec2 operator*(const MVec2& z) const
+	{
+		const auto& z0 = *this;
+		return (z0 % z) + (z0 ^ z);
+	}
 
-	// Reverse operator
-	inline MVec2 operator~() const { return MVec2(e0, e1, e2, -e12); }
+	inline MVec2 operator/(const MVec2& z) const
+	{
+		const auto& z0 = *this;
+		return z0 * z.GetInverse();
+	}
 
 	// Meet operator
 	inline MVec2 operator|(const MVec2& z) const { return (GetDual() ^ z.GetDual()).GetDual(); }
@@ -81,6 +128,21 @@ public:
 
 		default: return MVec2(0, 0, 0, 0);
 		}
+	}
+
+	// Exponent
+	static MVec2 Exp(const MVec2& z)
+	{
+		return MVec2
+		{
+			0, 0, 0, 0
+		};
+	}
+
+	// Point at infinity
+	static MVec2 PInf()
+	{
+		return MVec2{ 0, 0, 0, 0 };
 	}
 	
 	// Utils
@@ -124,4 +186,5 @@ public:
 
 private:
 	f32 e0 = 0, e1 = 0, e2 = 0, e12 = 0;
+	f32 ep = 0, en = 0;
 };
