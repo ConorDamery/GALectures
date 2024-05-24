@@ -27,7 +27,7 @@ foreign class MVec2 {
 	foreign grade(i)
 
 	foreign static exp(z)
-	foreign static pinf
+	foreign static inf
 
 	static scalar(s) { MVec2.new(s, 0, 0, 0) }
 	static vector(x, y) { MVec2.new(0, x, y, 0) }

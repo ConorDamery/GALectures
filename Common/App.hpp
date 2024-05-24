@@ -7,7 +7,7 @@
 // Util
 #define PATH(x) (PROJECT_PATH x)
 #define LOGI(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFFFFFF, format, ##__VA_ARGS__)
-#define LOGW(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFF00FF, format, ##__VA_ARGS__)
+#define LOGW(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFF00FFFF, format, ##__VA_ARGS__)
 #define LOGE(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFF0000FF, format, ##__VA_ARGS__)
 
 #define ASSERT(condition, message) \
@@ -75,7 +75,11 @@ public:
 	// Util
 	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
 	static bool DebugBool(const char* label, bool v);
+	static i32 DebugInt(const char* label, i32 i);
+	static i32 DebugInt(const char* label, i32 i, i32 min, i32 max);
 	static f32 DebugFloat(const char* label, f32 v);
+	static void DebugSeparator(const char* label);
+	static bool DebugButton(const char* label);
 
 	// Window
 	static i32 GetWidth();

@@ -1,8 +1,11 @@
 import "app" for App
 
 class Utils {
-	static mouseX { (App.width / App.height) * ((2 * App.mouseX / App.width) - 1) }
-	static mouseY { 1 - (2 * App.mouseY / App.height) }
+	static mouseX { 2.5 * ((App.width / App.height) * ((2 * App.mouseX / App.width) - 1)) }
+	static mouseY { 2.5 * (1 - (2 * App.mouseY / App.height)) }
+
+	static radians(x) { Num.pi * x / 180 }
+	static degrees(x) { x / Num.pi * 180 }
 
 	static setup(size) {
 		App.view(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -5, 1)
@@ -40,5 +43,49 @@ class Utils {
 			App.vertex(xPos - width / 2, height / 2, depth, color)
 		}
 		App.end(App.lines)
+	}
+}
+
+class P2 {
+	construct new(x, y) {
+        _x = x
+        _y = y
+		_s = false
+    }
+
+    x { _x }
+    y { _y }
+    x=(v) { _x = v }
+    y=(v) { _y = v }
+
+	update(size) {
+		var hover = Utils.mouseX > (x - size) && Utils.mouseX < (x + size) && Utils.mouseY > (y - size) && Utils.mouseY < (y + size)
+		if (App.getButton(0)) {
+			if (hover) {
+				_s = true
+			}
+		} else {
+			_s = false
+		}
+
+		if (_s) {
+			x = Utils.mouseX
+			y = Utils.mouseY
+		}
+
+		if (!_s) {
+			App.begin(true, true, 1, 1)
+			App.vertex(x - size, y - size, 0, 0xFFFFFFFF)
+			App.vertex(x + size, y - size, 0, 0xFFFFFFFF)
+			App.vertex(x + size, y - size, 0, 0xFFFFFFFF)
+			App.vertex(x + size, y + size, 0, 0xFFFFFFFF)
+			App.vertex(x + size, y + size, 0, 0xFFFFFFFF)
+			App.vertex(x - size, y + size, 0, 0xFFFFFFFF)
+			App.vertex(x - size, y + size, 0, 0xFFFFFFFF)
+			App.vertex(x - size, y - size, 0, 0xFFFFFFFF)
+			App.end(App.lines)
+		}
+
+		return _s
 	}
 }

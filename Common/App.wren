@@ -1,7 +1,11 @@
 class App {
 	// Utils
 	foreign static debugBool(label, v)
+	foreign static debugInt(label, i)
+	foreign static debugInt(label, i, min, max)
 	foreign static debugFloat(label, v)
+	foreign static debugSeparator(label)
+	foreign static debugButton(label)
 
     // Window
     foreign static width

@@ -72,6 +72,10 @@ struct AppData
 {
 	// Util
 	std::vector<LogData> logs{};
+	u32 frames = 0;
+	f64 time = 0.f;
+	f64 fps = 0.f;
+	f64 spf = 0.f;
 
 	// Window
 	GLFWwindow* window = nullptr;
@@ -101,7 +105,7 @@ struct AppData
 	std::unordered_map<size_t, ScriptMethodFn> methods{};
 
 	// Editor
-	f32 fontSize = 1.0f;
+	f32 fontSize = 1.5f;
 };
 static AppData g_app;
 
@@ -151,10 +155,32 @@ bool App::DebugBool(const char* label, bool v)
 	return v;
 }
 
+i32 App::DebugInt(const char* label, i32 i)
+{
+	ImGui::InputInt(label, &i);
+	return i;
+}
+
+i32 App::DebugInt(const char* label, i32 i, i32 min, i32 max)
+{
+	ImGui::SliderInt(label, &i, min, max);
+	return i;
+}
+
 f32 App::DebugFloat(const char* label, f32 v)
 {
 	ImGui::DragFloat(label, &v, 0.1f);
 	return v;
+}
+
+void App::DebugSeparator(const char* label)
+{
+	ImGui::SeparatorText(label);
+}
+
+bool App::DebugButton(const char* label)
+{
+	return ImGui::Button(label);
 }
 
 // Window
@@ -459,34 +485,6 @@ static WrenForeignClassMethods wren_bind_class(WrenVM* vm, const char* moduleNam
 static WrenLoadModuleResult wren_load_module(WrenVM* vm, const char* name)
 {
 	WrenLoadModuleResult res{};
-
-	//LOAD_WREN_MODULE(meta, WREN_MODULE_SRC(Meta));
-	//LOAD_WREN_MODULE(random, WREN_MODULE_SRC(Random));
-	//
-	//LOAD_WREN_MODULE(core, ENGINE_MODULE_SRC(core));
-	//LOAD_WREN_MODULE(device, ENGINE_MODULE_SRC(device));
-	//LOAD_WREN_MODULE(math, ENGINE_MODULE_SRC(math));
-	//LOAD_WREN_MODULE(graphics, ENGINE_MODULE_SRC(graphics));
-	//LOAD_WREN_MODULE(physics, ENGINE_MODULE_SRC(physics));
-	//LOAD_WREN_MODULE(audio, ENGINE_MODULE_SRC(audio));
-	//LOAD_WREN_MODULE(ecs, ENGINE_MODULE_SRC(ecs));
-	//LOAD_WREN_MODULE(framework, ENGINE_MODULE_SRC(framework));
-	//
-	//String moduleName = name;
-	//if (s_wrenModulesSource.Find(moduleName) == s_wrenModulesSource.end())
-	//{
-	//	String filepath;
-	//	if (!File::Find("[assets]", String(name) + ".wren", filepath))
-	//	{
-	//		Log::Error("Module '{}' can not be found!", name);
-	//		return res;
-	//	}
-	//
-	//	String moduleSrc = File::ReadTextFile(filepath);
-	//	s_wrenModulesSource.Insert(moduleName, moduleSrc);
-	//}
-	//
-	//res.source = s_wrenModulesSource[moduleName].c_str();
 	return res;
 }
 
@@ -719,14 +717,67 @@ static bool glfw_initialize(const AppConfig& config)
 	return true;
 }
 
+#if _DEBUG
+static const char* opengl_source(GLenum source)
+{
+	switch (source)
+	{
+	case GL_DEBUG_SOURCE_API:               return "API";
+	case GL_DEBUG_SOURCE_WINDOW_SYSTEM:     return "Window System";
+	case GL_DEBUG_SOURCE_SHADER_COMPILER:   return "Shader Compiler";
+	case GL_DEBUG_SOURCE_THIRD_PARTY:       return "Third Party";
+	case GL_DEBUG_SOURCE_APPLICATION:       return "Application";
+	case GL_DEBUG_SOURCE_OTHER:             return "Other";
+	}
+
+	return "Unknown";
+}
+
+static const char* opengl_type(GLenum type)
+{
+	switch (type)
+	{
+	case GL_DEBUG_TYPE_ERROR:               return "Error";
+	case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: return "Deprecated Behaviour";
+	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  return "Undefined Behaviour";
+	case GL_DEBUG_TYPE_PORTABILITY:         return "Portability";
+	case GL_DEBUG_TYPE_PERFORMANCE:         return "Performance";
+	case GL_DEBUG_TYPE_MARKER:              return "Marker";
+	case GL_DEBUG_TYPE_PUSH_GROUP:          return "Push Group";
+	case GL_DEBUG_TYPE_POP_GROUP:           return "Pop Group";
+	case GL_DEBUG_TYPE_OTHER:               return "Other";
+	}
+
+	return "Unknown";
+}
+
+static const char* opengl_severity(GLenum severity)
+{
+	switch (severity)
+	{
+	case GL_DEBUG_SEVERITY_HIGH:            return "High";
+	case GL_DEBUG_SEVERITY_MEDIUM:          return "Medium";
+	case GL_DEBUG_SEVERITY_LOW:             return "Low";
+	case GL_DEBUG_SEVERITY_NOTIFICATION:    return "Notification";
+	}
+
+	return "Unknown";
+}
+
 static void APIENTRY opengl_debug_callback(GLenum source, GLenum type, u32 id, GLenum severity, GLsizei length, const char* message, const void* userParam)
 {
 	// Ignore non-significant error/warning codes
 	if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
 		return;
 
-	LOGW("GL Severity [ID]: Message");// -Source:({}) - Type : ({}) - Severity : ({})\n{}", id, GetGlSource(source), GetGlType(type), GetGlSeverity(severity), message);
+	if (type == GL_DEBUG_TYPE_ERROR)
+		LOGE("GL %s - %s (%s) [%d]: %s", opengl_source(source), opengl_type(type), opengl_severity(severity), id, message);
+	else if (type == GL_DEBUG_TYPE_OTHER)
+		LOGI("GL %s - %s (%s) [%d]: %s", opengl_source(source), opengl_type(type), opengl_severity(severity), id, message);
+	else
+		LOGW("GL %s - %s (%s) [%d]: %s", opengl_source(source), opengl_type(type), opengl_severity(severity), id, message);
 }
+#endif
 
 static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
 {
@@ -792,18 +843,22 @@ static bool opengl_initialize(const AppConfig& config)
 		return false;
 	}
 
-	//i32 flags;
-	//glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
-	//if (flags & GL_CONTEXT_FLAG_DEBUG_BIT)
-	//{
-	//	// Initialize debug output
-	//	glEnable(GL_DEBUG_OUTPUT);
-	//	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-	//	glDebugMessageCallback(DebugCallback, nullptr);
-	//	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-	//
-	//	return true;
-	//}
+#if _DEBUG
+	i32 flags;
+	glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+	if (flags & GL_CONTEXT_FLAG_DEBUG_BIT)
+	{
+		// Initialize debug output
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		glDebugMessageCallback(opengl_debug_callback, nullptr);
+		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+	}
+	else
+	{
+		LOGW("Failed to initialize OpenGL debug output.");
+	}
+#endif
 
 	static const char* vert_src =
 		"#version 330 core\n"
@@ -869,7 +924,9 @@ static bool imgui_initialize(const AppConfig& config)
 	}
 
 	ImGui::StyleColorsDark();
+	io.Fonts->AddFontFromFileTTF(PATH("/Common/Fonts/UbuntuMono-Regular.ttf"), 20);
 
+	io.IniFilename = PATH("/imgui.ini");
 	return true;
 }
 
@@ -969,11 +1026,39 @@ void App::Reload(AppBindApiFn BindApi)
 			SetSlotBool(vm, 0, DebugBool(GetSlotString(vm, 1), GetSlotBool(vm, 2)));
 		});
 
+	BindMethod("app", "App", true, "debugInt(_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 2);
+			SetSlotInt(vm, 0, DebugInt(GetSlotString(vm, 1), GetSlotInt(vm, 2)));
+		});
+
+	BindMethod("app", "App", true, "debugInt(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 4);
+			SetSlotInt(vm, 0, DebugInt(GetSlotString(vm, 1), GetSlotInt(vm, 2), GetSlotInt(vm, 3), GetSlotInt(vm, 4)));
+		});
+
 	BindMethod("app", "App", true, "debugFloat(_,_)",
 		[](ScriptVM* vm)
 		{
 			EnsureSlots(vm, 2);
 			SetSlotFloat(vm, 0, DebugFloat(GetSlotString(vm, 1), GetSlotFloat(vm, 2)));
+		});
+
+	BindMethod("app", "App", true, "debugSeparator(_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 1);
+			DebugSeparator(GetSlotString(vm, 1));
+		});
+
+	BindMethod("app", "App", true, "debugButton(_)",
+		[](ScriptVM* vm)
+		{
+			EnsureSlots(vm, 1);
+			SetSlotBool(vm, 0, DebugButton(GetSlotString(vm, 1)));
 		});
 
 	// Window
@@ -1182,7 +1267,7 @@ static void app_update_gui()
 				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1));
 				for (const auto& log : g_app.logs)
 				{
-					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(((log.color >> 24) & 0xFF) / 255.0f, ((log.color >> 16) & 0xFF) / 255.0f, ((log.color >> 8) & 0xFF) / 255.0f, (log.color & 0xFF) / 255.0f));
+					ImGui::PushStyleColor(ImGuiCol_Text, log.color);
 					ImGui::TextUnformatted(log.message.c_str());
 					ImGui::PopStyleColor();
 				}
@@ -1211,10 +1296,24 @@ void App::Update(f64 dt)
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui::NewFrame();
 
+	g_app.frames++;
+	g_app.time += dt;
+	if (g_app.time >= 1.f)
+	{
+		g_app.fps = g_app.frames / g_app.time;
+		g_app.spf = g_app.time / g_app.frames;
+		g_app.frames = 0;
+		g_app.time -= 1.f;
+	}
+
 	ImGui::Begin("Debug");
+	ImGui::Text("FPS: %2.f", g_app.fps);
+	ImGui::Text("Avg Frame (t): %2.fms", g_app.spf * 1000);
 
 	if (!g_app.error && !g_app.paused)
 	{
+		g_app.cmds.clear();
+
 		wrenEnsureSlots(g_app.vm, 2);
 		wrenSetSlotHandle(g_app.vm, 0, g_app.gameClass);
 		wrenSetSlotDouble(g_app.vm, 1, dt);
@@ -1248,11 +1347,6 @@ static void app_render_graphics()
 
 		break;
 	}
-	g_app.cmds.clear();
-
-	GLenum err;
-	while ((err = glGetError()) != GL_NO_ERROR)
-		LOGE("OpenGL error: %d", err);
 }
 
 void App::Render()
