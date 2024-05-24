@@ -100,10 +100,10 @@ class Game {
 			}
 
 		} else if (__mode == 1 && __animate) {
-			__ex.z1 = C2.exp(1, __time)
+			__ex.z1 = C2.exp(1, Utils.degrees(__time))
 
 		} else if (__mode == 2 && __animate) {
-			__ex.z2 = C2.exp(1, __time)
+			__ex.z2 = C2.exp(1, Utils.degrees(__time))
 		}
 
 		App.begin(true, true, 10, 1)
