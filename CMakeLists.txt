@@ -11,5 +11,5 @@ add_compile_definitions (PROJECT_PATH="${CMAKE_CURRENT_SOURCE_DIR}")
 add_subdirectory(ThirdParty)
 add_subdirectory(Common)
 
-add_subdirectory(Pt1)
+#add_subdirectory(Pt1)
 add_subdirectory(Pt2)

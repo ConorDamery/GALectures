@@ -1,7 +1,6 @@
 #include <App.hpp>
-#include "MVec2.hpp"
 
-#include <iostream>
+static void BindApi();
 
 static AppConfig Configure()
 {
@@ -9,16 +8,24 @@ static AppConfig Configure()
 	config.width = 800;
 	config.height = 600;
 	config.title = "GA Lectures Pt2";
-	config.fullscreen = false;
+	config.windowMode = WindowMode::WINDOW;
 	config.msaa = 8;
-	config.gamefile = PATH("/Pt2/game.wren");
+
+	static const char* paths[] =
+	{
+		"/Pt2/Slides/S1.wren"
+	};
+	config.paths = paths;
+	config.pathCount = ARRAY_SIZE(paths);
+
+	config.bindApiFn = BindApi;
 
 	return config;
 }
 
 static void BindApi()
 {
-	App::BindClass("mvec2", "MVec2",
+	/*App::BindClass("mvec2", "MVec2",
 		ScriptClass
 		{
 			[](ScriptVM* vm)
@@ -227,73 +234,10 @@ static void BindApi()
 		});
 
 	App::ParseFile("mvec2", PATH("/Pt1/mvec2.wren"));
-	App::ParseFile("utils", PATH("/Common/utils.wren"));
-}
-
-///////////////////////////////////////////////////////////////////////
-
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <cctype>
-
-// Helper function to trim leading spaces from a string
-std::string ltrim(const std::string& str) {
-	std::string result = str;
-	result.erase(result.begin(), std::find_if(result.begin(), result.end(), [](unsigned char ch) {
-		return !std::isspace(ch);
-		}));
-	return result;
-}
-
-// Helper function to trim trailing spaces from a string
-std::string rtrim(const std::string& str) {
-	std::string result = str;
-	result.erase(std::find_if(result.rbegin(), result.rend(), [](unsigned char ch) {
-		return !std::isspace(ch);
-		}).base(), result.end());
-	return result;
-}
-
-// Helper function to trim both leading and trailing spaces from a string
-std::string trim(const std::string& str) {
-	return ltrim(rtrim(str));
-}
-
-// Function to split a string by a delimiter and remove trailing spaces
-std::vector<std::string> splitAndTrim(const std::string& str, char delimiter) {
-	std::vector<std::string> tokens;
-	std::istringstream stream(str);
-	std::string token;
-
-	while (std::getline(stream, token, delimiter)) {
-		tokens.push_back(trim(token));
-	}
-
-	return tokens;
+	App::ParseFile("utils", PATH("/Common/utils.wren"));*/
 }
 
 int main(int argc, char** args)
 {
-	std::string inputA = "a0 e0 + a1 e1 + a2 e2 + ap ep + an en + a12 e12 + a1p e1p + a1n e1n + a2p e2p + a2n e2n + apn epn + a12p e12p + a12n e12n + a1pn e1pn + a2pn e2pn + a12pn e12pn";
-	std::string inputB = "b0 e0 + b1 e1 + b2 e2 + bp ep + bn en + b12 e12 + b1p e1p + b1n e1n + b2p e2p + b2n e2n + bpn epn + b12p e12p + b12n e12n + b1pn e1pn + b2pn e2pn + b12pn e12pn";
-
-	char delimiter = '+';
-
-	std::vector<std::string> tokensA = splitAndTrim(inputA, delimiter);
-	std::vector<std::string> tokensB = splitAndTrim(inputB, delimiter);
-	std::string result = "";
-
-	// Print the tokens to verify the result
-	for (const auto& tokenA : tokensA)
-	{
-		for (const auto& tokenB : tokensB)
-		{
-			std::cout << tokenA << ' ' << tokenB << " + ";
-		}
-	}
-
-	return App::Run(&Configure, &BindApi);
+	return App::Run(&Configure);
 }
