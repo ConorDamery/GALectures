@@ -1,12 +1,11 @@
 #include "/Pt2/Shaders/pga.glsl"
 
 #ifdef VERT
-//precision highp float;
+precision highp float;
 layout (location = 0) in vec3 Position;
 layout (location = 1) in vec4 Color;
 
 uniform mat3x2 Proj;
-uniform motor View;
 
 out vec4 Frag_Color;
 

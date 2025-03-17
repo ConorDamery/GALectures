@@ -13,13 +13,12 @@ class Util {
 }
 
 class State {
-	construct new() { init() }
-
-	init() {
+	construct new() {
 		_shader = App.glCreateShader("/Pt2/Shaders/basic.glsl")
-		_deg = 0
+		_deg = 90
 		_x = 1
 		_y = 0
+		_z = 5
 	}
 
 	update(dt) {
@@ -30,6 +29,7 @@ class State {
 			_deg = App.guiFloat("Deg", _deg)
 			_x = App.guiFloat("X", _x)
 			_y = App.guiFloat("Y", _y)
+			_z = App.guiFloat("Z", _z)
 			App.guiEndChild()
 		}
 
@@ -37,24 +37,21 @@ class State {
 		App.glSetShader(_shader)
 
 		Util.glPerspective("Proj", 70.0, App.winWidth / App.winHeight, 0.1, 1000.0)
+		
+		var p = Point.new(_x, _y, _z)
+		p.glDraw(App.glRed)
 
-		App.glUniform("View")
-		App.glMat2x4f(0, 0, 0, 0, 0, 0, 0, 0)
-
-		var p = Point.new(_x, _y, 5.0)
-		p.glDraw(0xFF0000FF)
+		var r = PGA.exp_r(_deg * Num.pi / 180.0, PGA.e12) // Rotation around z-axis
+		var rp = PGA.sw_mp(r, p) // Apply rotation
+		rp.glDraw(App.glBlue)
 
 		App.glBegin(true, true, 1, 2)
 		for (i in -180...180) {
-			var r = PGA.exp_r(i * Num.pi / 180.0, Line.be12)
+			var r = PGA.exp_r(i * Num.pi / 180.0, PGA.e12)
 			var rp = PGA.sw_mp(r, p)
-			App.glVertex(rp[0], rp[1], rp[2], 0xFF00FF00)
+			App.glVertex(rp[0], rp[1], rp[2], App.glGreen)
 		}
 		App.glEnd(App.glLineStrip)
-
-		var r = PGA.exp_r(_deg * Num.pi / 180.0, Line.be12) // 90-degree rotation around z-axis
-		var rp = PGA.sw_mp(r, p) // Apply rotation
-		rp.glDraw(0xFFFF0000)
 	}
 }
 

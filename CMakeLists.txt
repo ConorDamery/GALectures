@@ -6,7 +6,7 @@ set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project (GALectures)
 
-add_compile_definitions (PROJECT_PATH="${CMAKE_CURRENT_SOURCE_DIR}")
+set(PROJECT_PATH "${CMAKE_CURRENT_SOURCE_DIR}" CACHE STRING "Project root path")
 
 add_subdirectory(ThirdParty)
 add_subdirectory(Common)

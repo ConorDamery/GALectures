@@ -19,16 +19,6 @@ class Direction {
 	e013=(v) { _e013 = v }
 	e021=(v) { _e021 = v }
 
-	// Basis planes e1,e2,e3
-	static be1 { Direction.new(1.0, 0.0, 0.0) }
-	static be2 { Direction.new(0.0, 1.0, 0.0) }
-	static be3 { Direction.new(0.0, 0.0, 1.0) }
-
-	// Basis directions
-	static be032 { Direction.new(1.0, 0.0, 0.0) }
-	static be013 { Direction.new(0.0, 1.0, 0.0) }
-	static be021 { Direction.new(0.0, 0.0, 1.0) }
-
 	[i] {
 		if (i == 0) {
 			return e032
@@ -122,15 +112,7 @@ class Line {
 	e01=(v) { _e01 = v }
 	e02=(v) { _e02 = v }
 	e03=(v) { _e03 = v }
-
-	// Basis lines
-	static be23 { Line.new(1.0, 0.0, 0.0, 0.0, 0.0, 0.0) }
-	static be31 { Line.new(0.0, 1.0, 0.0, 0.0, 0.0, 0.0) }
-	static be12 { Line.new(0.0, 0.0, 1.0, 0.0, 0.0, 0.0) }
-	static be01 { Line.new(0.0, 0.0, 0.0, 1.0, 0.0, 0.0) }
-	static be02 { Line.new(0.0, 0.0, 0.0, 0.0, 1.0, 0.0) }
-	static be03 { Line.new(0.0, 0.0, 0.0, 0.0, 0.0, 1.0) }
-
+	
 	[i] {
 		if (i == 0) {
 			return e23
@@ -265,12 +247,39 @@ class Motor {
 }
 
 class PGA {
+	// Basis planes e1,e2,e3
+	static e1 { Direction.new(1.0, 0.0, 0.0) }
+	static e2 { Direction.new(0.0, 1.0, 0.0) }
+	static e3 { Direction.new(0.0, 0.0, 1.0) }
+
+	// Basis directions
+	static e032 { Direction.new(1.0, 0.0, 0.0) }
+	static e013 { Direction.new(0.0, 1.0, 0.0) }
+	static e021 { Direction.new(0.0, 0.0, 1.0) }
+
+	// Basis lines
+	static e23 { Line.new(1.0, 0.0, 0.0, 0.0, 0.0, 0.0) }
+	static e31 { Line.new(0.0, 1.0, 0.0, 0.0, 0.0, 0.0) }
+	static e12 { Line.new(0.0, 0.0, 1.0, 0.0, 0.0, 0.0) }
+	static e01 { Line.new(0.0, 0.0, 0.0, 1.0, 0.0, 0.0) }
+	static e02 { Line.new(0.0, 0.0, 0.0, 0.0, 1.0, 0.0) }
+	static e03 { Line.new(0.0, 0.0, 0.0, 0.0, 0.0, 1.0) }
+
+	static checkType(name, p, type) {
+		if (!(p is type)) {
+			Fiber.abort("Param '%(name)' must be a %(type.name)!")
+		}
+	}
+
 	// point sw_mp(motor a, point b)
 	static sw_mp(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Point)
+		
 		var t = Direction.new(
-			(b.e013 * a.e12 - b.e021 * a.e31) - a.e23 * b.e032 - a.e01,
-			(b.e021 * a.e23 - b.e032 * a.e12) - a.e31 * b.e013 - a.e02,
-			(b.e032 * a.e31 - b.e013 * a.e23) - a.e12 * b.e021 - a.e03
+			(b.e013 * a.e12 - b.e021 * a.e31) - a.e01,
+			(b.e021 * a.e23 - b.e032 * a.e12) - a.e02,
+			(b.e032 * a.e31 - b.e013 * a.e23) - a.e03
 		)
 
 		return Point.new(
@@ -282,21 +291,27 @@ class PGA {
 
 	// point swx_mp(motor a, point b)
 	static swx_mp(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Point)
+
 		var t = Direction.new(
-			(b.e013 * a.e021 - b.e021 * a.e013) - a.e032 * b.e032 - a.e01,
-			(b.e021 * a.e032 - b.e032 * a.e021) - a.e013 * b.e013 - a.e02,
-			(b.e032 * a.e013 - b.e013 * a.e032) - a.e021 * b.e021 - a.e03
+			(b.e013 * a.e12 - b.e021 * a.e31) - a.e01,
+			(b.e021 * a.e23 - b.e032 * a.e12) - a.e02,
+			(b.e032 * a.e31 - b.e013 * a.e23) - a.e03
 		)
 
 		return Point.new(
-			(a.s * t.e032 + (t.e013 * a.e021 - t.e021 * a.e013) - a.e032 * a.e0123),
-			(a.s * t.e013 + (t.e021 * a.e032 - t.e032 * a.e021) - a.e013 * a.e0123),
-			(a.s * t.e021 + (t.e032 * a.e013 - t.e013 * a.e032) - a.e021 * a.e0123)
+			a.s * t.e032 + (t.e013 * a.e12 - t.e021 * a.e31) - a.e23 * a.e0123,
+			a.s * t.e013 + (t.e021 * a.e23 - t.e032 * a.e12) - a.e31 * a.e0123,
+			a.s * t.e021 + (t.e032 * a.e31 - t.e013 * a.e23) - a.e12 * a.e0123
 		)
 	}
 
 	// direction sw_md(motor a, direction b)
 	static sw_md(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Direction)
+
 		var t = Direction.new(
 			(b.e013 * a.e021 - b.e021 * a.e013),
 			(b.e021 * a.e032 - b.e032 * a.e021),
@@ -312,6 +327,8 @@ class PGA {
 
 	// direction sw_mx(motor a)
 	static sw_mx(a) {
+		checkType("a", a, Motor)
+
 		return Direction.new(
 			0.5 - a.s * a.s - a.e032 * a.e032, 
 			a.e032 * a.e013 - a.s * a.e021, 
@@ -321,6 +338,8 @@ class PGA {
 
 	// direction sw_my(motor a)
 	static sw_my(a) {
+		checkType("a", a, Motor)
+
 		return Direction.new(
 			a.s * a.e0123 + a.e013 * a.e032,
 			0.5 - a.e013 * a.e013 - a.e0123 * a.e0123,
@@ -330,6 +349,8 @@ class PGA {
 
 	// direction sw_mz(motor a)
 	static sw_mz(a) {
+		checkType("a", a, Motor)
+
 		return Direction.new(
 			a.e013 * a.e0123 - a.e032 * a.s,
 			a.e032 * a.e0123 + a.e013 * a.s,
@@ -339,6 +360,8 @@ class PGA {
 
 	// point sw_mo(motor a)
 	static sw_mo(a) {
+		checkType("a", a, Motor)
+
 		return Point.new(
 			2.0 * ((a.e013 * a.e02 - a.e021 * a.e01) - a.s * a.e01 - a.e0123 * a.e013),
 			2.0 * ((a.e021 * a.e03 - a.e032 * a.e01) - a.s * a.e02 - a.e0123 * a.e032),
@@ -348,23 +371,33 @@ class PGA {
 
 	// motor reverse_m(motor R)
 	static reverse_m(R) {
+		checkType("R", R, Motor)
+
 		return Motor.new(R.s, -R.e23, -R.e31, -R.e12, -R.e01, -R.e02, -R.e03, R.e0123)
 	}
 
 	// motor exp_r(float angle, line B)
 	static exp_r(angle, B) {
-		var c = (angle / 2.0).cos
-		var s = (angle / 2.0).sin
+		checkType("angle", angle, Num)
+		checkType("B", B, Line)
+
+		var c = angle.cos
+		var s = angle.sin
 		return Motor.new(c, s * B.e23, s * B.e31, s * B.e12, 0, 0, 0, 0)
 	}
 
 	// motor exp_t(float dist, line B)
 	static exp_t(dist, B) {
+		checkType("dist", dist, Num)
+		checkType("B", B, Line)
+
 		return Motor.new(1.0, 0, 0, 0, dist * B.e01, dist * B.e02, dist * B.e03, 0)
 	}
 
 	// motor exp_b(line B)
 	static exp_b(B) {
+		checkType("B", B, Line)
+		
 		var l = B.e23 * B.e23 + B.e31 * B.e31 + B.e12 * B.e12
 		if (l == 0.0) { 
 			return Motor.new(1.0, 0, 0, 0, B.e01, B.e02, B.e03, 0) 
@@ -382,6 +415,8 @@ class PGA {
 
 	// line log_m(motor M)
 	static log_m(M) {
+		checkType("M", M, Motor)
+
 		if (M.s == 1.0) { 
 			return Line.new(0.0, 0.0, 0.0, M.e01, M.e02, M.e03) 
 		}
@@ -396,6 +431,9 @@ class PGA {
 
 	// motor gp_rt(motor a, motor b)
 	static gp_rt(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			a.s, a.e23, a.e31, a.e12,
 			a.s * b.e01 + (b.e02 * a.e13 - b.e03 * a.e12),
@@ -407,6 +445,9 @@ class PGA {
 
 	// motor gp_tr(motor a, motor b)
 	static gp_tr(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			b.s, b.e23, b.e31, b.e12,
 			b.s * a.e01 - (a.e02 * b.e13 - a.e03 * b.e12),
@@ -418,6 +459,9 @@ class PGA {
 
 	// motor gp_rm(motor a, motor b)
 	static gp_rm(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			a.s * b.s - (a.e23 * b.e23 + a.e31 * b.e31 + a.e12 * b.e12),
 			a.s * b.e23 + b.s * a.e23 + (b.e31 * a.e12 - b.e12 * a.e31),
@@ -432,6 +476,9 @@ class PGA {
 
 	// motor gp_mr(motor a, motor b)
 	static gp_mr(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			b.s * a.s - (b.e23 * a.e23 + b.e31 * a.e31 + b.e12 * a.e12),
 			b.s * a.e23 + a.s * b.e23 + (a.e31 * b.e12 - a.e12 * b.e31),
@@ -446,6 +493,9 @@ class PGA {
 
 	// motor gp_tm(motor a, motor b)
 	static gp_tm(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			b.s, b.e23, b.e31, b.e12,
 			b.e01 + b.s * a.e01 - (a.e02 * b.e31 - a.e03 * b.e12),
@@ -457,6 +507,9 @@ class PGA {
 
 	// motor gp_mt(motor a, motor b)
 	static gp_mt(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			a.s, a.e23, a.e31, a.e12,
 			a.e01 + a.s * b.e01 + (b.e02 * a.e31 - b.e03 * a.e12),
@@ -468,6 +521,9 @@ class PGA {
 
 	// motor gp_tt(motor a, motor b)
 	static gp_tt(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			1.0, 0, 0, 0,
 			a.e01 + b.e01,
@@ -479,6 +535,9 @@ class PGA {
 
 	// motor gp_rr(motor a, motor b)
 	static gp_rr(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			a.s * b.s - (a.e23 * b.e23 + a.e31 * b.e31 + a.e12 * b.e12), 
 			a.s * b.e23 + b.s * a.e23 + (a.e31 * b.e12 - a.e12 * b.e31), 
@@ -490,6 +549,9 @@ class PGA {
 
 	// motor gp_mm(motor a, motor b)
 	static gp_mm(a, b) {
+		checkType("a", a, Motor)
+		checkType("b", b, Motor)
+
 		return Motor.new(
 			a.s * b.s - (a.e23 * b.e23 + a.e31 * b.e31 + a.e12 * b.e12), 
 			a.s * b.e23 + b.s * a.e23 + (a.e31 * b.e12 - a.e12 * b.e31), 
@@ -504,6 +566,8 @@ class PGA {
 
 	// motor normalize_m(motor a)
 	static normalize_m(a) {
+		checkType("a", a, Motor)
+
 		var s = 1.0 / (a.s * a.s + a.e23 * a.e23 + a.e31 * a.e31 + a.e12 * a.e12).sqrt
 		var d = (a.e0123 * a.s - (a.e01 * a.e23 + a.e02 * a.e31 + a.e03 * a.e12)) * s * s
 
@@ -520,7 +584,7 @@ class PGA {
 	}
 
 	// motor gp_vv(vec3 a, vec3 b)
-	static gp_vv(a, b) {
+	/*static gp_vv(a, b) {
 		return Motor.new(
 			a.x * b.x + a.y * b.y + a.z * b.z,
 			a.y * b.z - a.z * b.y,
@@ -528,10 +592,12 @@ class PGA {
 			a.x * b.y - a.y * b.x,
 			0, 0, 0, 0
 		)
-	}
+	}*/
 
 	// motor sqrt_m(motor R)
 	static sqrt_m(r) {
+		checkType("r", r, Motor)
+
 		return normalize_m(Motor.new(r.s + 1.0, r.e23, r.e31, r.e12, r.e01, r.e02, r.e03, r.e0123))
 	}
 }

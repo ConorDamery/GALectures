@@ -133,32 +133,36 @@ public:
 		f32 m00, f32 m01,
 		f32 m10, f32 m11);
 
-	static void GlMat3x2F(
+	static void GlMat2x3F(
 		f32 m00, f32 m01, f32 m02,
 		f32 m10, f32 m11, f32 m12);
 
-	static void GlMat2x3F(
+	static void GlMat2x4F(
+		f32 m00, f32 m01, f32 m02, f32 m03,
+		f32 m10, f32 m11, f32 m12, f32 m13);
+
+	static void GlMat3x2F(
 		f32 m00, f32 m01,
 		f32 m10, f32 m11,
 		f32 m20, f32 m21);
-
-	static void GlMat2x4F(
-		f32 m00, f32 m01,
-		f32 m10, f32 m11,
-		f32 m20, f32 m21,
-		f32 m30, f32 m31);
 
 	static void GlMat3x3F(
 		f32 m00, f32 m01, f32 m02,
 		f32 m10, f32 m11, f32 m12,
 		f32 m20, f32 m21, f32 m22);
 
-	static void GlMat4x3F(
+	static void GlMat3x4F(
 		f32 m00, f32 m01, f32 m02, f32 m03,
 		f32 m10, f32 m11, f32 m12, f32 m13,
 		f32 m20, f32 m21, f32 m22, f32 m23);
 
-	static void GlMat3x4F(
+	static void GlMat4x2F(
+		f32 m00, f32 m01,
+		f32 m10, f32 m11,
+		f32 m20, f32 m21,
+		f32 m30, f32 m31);
+
+	static void GlMat4x3F(
 		f32 m00, f32 m01, f32 m02,
 		f32 m10, f32 m11, f32 m12,
 		f32 m20, f32 m21, f32 m22,

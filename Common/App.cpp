@@ -52,6 +52,7 @@ struct AppData
 	GLuint shader{ 0 };
 	GLuint vao{ 0 };
 	GLuint vbo{ 0 };
+	std::vector<GLuint> shaders{};
 	const char* uniformName{ nullptr };
 	std::vector<Vertex> vertices{};
 
@@ -71,7 +72,7 @@ struct AppData
 	std::unordered_map<size_t, ScriptMethodFn> methods{};
 
 	// Editor
-	f32 fontSize{ 1.5f };
+	f32 fontSize{ 1.0f };
 	bool showSettings{ false };
 	bool showConsole{ false };
 };
@@ -80,10 +81,7 @@ static AppData g_app;
 // Static utils
 static std::string file_load(const char* filepath)
 {
-	std::string path = PROJECT_PATH;
-	path += filepath;
-
-	std::ifstream file(path);
+	std::ifstream file(filepath);
 	if (!file.is_open())
 	{
 		LOGE("Error opening file: %s", filepath);
@@ -297,6 +295,7 @@ static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
 	glDeleteShader(vshader);
 	glDeleteShader(fshader);
 
+	g_app.shaders.emplace_back(program);
 	return program;
 }
 
@@ -371,9 +370,9 @@ static bool imgui_initialize(const AppConfig& config)
 	}
 
 	ImGui::StyleColorsDark();
-	io.Fonts->AddFontFromFileTTF(PROJECT_PATH"/Common/Fonts/UbuntuMono-Regular.ttf", 20);
+	io.Fonts->AddFontFromFileTTF("Fonts/UbuntuMono-Regular.ttf", 20);
 
-	io.IniFilename = PROJECT_PATH"/imgui.ini";
+	io.IniFilename = "imgui.ini";
 	return true;
 }
 
@@ -556,6 +555,10 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 	{
 		log.message = buffer;
 	}
+
+#if _DEBUG
+	std::cout << log.message << std::endl;
+#endif
 
 	// Store log message
 	g_app.logs.emplace_back(std::move(log));
@@ -825,31 +828,29 @@ void App::GlMat2x2F(
 	glUniformMatrix2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat3x2F(
+void App::GlMat2x3F(
 	f32 m00, f32 m01, f32 m02,
 	f32 m10, f32 m11, f32 m12)
 {
 	const GLfloat v[6] = { m00, m01, m02, m10, m11, m12 };
-	glUniformMatrix3x2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix2x3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat2x3F(
+void App::GlMat2x4F(
+	f32 m00, f32 m01, f32 m02, f32 m03,
+	f32 m10, f32 m11, f32 m12, f32 m13)
+{
+	const GLfloat v[8] = { m00, m01, m02, m03, m10, m11, m12, m13 };
+	glUniformMatrix2x4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
+}
+
+void App::GlMat3x2F(
 	f32 m00, f32 m01,
 	f32 m10, f32 m11,
 	f32 m20, f32 m21)
 {
 	const GLfloat v[6] = { m00, m01, m10, m11, m20, m21 };
-	glUniformMatrix2x3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat2x4F(
-	f32 m00, f32 m01,
-	f32 m10, f32 m11,
-	f32 m20, f32 m21,
-	f32 m30, f32 m31)
-{
-	const GLfloat v[8] = { m00, m01, m10, m11, m20, m21, m30, m31 };
-	glUniformMatrix2x4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix3x2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlMat3x3F(
@@ -861,23 +862,33 @@ void App::GlMat3x3F(
 	glUniformMatrix3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat4x3F(
+void App::GlMat3x4F(
 	f32 m00, f32 m01, f32 m02, f32 m03,
 	f32 m10, f32 m11, f32 m12, f32 m13,
 	f32 m20, f32 m21, f32 m22, f32 m23)
 {
 	const GLfloat v[12] = { m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23 };
-	glUniformMatrix4x3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix3x4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat3x4F(
+void App::GlMat4x2F(
+	f32 m00, f32 m01,
+	f32 m10, f32 m11,
+	f32 m20, f32 m21,
+	f32 m30, f32 m31)
+{
+	const GLfloat v[8] = { m00, m01, m10, m11, m20, m21 };
+	glUniformMatrix4x2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
+}
+
+void App::GlMat4x3F(
 	f32 m00, f32 m01, f32 m02,
 	f32 m10, f32 m11, f32 m12,
 	f32 m20, f32 m21, f32 m22,
 	f32 m30, f32 m31, f32 m32)
 {
 	const GLfloat v[12] = { m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32 };
-	glUniformMatrix3x4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix4x3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlMat4x4F(
@@ -1059,6 +1070,11 @@ void App::Next(const AppConfig& config)
 
 void App::Reload(const AppConfig& config)
 {
+	// Clear resources
+	for (const auto shader : g_app.shaders)
+		GlDestroyShader(shader);
+	g_app.shaders.clear();
+
 	// Reload wren vm
 	if (g_app.vm != nullptr)
 		wren_shutdown();
@@ -1283,14 +1299,6 @@ void App::Reload(const AppConfig& config)
 			GlMat2x2F(v[0], v[1], v[2], v[3]);
 		});
 
-	WrenBindMethod("app", "App", true, "glMat3x2f(_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 6);
-			SCRIPT_ARGS_ARR(0, 6, f32, Float);
-			GlMat3x2F(v[0], v[1], v[2], v[3], v[4], v[5]);
-		});
-
 	WrenBindMethod("app", "App", true, "glMat2x3f(_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
@@ -1307,6 +1315,14 @@ void App::Reload(const AppConfig& config)
 			GlMat2x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
 		});
 
+	WrenBindMethod("app", "App", true, "glMat3x2f(_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 6);
+			SCRIPT_ARGS_ARR(0, 6, f32, Float);
+			GlMat3x2F(v[0], v[1], v[2], v[3], v[4], v[5]);
+		});
+
 	WrenBindMethod("app", "App", true, "glMat3x3f(_,_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
@@ -1315,20 +1331,28 @@ void App::Reload(const AppConfig& config)
 			GlMat3x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
 		});
 
-	WrenBindMethod("app", "App", true, "glMat4x3f(_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 12);
-			SCRIPT_ARGS_ARR(0, 12, f32, Float);
-			GlMat4x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
-		});
-
 	WrenBindMethod("app", "App", true, "glMat3x4f(_,_,_,_,_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
 			WrenEnsureSlots(vm, 12);
 			SCRIPT_ARGS_ARR(0, 12, f32, Float);
 			GlMat3x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
+		});
+
+	WrenBindMethod("app", "App", true, "glMat4x2f(_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 8);
+			SCRIPT_ARGS_ARR(0, 8, f32, Float);
+			GlMat4x2F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+		});
+
+	WrenBindMethod("app", "App", true, "glMat4x3f(_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 12);
+			SCRIPT_ARGS_ARR(0, 12, f32, Float);
+			GlMat4x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
 		});
 
 	WrenBindMethod("app", "App", true, "glMat4x4f(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
@@ -1347,7 +1371,7 @@ void App::Reload(const AppConfig& config)
 			GlVertex(v[0], v[1], v[2], WrenGetSlotUInt(vm, 4));
 		});
 
-	WrenParseFile("app", "/Common/app.wren");
+	WrenParseFile("app", "/Scripts/app.wren");
 
 	config.bindApiFn();
 
@@ -1410,29 +1434,39 @@ void App::Render()
 	{
 		if (ImGui::BeginMenu("App"))
 		{
-			if (ImGui::BeginMenu("Settings"))
-			{
-				if (ImGui::BeginMenu("Window Mode"))
-				{
-					if (ImGui::MenuItem("Windowed"))
-						WinSetMode(WindowMode::WINDOW);
-					if (ImGui::MenuItem("Borderless"))
-						WinSetMode(WindowMode::BORDERLESS);
-					if (ImGui::MenuItem("Fullscreen"))
-						WinSetMode(WindowMode::FULLSCREEN);
-
-					ImGui::EndMenu();
-				}
-				ImGui::EndMenu();
-			}
-
-			ImGui::Separator();
-
 			if (ImGui::BeginMenu("Tools"))
 			{
 				if (ImGui::MenuItem("Console"))
 					g_app.showConsole = !g_app.showConsole;
 
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Settings"))
+			{
+				if (ImGui::BeginMenu("Window"))
+				{
+					if (ImGui::BeginMenu("Mode"))
+					{
+						if (ImGui::MenuItem("Windowed"))
+							WinSetMode(WindowMode::WINDOW);
+						if (ImGui::MenuItem("Borderless"))
+							WinSetMode(WindowMode::BORDERLESS);
+						if (ImGui::MenuItem("Fullscreen"))
+							WinSetMode(WindowMode::FULLSCREEN);
+
+						ImGui::EndMenu();
+					}
+
+					ImGui::EndMenu();
+				}
+				
+				if (ImGui::BeginMenu("Font"))
+				{
+					ImGui::SliderFloat("Size", &g_app.fontSize, 0.5f, 2.0f);
+
+					ImGui::EndMenu();
+				}
 				ImGui::EndMenu();
 			}
 
@@ -1450,8 +1484,7 @@ void App::Render()
 		if (ImGui::Button(g_app.paused ? "Play" : "Pause"))
 			g_app.paused = !g_app.paused;
 
-		ImGui::Text("FPS: %.1f", g_app.fps);
-		ImGui::Text("Avg Frame (t): %.4f ms", g_app.spf * 1000);
+		ImGui::Text("FPS: %.0f | %.2f ms", g_app.fps, g_app.spf * 1000);
 
 		ImGui::EndMainMenuBar();
 	}
@@ -1488,6 +1521,17 @@ void App::Render()
 			{
 				if (ImGui::Selectable("Clear"))
 					g_app.logs.clear();
+				
+				if (ImGui::Selectable("Copy"))
+				{
+					static std::string clipboard;
+					clipboard.clear();
+
+					for (const auto& log : g_app.logs)
+						clipboard += log.message + "\n";
+					ImGui::SetClipboardText(clipboard.c_str());
+				}
+
 				ImGui::EndPopup();
 			}
 
@@ -1520,12 +1564,14 @@ void App::Render()
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
 		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
 
+	ImGui::SetWindowFontScale(g_app.fontSize);
 	if (!g_app.error && !g_app.paused)
 	{
 		wrenEnsureSlots(g_app.vm, 1);
 		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
 		wrenCall(g_app.vm, g_app.renderMethod);
 	}
+	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::PopStyleVar(2);
 	ImGui::PopStyleColor();

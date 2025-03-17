@@ -22,6 +22,10 @@ class App {
 	foreign static winClose()
 
     // Graphics
+	static glRed{ 0xFF0000FF }
+	static glGreen{ 0xFF00FF00 }
+	static glBlue{ 0xFFFF0000 }
+
 	static glPoints { 0 }
 	static glLines { 1 }
 	static glLineLoop { 2 }
@@ -47,12 +51,13 @@ class App {
 	foreign static glVec3f(x, y, z)
 	foreign static glVec4f(x, y, z, w)
 	foreign static glMat2x2f(m00, m01, m10, m11)
-	foreign static glMat3x2f(m00, m01, m02, m10, m11, m12)
-	foreign static glMat2x3f(m00, m01, m10, m11, m20, m21)
-	foreign static glMat2x4f(m00, m01, m10, m11, m20, m21, m30, m31)
+	foreign static glMat2x3f(m00, m01, m02, m10, m11, m12)
+	foreign static glMat2x4f(m00, m01, m02, m03, m10, m11, m12, m13)
+	foreign static glMat3x2f(m00, m01, m10, m11, m20, m21)
 	foreign static glMat3x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22)
-	foreign static glMat4x3f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23)
-	foreign static glMat3x4f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
+	foreign static glMat3x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23)
+	foreign static glMat4x2f(m00, m01, m10, m11, m20, m21, m30, m31)
+	foreign static glMat4x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
 	foreign static glMat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 
 	foreign static glVertex(x, y, z, c)

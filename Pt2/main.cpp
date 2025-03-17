@@ -13,7 +13,7 @@ static AppConfig Configure()
 
 	static const char* paths[] =
 	{
-		"/Pt2/Scripts/S1.wren"
+		"Scripts/s1.wren"
 	};
 	config.paths = paths;
 	config.pathCount = ARRAY_SIZE(paths);
@@ -25,7 +25,7 @@ static AppConfig Configure()
 
 static void BindApi()
 {
-	App::WrenParseFile("pga", "/Pt2/pga.wren");
+	App::WrenParseFile("pga", "Scripts/pga.wren");
 }
 
 int main(int argc, char** args)
