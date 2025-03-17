@@ -1,55 +1,59 @@
 class App {
-	// Utils
-	foreign static debugBool(label, v)
-	foreign static debugInt(label, i)
-	foreign static debugInt(label, i, min, max)
-	foreign static debugFloat(label, v)
-	foreign static debugSeparator(label)
-	foreign static debugButton(label)
+	// Gui
+	foreign static guiBool(label, v)
+	foreign static guiInt(label, i)
+	foreign static guiInt(label, i, min, max)
+	foreign static guiFloat(label, v)
+	foreign static guiSeparator(label)
+	foreign static guiButton(label)
+	foreign static guiSameLine()
+	foreign static guiBeginChild(name, px, py)
+	foreign static guiEndChild()
 
     // Window
-    foreign static width
-    foreign static height
+    foreign static winWidth
+	foreign static winHeight
 
-	foreign static mouseX
-	foreign static mouseY
-	foreign static getButton(b)
-	foreign static getKey(k)
+	foreign static winMouseX
+	foreign static winMouseY
+	foreign static winButton(b)
+	foreign static winKey(k)
 
-	foreign static close()
+	foreign static winClose()
 
     // Graphics
-	static points { 0 }
-	static lines { 1 }
-    static triangles { 2 }
+	static glPoints { 0 }
+	static glLines { 1 }
+	static glLineLoop { 2 }
+	static glLineStrip { 3 }
+    static glTriangles { 4 }
+    static glTriangleStrip { 5 }
+    static glTriangleFan { 6 }
 
-	foreign static createShader(path)
-	foreign static destroyShader(shader)
-	foreign static setShader(shader)
+	foreign static glCreateShader(path)
+	foreign static glDestroyShader(shader)
+	foreign static glSetShader(shader)
 	
-	foreign static begin(alpha, ztest, pointSize, lineWidth)
-	foreign static end(mode)
+	foreign static glBegin(alpha, ztest, pointSize, lineWidth)
+	foreign static glEnd(mode)
 
-	foreign static viewport(x, y, w, h)
-	foreign static clear(r, g, b, a, d, s, flags)
+	foreign static glViewport(x, y, w, h)
+	foreign static glClear(r, g, b, a, d, s, flags)
 
-	foreign static uniform(name)
+	// Shader uniforms
+	foreign static glUniform(name)      // Set the current uniform name
+	foreign static glFloat(x)
+	foreign static glVec2f(x, y)
+	foreign static glVec3f(x, y, z)
+	foreign static glVec4f(x, y, z, w)
+	foreign static glMat2x2f(m00, m01, m10, m11)
+	foreign static glMat3x2f(m00, m01, m02, m10, m11, m12)
+	foreign static glMat2x3f(m00, m01, m10, m11, m20, m21)
+	foreign static glMat2x4f(m00, m01, m10, m11, m20, m21, m30, m31)
+	foreign static glMat3x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22)
+	foreign static glMat4x3f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23)
+	foreign static glMat3x4f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
+	foreign static glMat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 
-	foreign static float(x)
-    
-    foreign static vec2f(x, y)
-    foreign static vec3f(x, y, z)
-    foreign static vec4f(x, y, z, w)
-
-    foreign static mat2x2f(m00, m01, m10, m11)
-    foreign static mat3x2f(m00, m01, m02, m10, m11, m12)
-    foreign static mat2x3f(m00, m01, m10, m11, m20, m21)
-    foreign static mat3x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22)
-
-    foreign static mat4x3f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23)
-    foreign static mat3x4f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
-    
-	foreign static mat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
-
-	foreign static vertex(x, y, z, c)
+	foreign static glVertex(x, y, z, c)
 }

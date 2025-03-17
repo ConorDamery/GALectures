@@ -1,2 +1,0 @@
-foreign class MVec3 {
-}

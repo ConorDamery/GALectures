@@ -565,52 +565,63 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 		g_app.logs.erase(g_app.logs.begin());
 }
 
-bool App::DebugBool(const char* label, bool v)
+bool App::GuiBool(const char* label, bool v)
 {
 	ImGui::Checkbox(label, &v);
 	return v;
 }
 
-i32 App::DebugInt(const char* label, i32 i)
+i32 App::GuiInt(const char* label, i32 i)
 {
 	ImGui::InputInt(label, &i);
 	return i;
 }
 
-i32 App::DebugInt(const char* label, i32 i, i32 min, i32 max)
+i32 App::GuiInt(const char* label, i32 i, i32 min, i32 max)
 {
 	ImGui::SliderInt(label, &i, min, max);
 	return i;
 }
 
-f32 App::DebugFloat(const char* label, f32 v)
+f32 App::GuiFloat(const char* label, f32 v)
 {
 	ImGui::DragFloat(label, &v, 0.1f);
 	return v;
 }
 
-void App::DebugSeparator(const char* label)
+void App::GuiSeparator(const char* label)
 {
 	ImGui::SeparatorText(label);
 }
 
-bool App::DebugButton(const char* label)
+bool App::GuiButton(const char* label)
 {
 	return ImGui::Button(label);
 }
 
-f32 App::GetFps()
+void App::GuiSameLine()
 {
-	return g_app.fps;
+	ImGui::SameLine();
 }
 
-f32 App::GetAvgFrameTime()
+bool App::GuiBeginChild(const char* label, f32 px, f32 py)
 {
-	return g_app.spf;
+	ImVec2 available = ImGui::GetContentRegionAvail();
+	ImVec2 size = ImVec2(
+		px == -1 ? available.x : px * available.x,
+		py == -1 ? available.y : py * available.y
+	);
+
+	return ImGui::BeginChild(label, size);
+}
+
+void App::GuiEndChild()
+{
+	ImGui::EndChild();
 }
 
 // Window
-void App::SetWindowMode(WindowMode windowMode)
+void App::WinSetMode(WindowMode windowMode)
 {
 	if (windowMode == g_app.winMode)
 		return;
@@ -637,70 +648,103 @@ void App::SetWindowMode(WindowMode windowMode)
 	g_app.winMode = windowMode;
 }
 
-i32 App::GetWidth()
+i32 App::WinWidth()
 {
 	i32 w, h;
 	glfwGetWindowSize(g_app.window, &w, &h);
 	return w;
 }
 
-i32 App::GetHeight()
+i32 App::WinHeight()
 {
 	i32 w, h;
 	glfwGetWindowSize(g_app.window, &w, &h);
 	return h;
 }
 
-f64 App::GetMouseX()
+f64 App::WinMouseX()
 {
 	f64 x, y;
 	glfwGetCursorPos(g_app.window, &x, &y);
 	return x;
 }
 
-f64 App::GetMouseY()
+f64 App::WinMouseY()
 {
 	f64 x, y;
 	glfwGetCursorPos(g_app.window, &x, &y);
 	return y;
 }
 
-bool App::GetButton(i32 b)
+bool App::WinButton(i32 b)
 {
 	return glfwGetMouseButton(g_app.window, b) == GLFW_PRESS;
 }
 
-bool App::GetKey(i32 k)
+bool App::WinKey(i32 k)
 {
 	return glfwGetKey(g_app.window, k) == GLFW_PRESS;
 }
 
-void App::Close()
+void App::WinClose()
 {
 	glfwSetWindowShouldClose(g_app.window, GLFW_TRUE);
 }
 
 // Graphics
-u32 App::CreateShader(const char* path)
+static std::string shader_process_includes(const std::string& source)
 {
-	auto src = file_load(path);
+	std::stringstream processed;
+	std::istringstream input(source);
+	std::string line;
+	static std::string includePath;
+
+	while (std::getline(input, line))
+	{
+		// Check for #include "filename"
+		if (line.rfind("#include", 0) == 0)
+		{
+			size_t start = line.find('"');
+			size_t end = line.rfind('"');
+			if (start != std::string::npos && end != std::string::npos && start < end)
+			{
+				size_t len = end - start - 1;
+
+				// Ensure buffer is large enough
+				includePath.resize(len);
+				std::memcpy(&includePath[0], line.c_str() + start + 1, len);
+				includePath[len] = '\0'; // Null-terminate manually
+
+				std::string includedSource = file_load(includePath.c_str());
+				processed << shader_process_includes(includedSource) << "\n";
+				continue; // Skip writing the #include line itself
+			}
+		}
+		processed << line << "\n";
+	}
+	return processed.str();
+}
+
+u32 App::GlCreateShader(const char* path)
+{
+	auto src = shader_process_includes(file_load(path));
 	auto vsrc = "#version 330 core\n#define VERT\n" + src;
 	auto fsrc = "#version 330 core\n#define FRAG\n" + src;
 	return opengl_load_shader(vsrc.c_str(), fsrc.c_str());
 }
 
-void App::DestroyShader(u32 shader)
+void App::GlDestroyShader(u32 shader)
 {
 	glDeleteProgram(shader);
 }
 
-void App::SetShader(u32 shader)
+void App::GlSetShader(u32 shader)
 {
 	g_app.shader = shader;
 	glUseProgram(g_app.shader);
 }
 
-void App::BeginDraw(bool alpha, bool ztest, f32 pointSize, f32 lineWidth)
+void App::GlBegin(bool alpha, bool ztest, f32 pointSize, f32 lineWidth)
 {
 	if (alpha)
 	{
@@ -722,19 +766,12 @@ void App::BeginDraw(bool alpha, bool ztest, f32 pointSize, f32 lineWidth)
 	glLineWidth(lineWidth);
 }
 
-void App::EndDraw(u32 mode)
+void App::GlEnd(u32 mode)
 {
 	glBindVertexArray(g_app.vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
 
-	GLenum glMode = GL_POINTS;
-	switch (mode)
-	{
-	case 0: glMode = GL_POINTS; break;
-	case 1: glMode = GL_LINES; break;
-	case 2: glMode = GL_TRIANGLES; break;
-	}
-
+	GLenum glMode = (GLenum)mode;
 	glBufferData(GL_ARRAY_BUFFER, g_app.vertices.size() * sizeof(Vertex), g_app.vertices.data(), GL_DYNAMIC_DRAW);
 	glDrawArrays(glMode, 0, (GLsizei)g_app.vertices.size());
 
@@ -744,43 +781,43 @@ void App::EndDraw(u32 mode)
 	g_app.vertices.clear();
 }
 
-void App::SetViewport(u32 x, u32 y, u32 w, u32 h)
+void App::GlViewport(u32 x, u32 y, u32 w, u32 h)
 {
 	glViewport(x, y, w, h);
 }
 
-void App::ClearScreen(f32 r, f32 g, f32 b, f32 a, f32 d, f32 s, u32 flags)
+void App::GlClear(f32 r, f32 g, f32 b, f32 a, f32 d, f32 s, u32 flags)
 {
 	glClearColor(r, g, b, a);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
-void App::SetUniform(const char* name)
+void App::GlUniform(const char* name)
 {
 	g_app.uniformName = name;
 }
 
-void App::SetFloat(f32 x)
+void App::GlFloat(f32 x)
 {
 	glUniform1f(glGetUniformLocation(g_app.shader, g_app.uniformName), x);
 }
 
-void App::SetVec2F(f32 x, f32 y)
+void App::GlVec2F(f32 x, f32 y)
 {
 	glUniform2f(glGetUniformLocation(g_app.shader, g_app.uniformName), x, y);
 }
 
-void App::SetVec3F(f32 x, f32 y, f32 z)
+void App::GlVec3F(f32 x, f32 y, f32 z)
 {
 	glUniform3f(glGetUniformLocation(g_app.shader, g_app.uniformName), x, y, z);
 }
 
-void App::SetVec4F(f32 x, f32 y, f32 z, f32 w)
+void App::GlVec4F(f32 x, f32 y, f32 z, f32 w)
 {
 	glUniform4f(glGetUniformLocation(g_app.shader, g_app.uniformName), x, y, z, w);
 }
 
-void App::SetMat2x2F(
+void App::GlMat2x2F(
 	f32 m00, f32 m01,
 	f32 m10, f32 m11)
 {
@@ -788,7 +825,7 @@ void App::SetMat2x2F(
 	glUniformMatrix2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::SetMat3x2F(
+void App::GlMat3x2F(
 	f32 m00, f32 m01, f32 m02,
 	f32 m10, f32 m11, f32 m12)
 {
@@ -796,7 +833,7 @@ void App::SetMat3x2F(
 	glUniformMatrix3x2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::SetMat2x3F(
+void App::GlMat2x3F(
 	f32 m00, f32 m01,
 	f32 m10, f32 m11,
 	f32 m20, f32 m21)
@@ -805,7 +842,17 @@ void App::SetMat2x3F(
 	glUniformMatrix2x3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::SetMat3x3F(
+void App::GlMat2x4F(
+	f32 m00, f32 m01,
+	f32 m10, f32 m11,
+	f32 m20, f32 m21,
+	f32 m30, f32 m31)
+{
+	const GLfloat v[8] = { m00, m01, m10, m11, m20, m21, m30, m31 };
+	glUniformMatrix2x4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
+}
+
+void App::GlMat3x3F(
 	f32 m00, f32 m01, f32 m02,
 	f32 m10, f32 m11, f32 m12,
 	f32 m20, f32 m21, f32 m22)
@@ -814,7 +861,7 @@ void App::SetMat3x3F(
 	glUniformMatrix3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::SetMat4x3F(
+void App::GlMat4x3F(
 	f32 m00, f32 m01, f32 m02, f32 m03,
 	f32 m10, f32 m11, f32 m12, f32 m13,
 	f32 m20, f32 m21, f32 m22, f32 m23)
@@ -823,7 +870,7 @@ void App::SetMat4x3F(
 	glUniformMatrix4x3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::SetMat3x4F(
+void App::GlMat3x4F(
 	f32 m00, f32 m01, f32 m02,
 	f32 m10, f32 m11, f32 m12,
 	f32 m20, f32 m21, f32 m22,
@@ -833,7 +880,7 @@ void App::SetMat3x4F(
 	glUniformMatrix3x4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::SetMat4x4F(
+void App::GlMat4x4F(
 	f32 m00, f32 m01, f32 m02, f32 m03,
 	f32 m10, f32 m11, f32 m12, f32 m13,
 	f32 m20, f32 m21, f32 m22, f32 m23,
@@ -843,19 +890,19 @@ void App::SetMat4x4F(
 	glUniformMatrix4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
 }
 
-void App::AddVertex(f32 x, f32 y, f32 z, u32 c)
+void App::GlVertex(f32 x, f32 y, f32 z, u32 c)
 {
 	g_app.vertices.emplace_back(Vertex{ { x, y, z }, c });
 }
 
 // Script
-void App::ParseFile(const char* moduleName, const char* filepath)
+void App::WrenParseFile(const char* moduleName, const char* filepath)
 {
 	auto src = file_load(filepath);
-	ParseSource(moduleName, src.c_str());
+	WrenParseSource(moduleName, src.c_str());
 }
 
-void App::ParseSource(const char* moduleName, const char* source)
+void App::WrenParseSource(const char* moduleName, const char* source)
 {
 	switch (wrenInterpret(g_app.vm, moduleName, source))
 	{
@@ -876,94 +923,94 @@ void App::ParseSource(const char* moduleName, const char* source)
 	}
 }
 
-void App::BindClass(const char* moduleName, const char* className, ScriptClass scriptClass)
+void App::WrenBindClass(const char* moduleName, const char* className, ScriptClass scriptClass)
 {
 	const size_t hash = wren_class_hash(moduleName, className);
 	g_app.classes.insert(std::make_pair(hash, scriptClass));
 }
 
-void App::BindMethod(const char* moduleName, const char* className, bool isStatic, const char* signature, ScriptMethodFn scriptMethod)
+void App::WrenBindMethod(const char* moduleName, const char* className, bool isStatic, const char* signature, ScriptMethodFn scriptMethod)
 {
 	const size_t hash = wren_method_hash(moduleName, className, isStatic, signature);
 	g_app.methods.insert(std::make_pair(hash, scriptMethod));
 }
 
-void App::EnsureSlots(ScriptVM* vm, i32 count)
+void App::WrenEnsureSlots(ScriptVM* vm, i32 count)
 {
 	wrenEnsureSlots(vm, count);
 }
 
-void App::GetVariable(ScriptVM* vm, const char* moduleName, const char* className, i32 slot)
+void App::WrenGetVariable(ScriptVM* vm, const char* moduleName, const char* className, i32 slot)
 {
 	wrenGetVariable(vm, moduleName, className, slot);
 }
 
-bool App::GetSlotBool(ScriptVM* vm, i32 slot)
+bool App::WrenGetSlotBool(ScriptVM* vm, i32 slot)
 {
 	return wrenGetSlotBool(vm, slot);
 }
 
-u32 App::GetSlotUInt(ScriptVM* vm, i32 slot)
+u32 App::WrenGetSlotUInt(ScriptVM* vm, i32 slot)
 {
 	return (u32)wrenGetSlotDouble(vm, slot);
 }
 
-i32 App::GetSlotInt(ScriptVM* vm, i32 slot)
+i32 App::WrenGetSlotInt(ScriptVM* vm, i32 slot)
 {
 	return (i32)wrenGetSlotDouble(vm, slot);
 }
 
-f32 App::GetSlotFloat(ScriptVM* vm, i32 slot)
+f32 App::WrenGetSlotFloat(ScriptVM* vm, i32 slot)
 {
 	return (f32)wrenGetSlotDouble(vm, slot);
 }
 
-f64 App::GetSlotDouble(ScriptVM* vm, i32 slot)
+f64 App::WrenGetSlotDouble(ScriptVM* vm, i32 slot)
 {
 	return wrenGetSlotDouble(vm, slot);
 }
 
-const char* App::GetSlotString(ScriptVM* vm, i32 slot)
+const char* App::WrenGetSlotString(ScriptVM* vm, i32 slot)
 {
 	return wrenGetSlotString(vm, slot);
 }
 
-void* App::GetSlotObject(ScriptVM* vm, i32 slot)
+void* App::WrenGetSlotObject(ScriptVM* vm, i32 slot)
 {
 	return wrenGetSlotForeign(vm, slot);
 }
 
-const char* App::GetSlotBytes(ScriptVM* vm, i32 slot, i32* length)
+const char* App::WrenGetSlotBytes(ScriptVM* vm, i32 slot, i32* length)
 {
 	return wrenGetSlotBytes(vm, slot, length);
 }
 
-void App::SetSlotBool(ScriptVM* vm, i32 slot, bool value)
+void App::WrenSetSlotBool(ScriptVM* vm, i32 slot, bool value)
 {
 	wrenSetSlotBool(vm, slot, value);
 }
 
-void App::SetSlotUInt(ScriptVM* vm, i32 slot, u32 value)
+void App::WrenSetSlotUInt(ScriptVM* vm, i32 slot, u32 value)
 {
 	wrenSetSlotDouble(vm, slot, (f64)value);
 }
 
-void App::SetSlotInt(ScriptVM* vm, i32 slot, i32 value)
+void App::WrenSetSlotInt(ScriptVM* vm, i32 slot, i32 value)
 {
 	wrenSetSlotDouble(vm, slot, (f64)value);
 }
 
-void App::SetSlotFloat(ScriptVM* vm, i32 slot, f32 value)
+void App::WrenSetSlotFloat(ScriptVM* vm, i32 slot, f32 value)
 {
 	wrenSetSlotDouble(vm, slot, (f64)value);
 }
 
-void App::SetSlotDouble(ScriptVM* vm, i32 slot, f64 value)
+void App::WrenSetSlotDouble(ScriptVM* vm, i32 slot, f64 value)
 {
 	wrenSetSlotDouble(vm, slot, (f64)value);
 }
 
-void* App::SetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t size)
+void* App::WrenSetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t size)
 {
 	return wrenSetSlotNewForeign(vm, slot, classSlot, size);
 }
@@ -1018,265 +1065,294 @@ void App::Reload(const AppConfig& config)
 	wren_initialize();
 
 	// Utils
-	BindMethod("app", "App", true, "debugBool(_,_)",
+	WrenBindMethod("app", "App", true, "guiBool(_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 2);
-			SetSlotBool(vm, 0, DebugBool(GetSlotString(vm, 1), GetSlotBool(vm, 2)));
+			WrenEnsureSlots(vm, 2);
+			WrenSetSlotBool(vm, 0, GuiBool(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2)));
 		});
 
-	BindMethod("app", "App", true, "debugInt(_,_)",
+	WrenBindMethod("app", "App", true, "guiInt(_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 2);
-			SetSlotInt(vm, 0, DebugInt(GetSlotString(vm, 1), GetSlotInt(vm, 2)));
+			WrenEnsureSlots(vm, 2);
+			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2)));
 		});
 
-	BindMethod("app", "App", true, "debugInt(_,_,_,_)",
+	WrenBindMethod("app", "App", true, "guiInt(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 4);
-			SetSlotInt(vm, 0, DebugInt(GetSlotString(vm, 1), GetSlotInt(vm, 2), GetSlotInt(vm, 3), GetSlotInt(vm, 4)));
+			WrenEnsureSlots(vm, 4);
+			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2), WrenGetSlotInt(vm, 3), WrenGetSlotInt(vm, 4)));
 		});
 
-	BindMethod("app", "App", true, "debugFloat(_,_)",
+	WrenBindMethod("app", "App", true, "guiFloat(_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 2);
-			SetSlotFloat(vm, 0, DebugFloat(GetSlotString(vm, 1), GetSlotFloat(vm, 2)));
+			WrenEnsureSlots(vm, 2);
+			WrenSetSlotFloat(vm, 0, GuiFloat(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2)));
 		});
 
-	BindMethod("app", "App", true, "debugSeparator(_)",
+	WrenBindMethod("app", "App", true, "guiSeparator(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			DebugSeparator(GetSlotString(vm, 1));
+			WrenEnsureSlots(vm, 1);
+			GuiSeparator(WrenGetSlotString(vm, 1));
 		});
 
-	BindMethod("app", "App", true, "debugButton(_)",
+	WrenBindMethod("app", "App", true, "guiButton(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			SetSlotBool(vm, 0, DebugButton(GetSlotString(vm, 1)));
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotBool(vm, 0, GuiButton(WrenGetSlotString(vm, 1)));
+		});
+
+	WrenBindMethod("app", "App", true, "guiSameLine()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GuiSameLine();
+		});
+
+	WrenBindMethod("app", "App", true, "guiBeginChild(_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 3);
+			WrenSetSlotBool(vm, 0, GuiBeginChild(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2), WrenGetSlotFloat(vm, 3)));
+		});
+
+	WrenBindMethod("app", "App", true, "guiEndChild()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GuiEndChild();
 		});
 
 	// Window
-	BindMethod("app", "App", true, "width",
+	WrenBindMethod("app", "App", true, "winWidth",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 0);
-			SetSlotInt(vm, 0, GetWidth());
+			WrenEnsureSlots(vm, 0);
+			WrenSetSlotInt(vm, 0, WinWidth());
 		});
 
-	BindMethod("app", "App", true, "height",
+	WrenBindMethod("app", "App", true, "winHeight",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 0);
-			SetSlotInt(vm, 0, GetHeight());
+			WrenEnsureSlots(vm, 0);
+			WrenSetSlotInt(vm, 0, WinHeight());
 		});
 
-	BindMethod("app", "App", true, "mouseX",
+	WrenBindMethod("app", "App", true, "winMouseX",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 0);
-			SetSlotDouble(vm, 0, GetMouseX());
+			WrenEnsureSlots(vm, 0);
+			WrenSetSlotDouble(vm, 0, WinMouseX());
 		});
 
-	BindMethod("app", "App", true, "mouseY",
+	WrenBindMethod("app", "App", true, "winMouseY",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 0);
-			SetSlotDouble(vm, 0, GetMouseY());
+			WrenEnsureSlots(vm, 0);
+			WrenSetSlotDouble(vm, 0, WinMouseY());
 		});
 
-	BindMethod("app", "App", true, "getButton(_)",
+	WrenBindMethod("app", "App", true, "winButton(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			SetSlotBool(vm, 0, GetButton(GetSlotInt(vm, 1)));
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotBool(vm, 0, WinButton(WrenGetSlotInt(vm, 1)));
 		});
 
-	BindMethod("app", "App", true, "getKey(_)",
+	WrenBindMethod("app", "App", true, "winKey(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			SetSlotBool(vm, 0, GetKey(GetSlotInt(vm, 1)));
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotBool(vm, 0, WinKey(WrenGetSlotInt(vm, 1)));
 		});
 
-	BindMethod("app", "App", true, "close()",
+	WrenBindMethod("app", "App", true, "winClose()",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 0);
-			Close();
+			WrenEnsureSlots(vm, 0);
+			WinClose();
 		});
 
 	// Graphics
-#define SCRIPT_ARGS_ARR(s, n, p, t) p v[n]; for (u8 i = s; i < n; ++i) v[i] = GetSlot##t##(vm, i + 1);
+#define SCRIPT_ARGS_ARR(s, n, p, t) p v[n]; for (u8 i = s; i < n; ++i) v[i] = WrenGetSlot##t##(vm, i + 1);
 
-	BindMethod("app", "App", true, "createShader(_)",
+	WrenBindMethod("app", "App", true, "glCreateShader(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			auto shader = CreateShader(GetSlotString(vm, 1));
-			SetSlotUInt(vm, 0, shader);
+			WrenEnsureSlots(vm, 1);
+			auto shader = GlCreateShader(WrenGetSlotString(vm, 1));
+			WrenSetSlotUInt(vm, 0, shader);
 		});
 
-	BindMethod("app", "App", true, "destroyShader(_)",
+	WrenBindMethod("app", "App", true, "glDestroyShader(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			auto shader = GetSlotUInt(vm, 1);
-			DestroyShader(shader);
+			WrenEnsureSlots(vm, 1);
+			auto shader = WrenGetSlotUInt(vm, 1);
+			GlDestroyShader(shader);
 		});
 
-	BindMethod("app", "App", true, "setShader(_)",
+	WrenBindMethod("app", "App", true, "glSetShader(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			auto shader = GetSlotUInt(vm, 1);
-			SetShader(shader);
+			WrenEnsureSlots(vm, 1);
+			auto shader = WrenGetSlotUInt(vm, 1);
+			GlSetShader(shader);
 		});
 
-	BindMethod("app", "App", true, "begin(_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glBegin(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 3);
-			BeginDraw(GetSlotBool(vm, 1), GetSlotBool(vm, 2), GetSlotFloat(vm, 3), GetSlotFloat(vm, 4));
+			WrenEnsureSlots(vm, 3);
+			GlBegin(WrenGetSlotBool(vm, 1), WrenGetSlotBool(vm, 2), WrenGetSlotFloat(vm, 3), WrenGetSlotFloat(vm, 4));
 		});
 
-	BindMethod("app", "App", true, "end(_)",
+	WrenBindMethod("app", "App", true, "glEnd(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			EndDraw(GetSlotUInt(vm, 1));
+			WrenEnsureSlots(vm, 1);
+			GlEnd(WrenGetSlotUInt(vm, 1));
 		});
 
-	BindMethod("app", "App", true, "viewport(_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glViewport(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 5);
+			WrenEnsureSlots(vm, 5);
 			SCRIPT_ARGS_ARR(0, 4, u32, UInt);
-			SetViewport(v[0], v[1], v[2], v[3]);
+			GlViewport(v[0], v[1], v[2], v[3]);
 		});
 
-	BindMethod("app", "App", true, "clear(_,_,_,_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glClear(_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 7);
+			WrenEnsureSlots(vm, 7);
 			SCRIPT_ARGS_ARR(0, 6, f32, Float);
-			ClearScreen(v[0], v[1], v[2], v[3], v[4], v[5], GetSlotUInt(vm, 7));
+			GlClear(v[0], v[1], v[2], v[3], v[4], v[5], WrenGetSlotUInt(vm, 7));
 		});
 
-	BindMethod("app", "App", true, "uniform(_)",
+	WrenBindMethod("app", "App", true, "glUniform(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			const char* value = GetSlotString(vm, 1);
-			SetUniform(value);
+			WrenEnsureSlots(vm, 1);
+			const char* value = WrenGetSlotString(vm, 1);
+			GlUniform(value);
 		});
 
-	BindMethod("app", "App", true, "float(_)",
+	WrenBindMethod("app", "App", true, "glFloat(_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 1);
-			f32 value = GetSlotFloat(vm, 1);
-			SetFloat(value);
+			WrenEnsureSlots(vm, 1);
+			f32 value = WrenGetSlotFloat(vm, 1);
+			GlFloat(value);
 		});
 
-	BindMethod("app", "App", true, "vec2f(_,_)",
+	WrenBindMethod("app", "App", true, "glVec2f(_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 2);
+			WrenEnsureSlots(vm, 2);
 			SCRIPT_ARGS_ARR(0, 2, f32, Float);
-			SetVec2F(v[0], v[1]);
+			GlVec2F(v[0], v[1]);
 		});
 
-	BindMethod("app", "App", true, "vec3f(_,_,_)",
+	WrenBindMethod("app", "App", true, "glVec3f(_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 3);
+			WrenEnsureSlots(vm, 3);
 			SCRIPT_ARGS_ARR(0, 3, f32, Float);
-			SetVec3F(v[0], v[1], v[2]);
+			GlVec3F(v[0], v[1], v[2]);
 		});
 
-	BindMethod("app", "App", true, "vec4f(_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glVec4f(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 4);
+			WrenEnsureSlots(vm, 4);
 			SCRIPT_ARGS_ARR(0, 4, f32, Float);
-			SetVec4F(v[0], v[1], v[2], v[3]);
+			GlVec4F(v[0], v[1], v[2], v[3]);
 		});
 
-	BindMethod("app", "App", true, "mat2x2f(_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glMat2x2f(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 4);
+			WrenEnsureSlots(vm, 4);
 			SCRIPT_ARGS_ARR(0, 4, f32, Float);
-			SetMat2x2F(v[0], v[1], v[2], v[3]);
+			GlMat2x2F(v[0], v[1], v[2], v[3]);
 		});
 
-	BindMethod("app", "App", true, "mat3x2f(_,_,_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glMat3x2f(_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 6);
+			WrenEnsureSlots(vm, 6);
 			SCRIPT_ARGS_ARR(0, 6, f32, Float);
-			SetMat3x2F(v[0], v[1], v[2], v[3], v[4], v[5]);
+			GlMat3x2F(v[0], v[1], v[2], v[3], v[4], v[5]);
 		});
 
-	BindMethod("app", "App", true, "mat2x3f(_,_,_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glMat2x3f(_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 6);
+			WrenEnsureSlots(vm, 6);
 			SCRIPT_ARGS_ARR(0, 6, f32, Float);
-			SetMat2x3F(v[0], v[1], v[2], v[3], v[4], v[5]);
+			GlMat2x3F(v[0], v[1], v[2], v[3], v[4], v[5]);
 		});
 
-	BindMethod("app", "App", true, "mat3x3f(_,_,_,_,_,_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glMat2x4f(_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 9);
+			WrenEnsureSlots(vm, 8);
+			SCRIPT_ARGS_ARR(0, 8, f32, Float);
+			GlMat2x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+		});
+
+	WrenBindMethod("app", "App", true, "glMat3x3f(_,_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 9);
 			SCRIPT_ARGS_ARR(0, 9, f32, Float);
-			SetMat3x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
+			GlMat3x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
 		});
 
-	BindMethod("app", "App", true, "mat4x3f(_,_,_,_,_,_,_,_,_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glMat4x3f(_,_,_,_,_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 12);
+			WrenEnsureSlots(vm, 12);
 			SCRIPT_ARGS_ARR(0, 12, f32, Float);
-			SetMat4x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
+			GlMat4x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
 		});
 
-	BindMethod("app", "App", true, "mat3x4f(_,_,_,_,_,_,_,_,_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glMat3x4f(_,_,_,_,_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 12);
+			WrenEnsureSlots(vm, 12);
 			SCRIPT_ARGS_ARR(0, 12, f32, Float);
-			SetMat3x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
+			GlMat3x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
 		});
 
-	BindMethod("app", "App", true, "mat4x4f(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glMat4x4f(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 16);
+			WrenEnsureSlots(vm, 16);
 			SCRIPT_ARGS_ARR(0, 16, f32, Float);
-			SetMat4x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
+			GlMat4x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
 		});
 
-	BindMethod("app", "App", true, "vertex(_,_,_,_)",
+	WrenBindMethod("app", "App", true, "glVertex(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			EnsureSlots(vm, 5);
+			WrenEnsureSlots(vm, 5);
 			SCRIPT_ARGS_ARR(0, 3, f32, Float);
-			AddVertex(v[0], v[1], v[2], GetSlotUInt(vm, 4));
+			GlVertex(v[0], v[1], v[2], WrenGetSlotUInt(vm, 4));
 		});
 
-	ParseFile("app", "/Common/app.wren");
+	WrenParseFile("app", "/Common/app.wren");
 
 	config.bindApiFn();
 
 	// Main callbacks
-	ParseFile("main", config.paths[g_app.current_path]);
+	WrenParseFile("main", config.paths[g_app.current_path]);
 	if (!g_app.error)
 	{
 		wrenEnsureSlots(g_app.vm, 1);
@@ -1322,7 +1398,7 @@ void App::Update(f64 dt)
 
 void App::Render()
 {
-	glViewport(0, 0, GetWidth(), GetHeight());
+	glViewport(0, 0, WinWidth(), WinHeight());
 	glClearColor(0, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -1339,11 +1415,11 @@ void App::Render()
 				if (ImGui::BeginMenu("Window Mode"))
 				{
 					if (ImGui::MenuItem("Windowed"))
-						SetWindowMode(WindowMode::WINDOW);
+						WinSetMode(WindowMode::WINDOW);
 					if (ImGui::MenuItem("Borderless"))
-						SetWindowMode(WindowMode::BORDERLESS);
+						WinSetMode(WindowMode::BORDERLESS);
 					if (ImGui::MenuItem("Fullscreen"))
-						SetWindowMode(WindowMode::FULLSCREEN);
+						WinSetMode(WindowMode::FULLSCREEN);
 
 					ImGui::EndMenu();
 				}
@@ -1363,7 +1439,7 @@ void App::Render()
 			ImGui::Separator();
 
 			if (ImGui::MenuItem("Exit"))
-				App::Close();
+				WinClose();
 
 			ImGui::EndMenu();
 		}
@@ -1400,7 +1476,10 @@ void App::Render()
 
 	if (g_app.showConsole)
 	{
-		ImGui::Begin("Console", &g_app.showConsole);
+		ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.05f, ImGui::GetFrameHeight() + (ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()) * 0.25f), ImGuiCond_Appearing);
+		ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x * 0.9f, (ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()) * 0.5f), ImGuiCond_Appearing);
+
+		ImGui::Begin("Console", &g_app.showConsole, ImGuiWindowFlags_NoSavedSettings);
 
 		const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
 		if (ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
@@ -1436,7 +1515,7 @@ void App::Render()
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
 
-	ImGui::Begin("##Overlay", nullptr,
+	ImGui::Begin("##Overlay", nullptr, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
 		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
