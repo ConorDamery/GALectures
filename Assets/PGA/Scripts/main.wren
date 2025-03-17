@@ -14,7 +14,7 @@ class Util {
 
 class State {
 	construct new() {
-		_shader = App.glCreateShader("/Pt2/Shaders/basic.glsl")
+		_shader = App.glCreateShader("Assets/PGA/Shaders/vertex.glsl")
 		_deg = 90
 		_x = 1
 		_y = 0
@@ -30,8 +30,8 @@ class State {
 			_x = App.guiFloat("X", _x)
 			_y = App.guiFloat("Y", _y)
 			_z = App.guiFloat("Z", _z)
-			App.guiEndChild()
 		}
+		App.guiEndChild()
 
 		App.glClear(0.1, 0.1, 0.1, 1, 0, 0, 0)
 		App.glSetShader(_shader)
@@ -51,7 +51,7 @@ class State {
 			var rp = PGA.sw_mp(r, p)
 			App.glVertex(rp[0], rp[1], rp[2], App.glGreen)
 		}
-		App.glEnd(App.glLineStrip)
+		App.glEnd(App.glLines)
 	}
 }
 

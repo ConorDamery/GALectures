@@ -86,17 +86,6 @@ public:
 	static void SetFrameOp(FrameOp op);
 	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
 	
-	// Gui
-	static bool GuiBool(const char* label, bool v);
-	static i32 GuiInt(const char* label, i32 i);
-	static i32 GuiInt(const char* label, i32 i, i32 min, i32 max);
-	static f32 GuiFloat(const char* label, f32 v);
-	static void GuiSeparator(const char* label);
-	static bool GuiButton(const char* label);
-	static void GuiSameLine();
-	static bool GuiBeginChild(const char* label, f32 px, f32 py);
-	static void GuiEndChild();
-
 	// Window
 	static void WinSetMode(WindowMode windowMode);
 
@@ -175,6 +164,17 @@ public:
 		f32 m30, f32 m31, f32 m32, f32 m33);
 
 	static void GlVertex(f32 x, f32 y, f32 z, u32 c);
+
+	// Gui
+	static bool GuiBool(const char* label, bool v);
+	static i32 GuiInt(const char* label, i32 i);
+	static i32 GuiInt(const char* label, i32 i, i32 min, i32 max);
+	static f32 GuiFloat(const char* label, f32 v);
+	static void GuiSeparator(const char* label);
+	static bool GuiButton(const char* label);
+	static void GuiSameLine();
+	static bool GuiBeginChild(const char* label, f32 px, f32 py);
+	static void GuiEndChild();
 
 	// Script
 	static void WrenParseFile(const char* moduleName, const char* filepath);

@@ -81,7 +81,15 @@ static AppData g_app;
 // Static utils
 static std::string file_load(const char* filepath)
 {
-	std::ifstream file(filepath);
+#if _DEBUG
+	std::string pathStr = PROJECT_PATH;
+	pathStr += filepath;
+	const char* path = pathStr.c_str();
+#else
+	const char* path = filepath;
+#endif
+
+	std::ifstream file(path);
 	if (!file.is_open())
 	{
 		LOGE("Error opening file: %s", filepath);
@@ -97,7 +105,15 @@ static std::string file_load(const char* filepath)
 
 static void file_save(const char* filepath, const std::string& src)
 {
-	std::ofstream file(filepath);
+#if _DEBUG
+	std::string pathStr = PROJECT_PATH;
+	pathStr += filepath;
+	const char* path = pathStr.c_str();
+#else
+	const char* path = filepath;
+#endif
+
+	std::ofstream file(path);
 	if (!file.is_open())
 	{
 		std::cerr << "Error opening file: " << filepath << std::endl;
@@ -370,7 +386,11 @@ static bool imgui_initialize(const AppConfig& config)
 	}
 
 	ImGui::StyleColorsDark();
-	io.Fonts->AddFontFromFileTTF("Fonts/UbuntuMono-Regular.ttf", 20);
+#ifdef _DEBUG
+	io.Fonts->AddFontFromFileTTF(PROJECT_PATH"Assets/Common/Fonts/UbuntuMono-Regular.ttf", 20);
+#else
+	io.Fonts->AddFontFromFileTTF("Assets/Common/Fonts/UbuntuMono-Regular.ttf", 20);
+#endif
 
 	io.IniFilename = "imgui.ini";
 	return true;
@@ -566,61 +586,6 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 	// Limit log size
 	if (g_app.logs.size() > 1024)
 		g_app.logs.erase(g_app.logs.begin());
-}
-
-bool App::GuiBool(const char* label, bool v)
-{
-	ImGui::Checkbox(label, &v);
-	return v;
-}
-
-i32 App::GuiInt(const char* label, i32 i)
-{
-	ImGui::InputInt(label, &i);
-	return i;
-}
-
-i32 App::GuiInt(const char* label, i32 i, i32 min, i32 max)
-{
-	ImGui::SliderInt(label, &i, min, max);
-	return i;
-}
-
-f32 App::GuiFloat(const char* label, f32 v)
-{
-	ImGui::DragFloat(label, &v, 0.1f);
-	return v;
-}
-
-void App::GuiSeparator(const char* label)
-{
-	ImGui::SeparatorText(label);
-}
-
-bool App::GuiButton(const char* label)
-{
-	return ImGui::Button(label);
-}
-
-void App::GuiSameLine()
-{
-	ImGui::SameLine();
-}
-
-bool App::GuiBeginChild(const char* label, f32 px, f32 py)
-{
-	ImVec2 available = ImGui::GetContentRegionAvail();
-	ImVec2 size = ImVec2(
-		px == -1 ? available.x : px * available.x,
-		py == -1 ? available.y : py * available.y
-	);
-
-	return ImGui::BeginChild(label, size);
-}
-
-void App::GuiEndChild()
-{
-	ImGui::EndChild();
 }
 
 // Window
@@ -906,6 +871,62 @@ void App::GlVertex(f32 x, f32 y, f32 z, u32 c)
 	g_app.vertices.emplace_back(Vertex{ { x, y, z }, c });
 }
 
+// Gui
+bool App::GuiBool(const char* label, bool v)
+{
+	ImGui::Checkbox(label, &v);
+	return v;
+}
+
+i32 App::GuiInt(const char* label, i32 i)
+{
+	ImGui::InputInt(label, &i);
+	return i;
+}
+
+i32 App::GuiInt(const char* label, i32 i, i32 min, i32 max)
+{
+	ImGui::SliderInt(label, &i, min, max);
+	return i;
+}
+
+f32 App::GuiFloat(const char* label, f32 v)
+{
+	ImGui::DragFloat(label, &v, 0.1f);
+	return v;
+}
+
+void App::GuiSeparator(const char* label)
+{
+	ImGui::SeparatorText(label);
+}
+
+bool App::GuiButton(const char* label)
+{
+	return ImGui::Button(label);
+}
+
+void App::GuiSameLine()
+{
+	ImGui::SameLine();
+}
+
+bool App::GuiBeginChild(const char* label, f32 px, f32 py)
+{
+	ImVec2 available = ImGui::GetContentRegionAvail();
+	ImVec2 size = ImVec2(
+		px == -1 ? available.x : px * available.x,
+		py == -1 ? available.y : py * available.y
+	);
+
+	return ImGui::BeginChild(label, size);
+}
+
+void App::GuiEndChild()
+{
+	ImGui::EndChild();
+}
+
 // Script
 void App::WrenParseFile(const char* moduleName, const char* filepath)
 {
@@ -1079,70 +1100,6 @@ void App::Reload(const AppConfig& config)
 	if (g_app.vm != nullptr)
 		wren_shutdown();
 	wren_initialize();
-
-	// Utils
-	WrenBindMethod("app", "App", true, "guiBool(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotBool(vm, 0, GuiBool(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiInt(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiInt(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2), WrenGetSlotInt(vm, 3), WrenGetSlotInt(vm, 4)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiFloat(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotFloat(vm, 0, GuiFloat(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiSeparator(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiSeparator(WrenGetSlotString(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "guiButton(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, GuiButton(WrenGetSlotString(vm, 1)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiSameLine()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiSameLine();
-		});
-
-	WrenBindMethod("app", "App", true, "guiBeginChild(_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 3);
-			WrenSetSlotBool(vm, 0, GuiBeginChild(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2), WrenGetSlotFloat(vm, 3)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiEndChild()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiEndChild();
-		});
 
 	// Window
 	WrenBindMethod("app", "App", true, "winWidth",
@@ -1371,7 +1328,71 @@ void App::Reload(const AppConfig& config)
 			GlVertex(v[0], v[1], v[2], WrenGetSlotUInt(vm, 4));
 		});
 
-	WrenParseFile("app", "/Scripts/app.wren");
+	// Gui
+	WrenBindMethod("app", "App", true, "guiBool(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			WrenSetSlotBool(vm, 0, GuiBool(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2)));
+		});
+
+	WrenBindMethod("app", "App", true, "guiInt(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2)));
+		});
+
+	WrenBindMethod("app", "App", true, "guiInt(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 4);
+			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2), WrenGetSlotInt(vm, 3), WrenGetSlotInt(vm, 4)));
+		});
+
+	WrenBindMethod("app", "App", true, "guiFloat(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			WrenSetSlotFloat(vm, 0, GuiFloat(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2)));
+		});
+
+	WrenBindMethod("app", "App", true, "guiSeparator(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GuiSeparator(WrenGetSlotString(vm, 1));
+		});
+
+	WrenBindMethod("app", "App", true, "guiButton(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotBool(vm, 0, GuiButton(WrenGetSlotString(vm, 1)));
+		});
+
+	WrenBindMethod("app", "App", true, "guiSameLine()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GuiSameLine();
+		});
+
+	WrenBindMethod("app", "App", true, "guiBeginChild(_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 3);
+			WrenSetSlotBool(vm, 0, GuiBeginChild(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2), WrenGetSlotFloat(vm, 3)));
+		});
+
+	WrenBindMethod("app", "App", true, "guiEndChild()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GuiEndChild();
+		});
+
+	WrenParseFile("app", "Assets/Common/Scripts/app.wren");
 
 	config.bindApiFn();
 
@@ -1484,7 +1505,7 @@ void App::Render()
 		if (ImGui::Button(g_app.paused ? "Play" : "Pause"))
 			g_app.paused = !g_app.paused;
 
-		ImGui::Text("FPS: %.0f | %.2f ms", g_app.fps, g_app.spf * 1000);
+		ImGui::Text("%.0f fps | %.2f ms", g_app.fps, g_app.spf * 1000);
 
 		ImGui::EndMainMenuBar();
 	}
@@ -1526,9 +1547,15 @@ void App::Render()
 				{
 					static std::string clipboard;
 					clipboard.clear();
+					clipboard.reserve(4096);
 
 					for (const auto& log : g_app.logs)
-						clipboard += log.message + "\n";
+					{
+						std::size_t length = log.message.size();
+						if (length > 0 && log.message[length - 1] == '\0') --length;
+						clipboard.append(log.message, 0, length).append("\n");
+					}
+
 					ImGui::SetClipboardText(clipboard.c_str());
 				}
 

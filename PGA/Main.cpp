@@ -7,13 +7,13 @@ static AppConfig Configure()
 	AppConfig config{};
 	config.width = 800;
 	config.height = 600;
-	config.title = "GA Lectures Pt2";
+	config.title = "PGA";
 	config.windowMode = WindowMode::WINDOW;
 	config.msaa = 8;
 
 	static const char* paths[] =
 	{
-		"Scripts/s1.wren"
+		"Assets/PGA/Scripts/main.wren"
 	};
 	config.paths = paths;
 	config.pathCount = ARRAY_SIZE(paths);
@@ -25,7 +25,7 @@ static AppConfig Configure()
 
 static void BindApi()
 {
-	App::WrenParseFile("pga", "Scripts/pga.wren");
+	App::WrenParseFile("pga", "Assets/PGA/Scripts/pga.wren");
 }
 
 int main(int argc, char** args)

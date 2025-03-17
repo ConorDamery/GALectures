@@ -1,15 +1,4 @@
 class App {
-	// Gui
-	foreign static guiBool(label, v)
-	foreign static guiInt(label, i)
-	foreign static guiInt(label, i, min, max)
-	foreign static guiFloat(label, v)
-	foreign static guiSeparator(label)
-	foreign static guiButton(label)
-	foreign static guiSameLine()
-	foreign static guiBeginChild(name, px, py)
-	foreign static guiEndChild()
-
     // Window
     foreign static winWidth
 	foreign static winHeight
@@ -44,8 +33,7 @@ class App {
 	foreign static glViewport(x, y, w, h)
 	foreign static glClear(r, g, b, a, d, s, flags)
 
-	// Shader uniforms
-	foreign static glUniform(name)      // Set the current uniform name
+	foreign static glUniform(name)
 	foreign static glFloat(x)
 	foreign static glVec2f(x, y)
 	foreign static glVec3f(x, y, z)
@@ -61,4 +49,15 @@ class App {
 	foreign static glMat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 
 	foreign static glVertex(x, y, z, c)
+
+	// Gui
+	foreign static guiBool(label, v)
+	foreign static guiInt(label, i)
+	foreign static guiInt(label, i, min, max)
+	foreign static guiFloat(label, v)
+	foreign static guiSeparator(label)
+	foreign static guiButton(label)
+	foreign static guiSameLine()
+	foreign static guiBeginChild(name, px, py)
+	foreign static guiEndChild()
 }

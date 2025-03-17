@@ -6,10 +6,12 @@ set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project (GALectures)
 
-set(PROJECT_PATH "${CMAKE_CURRENT_SOURCE_DIR}" CACHE STRING "Project root path")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(PROJECT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
+endif()
+
+set(ASSETS_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/Assets" CACHE STRING "Path to the Assets folder")
 
 add_subdirectory(ThirdParty)
 add_subdirectory(Common)
-
-#add_subdirectory(Pt1)
-add_subdirectory(Pt2)
+add_subdirectory(PGA)

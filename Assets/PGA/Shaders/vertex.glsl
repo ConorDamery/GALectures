@@ -1,4 +1,4 @@
-#include "/Pt2/Shaders/pga.glsl"
+#include "Assets/PGA/Shaders/pga.glsl"
 
 #ifdef VERT
 precision highp float;

@@ -377,13 +377,13 @@ class PGA {
 	}
 
 	// motor exp_r(float angle, line B)
-	static exp_r(angle, B) {
+	static exp_r(angle, r) {
 		checkType("angle", angle, Num)
-		checkType("B", B, Line)
+		checkType("r", r, Line)
 
 		var c = angle.cos
 		var s = angle.sin
-		return Motor.new(c, s * B.e23, s * B.e31, s * B.e12, 0, 0, 0, 0)
+		return Motor.new(c, s * r.e23, s * r.e31, s * r.e12, 0, 0, 0, 0)
 	}
 
 	// motor exp_t(float dist, line B)
