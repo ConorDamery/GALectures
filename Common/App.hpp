@@ -6,6 +6,7 @@
 
 // Util
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define BIT(n) (1u << (n))
 
 #define LOGI(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFFFFFF, format, ##__VA_ARGS__)
 #define LOGW(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFF00FFFF, format, ##__VA_ARGS__)
@@ -48,8 +49,18 @@ struct ScriptClass
 using AppConfigureFn = struct AppConfig(*)();
 using AppBindApiFn = void (*)();
 
-enum struct WindowMode { WINDOW, BORDERLESS, FULLSCREEN };
 enum struct FrameOp { NONE, RELOAD, NEXT, PREV };
+enum struct WindowMode { WINDOW, BORDERLESS, FULLSCREEN };
+enum struct GlTopology : u32
+{
+	POINTS = BIT(1),
+	LINES = BIT(2),
+	LINE_LOOP = BIT(3),
+	LINE_STRIP = BIT(4),
+	TRIANGLES = BIT(5),
+	TRIANGLE_STRIP = BIT(6),
+	TRIANGLE_FAN = BIT(7)
+};
 
 struct AppConfig
 {
@@ -96,6 +107,10 @@ public:
 	static f64 WinMouseY();
 	static bool WinButton(i32 b);
 	static bool WinKey(i32 k);
+
+	static i32 WinPadCount();
+	static bool WinPadButton(i32 i, i32 b);
+	static f32 WinPadAxis(i32 i, i32 a);
 
 	static void WinClose();
 

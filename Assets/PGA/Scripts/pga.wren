@@ -1,39 +1,61 @@
 import "app" for App
 
-// Based on: pga.glsl
-// by Steven De Keninck ("Look, Ma, No Matrices!" https://enkimute.github.io/LookMaNoMatrices/)
-
-//#define direction vec3    // [ e032, e013, e021 ] implied 0 e123
-class Direction {
-	construct new(e032, e013, e021) {
-		_e032 = e032
-		_e013 = e013
-		_e021 = e021
+class Plane {
+	construct new(e0, e1, e2, e3) {
+		_e0 = e0
+		_e1 = e1
+		_e2 = e2
+		_e3 = e3
 	}
 
-	e032 { _e032 }
-	e013 { _e013 }
-	e021 { _e021 }
+	e0 { _e0 }
+	e1 { _e1 }
+	e2 { _e2 }
+	e3 { _e3 }
+	d { _e0 }
+	x { _e1 }
+	y { _e2 }
+	z { _e3 }
 
-	e032=(v) { _e032 = v }
-	e013=(v) { _e013 = v }
-	e021=(v) { _e021 = v }
+	e0=(v) { _e0 = v }
+	e1=(v) { _e1 = v }
+	e2=(v) { _e2 = v }
+	e3=(v) { _e3 = v }
+	d=(v) { _e0 = v }
+	x=(v) { _e1 = v }
+	y=(v) { _e2 = v }
+	z=(v) { _e3 = v }
 
 	[i] {
 		if (i == 0) {
-			return e032
+			return e0
 		} else if (i == 1) {
-			return e013
+			return e1
 		} else if (i == 2) {
-			return e021
+			return e2
+		} else if (i == 3) {
+			return e3
 		} else {
         	Fiber.abort("Index out of bounds: " + i)
 		}
 	}
 
+	// Geometric product
+	// Inner product
+	// Outer product
+	// Sandwich product
+	// Left contraction
+	// Regressive product
+	// Reverse operator
+	// Dual operator
+	// Grade selection
+	// Normalization
+	// Exponentiation
+	// Logarithm
+
 	glUniform(name) {
 		App.glUniform(name)
-		App.glVec3f(e032, e013, e021)
+		App.glVec4f(e0, e1, e2, e3)
 	}
 
 	glDraw(color) {
@@ -46,49 +68,6 @@ class Direction {
 	toString { "[%(e032), %(e013), %(e021)]" }
 }
 
-//#define point     vec3    // [ e032, e013, e021 ] implied 1 e123
-class Point {
-	construct new(e032, e013, e021) {
-		_e032 = e032
-		_e013 = e013
-		_e021 = e021
-	}
-
-	e032 { _e032 }
-	e013 { _e013 }
-	e021 { _e021 }
-
-	e032=(v) { _e032 = v }
-	e013=(v) { _e013 = v }
-	e021=(v) { _e021 = v }
-
-	[i] {
-		if (i == 0) {
-			return e032
-		} else if (i == 1) {
-			return e013
-		} else if (i == 2) {
-			return e021
-		} else {
-        	Fiber.abort("Index out of bounds: " + i)
-		}
-	}
-
-	glUniform(name) {
-		App.glUniform(name)
-		App.glVec3f(e032, e013, e021)
-	}
-
-	glDraw(color) {
-		App.glBegin(true, true, 10, 1)
-		App.glVertex(e032, e013, e021, color)
-		App.glEnd(App.glPoints)
-	}
-
-	toString { "[%(e032), %(e013), %(e021)]" }
-}
-
-//#define line      mat2x3  // [ [e23, e31, e12], [e01, e02, e03] ]
 class Line {
 	construct new(e23, e31, e12, e01, e02, e03) {
 		_e23 = e23
@@ -131,6 +110,22 @@ class Line {
 		}
 	}
 
+	// Geometric product
+	// Inner product
+	// Outer product
+	// Sandwich product
+	// Left contraction
+	// Regressive product
+	// Reverse operator
+	// Dual operator
+	// Grade selection
+	// Normalization
+	
+	// Exponentiation
+	exp_r(x) { PGA.exp_r(x, this) }
+
+	// Logarithm
+
 	glUniform(name) {
 		App.glUniform(name)
 		App.glMat2x3f(e23, e31, e12, e01, e02, e03)
@@ -146,7 +141,253 @@ class Line {
 	toString { "[%(e23), %(e31), %(e12) | %(e01), %(e02), %(e03)]" }
 }
 
-//#define motor     mat2x4  // [ [s, e23, e31, e12], [e01, e02, e03, e0123] ] 
+class Point {
+	construct new(e032, e013, e021) {
+		_e032 = e032
+		_e013 = e013
+		_e021 = e021
+	}
+
+	e032 { _e032 }
+	e013 { _e013 }
+	e021 { _e021 }
+	x { _e032 }
+	y { _e013 }
+	z { _e021 }
+
+	e032=(v) { _e032 = v }
+	e013=(v) { _e013 = v }
+	e021=(v) { _e021 = v }
+	x=(v) { _e032 = v }
+	y=(v) { _e013 = v }
+	z=(v) { _e021 = v }
+
+	[i] {
+		if (i == 0) {
+			return e032
+		} else if (i == 1) {
+			return e013
+		} else if (i == 2) {
+			return e021
+		} else {
+        	Fiber.abort("Index out of bounds: " + i)
+		}
+	}
+
+	// Geometric product
+	// Inner product
+	// Outer product
+	// Sandwich product
+	// Left contraction
+	// Regressive product
+	// Reverse operator
+	// Dual operator
+	// Grade selection
+	// Normalization
+	// Exponentiation
+	// Logarithm
+
+	glUniform(name) {
+		App.glUniform(name)
+		App.glVec3f(e032, e013, e021)
+	}
+
+	glDraw(color) {
+		App.glBegin(true, true, 10, 1)
+		App.glVertex(e032, e013, e021, color)
+		App.glEnd(App.glPoints)
+	}
+
+	toString { "[%(e032), %(e013), %(e021)]" }
+}
+
+class Direction {
+	construct new(e032, e013, e021) {
+		_e032 = e032
+		_e013 = e013
+		_e021 = e021
+	}
+
+	e032 { _e032 }
+	e013 { _e013 }
+	e021 { _e021 }
+	x { _e032 }
+	y { _e013 }
+	z { _e021 }
+
+	e032=(v) { _e032 = v }
+	e013=(v) { _e013 = v }
+	e021=(v) { _e021 = v }
+	x=(v) { _e032 = v }
+	y=(v) { _e013 = v }
+	z=(v) { _e021 = v }
+
+	[i] {
+		if (i == 0) {
+			return e032
+		} else if (i == 1) {
+			return e013
+		} else if (i == 2) {
+			return e021
+		} else {
+        	Fiber.abort("Index out of bounds: " + i)
+		}
+	}
+
+	// Geometric product
+	// Inner product
+	// Outer product
+	// Sandwich product
+	// Left contraction
+	// Regressive product
+	// Reverse operator
+	// Dual operator
+	// Grade selection
+	
+	// Normalization
+	normalized { PGA.normalize_d(this) }
+
+	// Exponentiation
+	// Logarithm
+
+	glUniform(name) {
+		App.glUniform(name)
+		App.glVec3f(e032, e013, e021)
+	}
+
+	glDraw(color) {
+		App.glBegin(true, true, 2, 1)
+		App.glVertex(0, 0, 0, color)
+		App.glVertex(e032, e013, e021, color)
+		App.glEnd(App.glLines)
+	}
+
+	toString { "[%(e032), %(e013), %(e021)]" }
+}
+
+class Rotor {
+	construct new(s, e23, e31, e12) {
+		_s = s
+		_e23 = e23
+		_e31 = e31
+		_e12 = e12
+	}
+
+	s { _s }
+	e23 { _e23 }
+	e31 { _e31 }
+	e12 { _e12 }
+
+	s=(v) { _s = v }
+	e23=(v) { _e23 = v }
+	e31=(v) { _e31 = v }
+	e12=(v) { _e12 = v }
+
+	// Identity rotor
+	static identity { Rotor.new(1.0, 0.0, 0.0, 0.0) }
+
+	motor { Motor.new(s, e23, e31, e12, 0.0, 0.0, 0.0, 0.0) }
+
+	// Geometric product
+	*(b) {
+		if (b is Rotor) {
+			return PGA.gp_rr(this, b)
+		} else if (b is Translator) {
+			return PGA.gp_mm(motor, b.motor)
+		} else {
+			Fiber.abort("Geometric product not supported for %(b.type.name)")
+		}
+	}
+
+	// Inner product
+	// Outer product
+
+	// Sandwich product
+	>>(b) {
+		if (b is Point) {
+			return PGA.sw_mp(motor, b)
+		} else if (b is Direction) {
+			return PGA.sw_md(motor, b)
+		} else {
+			Fiber.abort("Sandwich product not supported for %(b.type.name)")
+		}
+	}
+	
+	// Left contraction
+	// Regressive product
+	// Reverse operator
+	// Dual operator
+	// Grade selection
+	// Normalization
+	// Exponentiation
+	// Logarithm
+
+	glUniform(name) {
+		App.glUniform(name)
+		App.glVec4f(s, e23, e31, e12)
+	}
+
+	toString { "[%(s), %(e23), %(e31), %(e12)]" }
+}
+
+class Translator {
+	construct new(e01, e02, e03) {
+		_e01 = e01
+		_e02 = e02
+		_e03 = e03
+	}
+
+	e01 { _e01 }
+	e02 { _e02 }
+	e03 { _e03 }
+
+	e01=(v) { _e01 = v }
+	e02=(v) { _e02 = v }
+	e03=(v) { _e03 = v }
+
+	[i] {
+		if (i == 1) {
+			return e01
+		} else if (i == 2) {
+			return e02
+		} else if (i == 3) {
+			return e03
+		} else {
+        	Fiber.abort("Index out of bounds: " + i)
+		}
+	}
+
+	motor { Motor.new(1.0, 0.0, 0.0, 0.0, e01, e02, e03, 0.0) }
+
+	// Geometric product
+	*(b) {
+		if (b is Rotor) {
+			return PGA.gp_mm(motor, b.motor)
+		} else {
+			Fiber.abort("Geometric product not supported for %(b.type.name)")
+		}
+	}
+
+	// Inner product
+	// Outer product
+	// Sandwich product
+	// Left contraction
+	// Regressive product
+	// Reverse operator
+	// Dual operator
+	// Grade selection
+	// Normalization
+	// Exponentiation
+	// Logarithm
+	
+	glUniform(name) {
+		App.glUniform(name)
+		App.glVec3f(e01, e02, e03)
+	}
+
+	toString { "[%(s), %(e23), %(e31), %(e12) | %(e01), %(e02), %(e03), %(e0123)]" }
+}
+
 class Motor {
 	construct new(s, e23, e31, e12, e01, e02, e03, e0123) {
 		_s = s
@@ -203,7 +444,17 @@ class Motor {
 	}
 
 	// Geometric product
-	//*(b) { Point.new(0, 0, 0) }
+	*(b) {
+		if (b is Motor) {
+			return PGA.gp_mm(this, b)
+		} else if (b is Rotor) {
+			return PGA.gp_mm(this, b.motor)
+		} else if (b is Translator) {
+			return PGA.gp_mm(this, b.motor)
+		} else {
+			Fiber.abort("Geometric product not supported for %(b.type.name)")
+		}
+	}
 
 	// Inner product
 	//|(b) { Point.new(0, 0, 0) }
@@ -212,7 +463,15 @@ class Motor {
 	//^(b) { Point.new(0, 0, 0) }
 
 	// Sandwich product
-	//>>(b) { Point.new(0, 0, 0) }
+	>>(b) {
+		if (b is Point) {
+			return PGA.sw_mp(this, b)
+		} else if (b is Direction) {
+			return PGA.sw_md(this, b)
+		} else {
+			Fiber.abort("Sandwich product not supported for %(b.type.name)")
+		}
+	}
 
 	// Left contraction
 	//<<(b) { Point.new(0, 0, 0) }
@@ -221,7 +480,7 @@ class Motor {
 	//&(b) { Point.new(0, 0, 0) }
 
 	// Reverse operator
-	//~ { Point.new(0, 0, 0) }
+	~ { PGA.reverse_m(this) }
 
 	// Dual operator
 	//! { Point.new(0, 0, 0) }
@@ -230,7 +489,7 @@ class Motor {
 	//grade(i) { Point.new(0, 0, 0) }
 
 	// Normalization
-	//normalized { Point.new(0, 0, 0) }
+	normalized { PGA.normalize_m(this) }
 
 	// Exponentiation
 	//exp(x) { Point.new(0, 0, 0) }
@@ -245,6 +504,9 @@ class Motor {
 
 	toString { "[%(s), %(e23), %(e31), %(e12) | %(e01), %(e02), %(e03), %(e0123)]" }
 }
+
+// Based on: pga.glsl
+// by Steven De Keninck ("Look, Ma, No Matrices!" https://enkimute.github.io/LookMaNoMatrices/)
 
 class PGA {
 	// Basis planes e1,e2,e3
@@ -313,15 +575,15 @@ class PGA {
 		checkType("b", b, Direction)
 
 		var t = Direction.new(
-			(b.e013 * a.e021 - b.e021 * a.e013),
-			(b.e021 * a.e032 - b.e032 * a.e021),
-			(b.e032 * a.e013 - b.e013 * a.e032)
+			b.e013 * a.e12 - b.e021 * a.e31,
+			b.e021 * a.e23 - b.e032 * a.e12,
+			b.e032 * a.e31 - b.e013 * a.e23
 		)
 
-		return Direction.new(
-			(a.s * t.e032 + (t.e013 * a.e021 - t.e021 * a.e013)) * 2.0 + b.e032,
-			(a.s * t.e013 + (t.e021 * a.e032 - t.e032 * a.e021)) * 2.0 + b.e013,
-			(a.s * t.e021 + (t.e032 * a.e013 - t.e013 * a.e032)) * 2.0 + b.e021
+		return Point.new(
+			(a.s * t.e032 + (t.e013 * a.e12 - t.e021 * a.e31)) * 2.0 + b.e032,
+			(a.s * t.e013 + (t.e021 * a.e23 - t.e032 * a.e12)) * 2.0 + b.e013,
+			(a.s * t.e021 + (t.e032 * a.e31 - t.e013 * a.e23)) * 2.0 + b.e021
 		)
 	}
 
@@ -376,22 +638,22 @@ class PGA {
 		return Motor.new(R.s, -R.e23, -R.e31, -R.e12, -R.e01, -R.e02, -R.e03, R.e0123)
 	}
 
-	// motor exp_r(float angle, line B)
-	static exp_r(angle, r) {
+	// rotor exp_r(float angle, line l)
+	static exp_r(angle, l) {
 		checkType("angle", angle, Num)
-		checkType("r", r, Line)
+		checkType("l", l, Line)
 
 		var c = angle.cos
 		var s = angle.sin
-		return Motor.new(c, s * r.e23, s * r.e31, s * r.e12, 0, 0, 0, 0)
+		return Rotor.new(c, s * l.e23, s * l.e31, s * l.e12)
 	}
 
-	// motor exp_t(float dist, line B)
-	static exp_t(dist, B) {
+	// motor exp_t(float dist, line l)
+	static exp_t(dist, l) {
 		checkType("dist", dist, Num)
-		checkType("B", B, Line)
+		checkType("l", l, Line)
 
-		return Motor.new(1.0, 0, 0, 0, dist * B.e01, dist * B.e02, dist * B.e03, 0)
+		return Motor.new(1.0, 0, 0, 0, dist * l.e01, dist * l.e02, dist * l.e03, 0)
 	}
 
 	// motor exp_b(line B)
@@ -533,17 +795,16 @@ class PGA {
 		)
 	}
 
-	// motor gp_rr(motor a, motor b)
+	// rotor gp_rr(rotor a, rotor b)
 	static gp_rr(a, b) {
-		checkType("a", a, Motor)
-		checkType("b", b, Motor)
+		checkType("a", a, Rotor)
+		checkType("b", b, Rotor)
 
-		return Motor.new(
+		return Rotor.new(
 			a.s * b.s - (a.e23 * b.e23 + a.e31 * b.e31 + a.e12 * b.e12), 
 			a.s * b.e23 + b.s * a.e23 + (a.e31 * b.e12 - a.e12 * b.e31), 
 			a.s * b.e31 + b.s * a.e31 + (a.e12 * b.e23 - a.e23 * b.e12), 
-			a.s * b.e12 + b.s * a.e12 + (a.e23 * b.e31 - a.e31 * b.e23),
-			0, 0, 0, 0
+			a.s * b.e12 + b.s * a.e12 + (a.e23 * b.e31 - a.e31 * b.e23)
 		)
 	}
 
@@ -553,14 +814,31 @@ class PGA {
 		checkType("b", b, Motor)
 
 		return Motor.new(
-			a.s * b.s - (a.e23 * b.e23 + a.e31 * b.e31 + a.e12 * b.e12), 
-			a.s * b.e23 + b.s * a.e23 + (a.e31 * b.e12 - a.e12 * b.e31), 
-			a.s * b.e31 + b.s * a.e31 + (a.e12 * b.e23 - a.e23 * b.e12), 
+			a.s * b.s - (a.e23 * b.e23 + a.e31 * b.e31 + a.e12 * b.e12),
+			a.s * b.e23 + b.s * a.e23 + (a.e31 * b.e12 - a.e12 * b.e31),
+			a.s * b.e31 + b.s * a.e31 + (a.e12 * b.e23 - a.e23 * b.e12),
 			a.s * b.e12 + b.s * a.e12 + (a.e23 * b.e31 - a.e31 * b.e23),
-			a.s * b.e01 + b.s * a.e01 + (a.e31 * b.e02 - a.e12 * b.e03) + (a.e01 * b.e23 - b.e01 * a.e23) - (b.e0123 * a.e23 + a.e0123 * b.e23), 
-			a.s * b.e02 + b.s * a.e02 + (a.e12 * b.e01 - a.e23 * b.e03) + (a.e02 * b.e31 - b.e02 * a.e31) - (b.e0123 * a.e31 + a.e0123 * b.e31), 
-			a.s * b.e03 + b.s * a.e03 + (a.e23 * b.e02 - a.e31 * b.e01) + (a.e03 * b.e12 - b.e03 * a.e12) - (b.e0123 * a.e12 + a.e0123 * b.e12), 
-			a.s * b.e0123 + b.s * a.e0123 + (a.e23 * b.e03 + a.e31 * b.e02 + a.e12 * b.e01) + (a.e01 * b.e31 + a.e02 * b.e12 + a.e03 * b.e23)
+			a.s * b.e01 + b.s * a.e01 + (a.e31 * b.e03 - a.e12 * b.e02) + (a.e02 * b.e12 - a.e03 * b.e31) - b.e0123 * a.e23 - a.e0123 * b.e23, 
+			a.s * b.e02 + b.s * a.e02 + (a.e12 * b.e01 - a.e23 * b.e03) + (a.e03 * b.e23 - a.e01 * b.e12) - b.e0123 * a.e31 - a.e0123 * b.e31, 
+			a.s * b.e03 + b.s * a.e03 + (a.e23 * b.e02 - a.e31 * b.e01) + (a.e01 * b.e31 - a.e02 * b.e23) - b.e0123 * a.e12 - a.e0123 * b.e12, 
+			a.s * b.e0123 + b.s * a.e0123 + (a.e23 * b.e01 + a.e31 * b.e02 + a.e12 * b.e03) + (a.e01 * b.e23 + a.e02 * b.e31 + a.e03 * b.e12)
+		)
+	}
+
+	// direction normalize_d(direction a)
+	static normalize_d(a) {
+		checkType("a", a, Direction)
+
+		var m = a.e032 * a.e032 + a.e013 * a.e013 + a.e021 * a.e021
+		if (m == 0) {
+			return a
+		}
+
+		var s = 1.0 / m.sqrt
+		return Direction.new(
+			a.e032 * s,
+			a.e013 * s,
+			a.e021 * s
 		)
 	}
 

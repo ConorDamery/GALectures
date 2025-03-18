@@ -651,7 +651,34 @@ bool App::WinButton(i32 b)
 
 bool App::WinKey(i32 k)
 {
+	GLFW_KEY_W;
 	return glfwGetKey(g_app.window, k) == GLFW_PRESS;
+}
+
+i32 App::WinPadCount()
+{
+	i32 count = 0;
+	for (i32 i = 0; i < 16; ++i)
+	{
+		if (glfwJoystickPresent(GLFW_JOYSTICK_1 + i))
+			++count;
+	}
+	return count;
+}
+
+bool App::WinPadButton(i32 i, i32 b)
+{
+	GLFWgamepadstate state;
+	return glfwJoystickPresent(GLFW_JOYSTICK_1 + i) &&
+		glfwGetGamepadState(GLFW_JOYSTICK_1 + i, &state) &&
+		state.buttons[b] == GLFW_PRESS;
+}
+
+f32 App::WinPadAxis(i32 i, i32 a)
+{
+	GLFWgamepadstate state;
+	return glfwJoystickPresent(GLFW_JOYSTICK_1 + i) &&
+		glfwGetGamepadState(GLFW_JOYSTICK_1 + i, &state) ? state.axes[a] : 0.0f;
 }
 
 void App::WinClose()
@@ -732,6 +759,8 @@ void App::GlBegin(bool alpha, bool ztest, f32 pointSize, f32 lineWidth)
 
 	glPointSize(pointSize);
 	glLineWidth(lineWidth);
+
+	g_app.vertices.clear();
 }
 
 void App::GlEnd(u32 mode)
@@ -739,14 +768,20 @@ void App::GlEnd(u32 mode)
 	glBindVertexArray(g_app.vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
 
-	GLenum glMode = (GLenum)mode;
 	glBufferData(GL_ARRAY_BUFFER, g_app.vertices.size() * sizeof(Vertex), g_app.vertices.data(), GL_DYNAMIC_DRAW);
-	glDrawArrays(glMode, 0, (GLsizei)g_app.vertices.size());
+	
+	for (u32 bit = 1; bit <= (u32)GlTopology::TRIANGLE_FAN; bit <<= 1)
+	{
+		if (mode & bit)
+		{
+			u32 i = 0, b = bit;
+			while (b > 1 && ++i) b >>= 1;
+			glDrawArrays(GL_POINTS + i, 0, (GLsizei)g_app.vertices.size());
+		}
+	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-
-	g_app.vertices.clear();
 }
 
 void App::GlViewport(u32 x, u32 y, u32 w, u32 h)
@@ -1142,6 +1177,27 @@ void App::Reload(const AppConfig& config)
 		{
 			WrenEnsureSlots(vm, 1);
 			WrenSetSlotBool(vm, 0, WinKey(WrenGetSlotInt(vm, 1)));
+		});
+
+	WrenBindMethod("app", "App", true, "winPadCount()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotInt(vm, 0, WinPadCount());
+		});
+
+	WrenBindMethod("app", "App", true, "winPadButton(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			WrenSetSlotBool(vm, 0, WinPadButton(WrenGetSlotInt(vm, 1), WrenGetSlotInt(vm, 2)));
+		});
+
+	WrenBindMethod("app", "App", true, "winPadAxis(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			WrenSetSlotFloat(vm, 0, WinPadAxis(WrenGetSlotInt(vm, 1), WrenGetSlotInt(vm, 2)));
 		});
 
 	WrenBindMethod("app", "App", true, "winClose()",
