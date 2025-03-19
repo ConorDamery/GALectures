@@ -13,3 +13,12 @@
 [submodule "ThirdParty/stb"]
 	path = ThirdParty/stb
 	url = https://github.com/nothings/stb.git
+[submodule "ThirdParty/cgltf"]
+	path = ThirdParty/cgltf
+	url = https://github.com/jkuhlmann/cgltf.git
+[submodule "ThirdParty/miniaudio"]
+	path = ThirdParty/miniaudio
+	url = https://github.com/mackron/miniaudio.git
+[submodule "ThirdParty/enet"]
+	path = ThirdParty/enet
+	url = https://github.com/zpl-c/enet.git
