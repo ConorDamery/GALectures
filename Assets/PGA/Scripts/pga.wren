@@ -110,18 +110,60 @@ class Line {
 		}
 	}
 
-	// Geometric product
+	// Addition
+	+(b) {
+		if (b is Line) {
+			return Line.new(e23 + b.e23, e31 + b.e31, e12 + b.e12, e01 + b.e01, e02 + b.e02, e03 + b.e03)
+		} else {
+			Fiber.abort("Addition not supported for %(b.type.name)")
+		}
+	}
+
+	// Subtraction
+	-(b) {
+		if (b is Line) {
+			return Line.new(e23 - b.e23, e31 - b.e31, e12 - b.e12, e01 - b.e01, e02 - b.e02, e03 - b.e03)
+		} else {
+			Fiber.abort("Addition not supported for %(b.type.name)")
+		}
+	}
+
+	// Unary minus
+	- { Line.new(-e23, -e31, -e12, -e01, -e02, -e03) }
+
+	// Scalar product
+	*(b) {
+		if (b is Num) {
+			return Line.new(e23 * b, e31 * b, e12 * b, e01 * b, e02 * b, e03 * b)
+		} else {
+			Fiber.abort("Scalar product not supported for %(b.type.name)")
+		}
+	}
+
+	// Scalar inverse product
+	/(b) {
+		if (b is Num) {
+			var ib = 1.0 / b
+			return Line.new(e23 * ib, e31 * ib, e12 * ib, e01 * ib, e02 * ib, e03 * ib)
+		} else {
+			Fiber.abort("Scalar product not supported for %(b.type.name)")
+		}
+	}
+
 	// Inner product
 	// Outer product
 	// Sandwich product
 	// Left contraction
 	// Regressive product
 	// Reverse operator
+	~ { Line.new(-e23, -e31, -e12, 0, 0, 0) }
+	
 	// Dual operator
 	// Grade selection
 	// Normalization
 	
 	// Exponentiation
+	exp { PGA.exp_b(this) }
 	exp_r(x) { PGA.exp_r(x, this) }
 
 	// Logarithm
@@ -283,10 +325,10 @@ class Rotor {
 	e31=(v) { _e31 = v }
 	e12=(v) { _e12 = v }
 
+	motor { Motor.new(s, e23, e31, e12, 0.0, 0.0, 0.0, 0.0) }
+
 	// Identity rotor
 	static identity { Rotor.new(1.0, 0.0, 0.0, 0.0) }
-
-	motor { Motor.new(s, e23, e31, e12, 0.0, 0.0, 0.0, 0.0) }
 
 	// Geometric product
 	*(b) {
@@ -418,6 +460,8 @@ class Motor {
 	e03=(v) { _e03 = v }
 	e0123=(v) { _e0123 = v }
 
+	line { Line.new(e23, e31, e12, e01, e02, e03) }
+
 	// Identity motor
 	static identity { Motor.new(1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) }
 
@@ -445,7 +489,9 @@ class Motor {
 
 	// Geometric product
 	*(b) {
-		if (b is Motor) {
+		if (b is Num) {
+			return Motor.new(s * b, e23 * b, e31 * b, e12 * b, e01 * b, e02 * b, e03 * b, e0123 * b)
+		} else if (b is Motor) {
 			return PGA.gp_mm(this, b)
 		} else if (b is Rotor) {
 			return PGA.gp_mm(this, b.motor)
@@ -495,7 +541,7 @@ class Motor {
 	//exp(x) { Point.new(0, 0, 0) }
 
 	// Logarithm
-	//log { Point.new(0, 0, 0) }
+	log { PGA.log_m(this) }
 
 	glUniform(name) {
 		App.glUniform(name)

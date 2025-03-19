@@ -46,9 +46,6 @@ struct ScriptClass
 };
 
 // Application
-using AppConfigureFn = struct AppConfig(*)();
-using AppBindApiFn = void (*)();
-
 enum struct FrameOp { NONE, RELOAD, NEXT, PREV };
 enum struct WindowMode { WINDOW, BORDERLESS, FULLSCREEN };
 enum struct GlTopology : u32
@@ -67,13 +64,7 @@ struct AppConfig
 	i32 width{ 800 }, height{ 600 };
 	const char* title{ nullptr };
 	WindowMode windowMode{ WindowMode::WINDOW };
-
 	i32 msaa{ 8 };
-
-	const char** paths{ nullptr };
-	std::size_t pathCount{ 0 };
-
-	AppBindApiFn bindApiFn{ nullptr };
 };
 
 class App
@@ -82,16 +73,16 @@ private:
 	static bool Initialize(const AppConfig& config);
 	static void Shutdown();
 
-	static void Prev(const AppConfig& config);
-	static void Next(const AppConfig& config);
+	static void Prev();
+	static void Next();
 
-	static void Reload(const AppConfig& config);
+	static void Reload();
 
 	static void Update(f64 dt);
 	static void Render();
 
 public:
-	static int Run(AppConfigureFn configFn);
+	static int Run(const AppConfig& config);
 
 	// Util
 	static void SetFrameOp(FrameOp op);

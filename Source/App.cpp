@@ -21,6 +21,17 @@
 #include <vector>
 #include <unordered_map>
 
+struct PathInfo
+{
+	std::string path{};
+	std::string name{};
+	std::string ext{};
+
+	std::size_t pathHash{ 0 };
+	std::size_t nameHash{ 0 };
+	std::size_t extHash{ 0 };
+};
+
 struct LogData
 {
 	u32 color = 0xFFFFFFFF;
@@ -35,6 +46,12 @@ struct Vertex
 
 struct AppData
 {
+	// App
+	std::vector<PathInfo> index{};
+	std::vector<PathInfo> manifest{};
+
+	int currentIndex{ 0 };
+
 	// Util
 	std::vector<LogData> logs{};
 	u32 frames{ 0 };
@@ -67,7 +84,6 @@ struct AppData
 
 	FrameOp frameOp{ FrameOp::NONE };
 
-	i64 current_path{ 0 };
 	std::unordered_map<size_t, ScriptClass> classes{};
 	std::unordered_map<size_t, ScriptMethodFn> methods{};
 
@@ -79,6 +95,59 @@ struct AppData
 static AppData g_app;
 
 // Static utils
+static std::size_t str_hash(const std::string& str)
+{
+	static std::hash<std::string> g_hash{};
+	return g_hash(str);
+}
+
+static PathInfo file_path_info(const std::string& fullPath)
+{
+	PathInfo info;
+	info.path = fullPath;
+
+	// Find last '/' or '\' (handling both Windows and Unix-style paths)
+	std::size_t lastSlash = fullPath.find_last_of("/\\");
+	std::size_t lastDot = fullPath.find_last_of('.');
+
+	// Extract filename and extension
+	if (lastSlash != std::string::npos)
+	{
+		info.name = fullPath.substr(lastSlash + 1, (lastDot != std::string::npos ? lastDot - lastSlash - 1 : std::string::npos));
+	}
+	else
+	{
+		info.name = fullPath.substr(0, lastDot); // No folder, just the name
+	}
+
+	if (lastDot != std::string::npos && lastDot > lastSlash)
+	{
+		info.ext = fullPath.substr(lastDot + 1);
+	}
+
+	// Hash values
+	std::hash<std::string> hasher;
+	info.pathHash = hasher(info.path);
+	info.nameHash = hasher(info.name);
+	info.extHash = hasher(info.ext);
+
+	return info;
+}
+
+static void file_parse_lines(const std::string& fileContent, std::vector<PathInfo>& container)
+{
+	std::istringstream stream(fileContent);
+	std::string line;
+
+	while (std::getline(stream, line))
+	{
+		if (!line.empty()) // Avoid empty lines
+		{
+			container.push_back(file_path_info(line));
+		}
+	}
+}
+
 static std::string file_load(const char* filepath)
 {
 #if _DEBUG
@@ -186,6 +255,8 @@ static bool glfw_initialize(const AppConfig& config)
 		glfwSetWindowPos(g_app.window, 0, 0);
 		glfwSetWindowSize(g_app.window, mode->width, mode->height);
 	}
+
+	glfwSetInputMode(g_app.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
 	return true;
 }
@@ -1084,9 +1155,6 @@ void* App::WrenSetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t si
 
 bool App::Initialize(const AppConfig& config)
 {
-	if (config.pathCount == 0)
-		return false;
-
 	if (!glfw_initialize(config))
 		return false;
 
@@ -1096,7 +1164,13 @@ bool App::Initialize(const AppConfig& config)
 	if (!imgui_initialize(config))
 		return false;
 
-	g_app.current_path = 0;
+	std::string indexSrc = file_load("Assets/index.txt");
+	file_parse_lines(indexSrc, g_app.index);
+
+	std::string manifestSrc = file_load("Assets/manifest.txt");
+	file_parse_lines(manifestSrc, g_app.manifest);
+
+	g_app.currentIndex = 0;
 	g_app.frameOp = FrameOp::RELOAD;
 
 	return true;
@@ -1110,21 +1184,21 @@ void App::Shutdown()
 	glfw_shutdown();
 }
 
-void App::Prev(const AppConfig& config)
+void App::Prev()
 {
-	g_app.current_path--;
-	g_app.current_path = g_app.current_path < 0 ? 0 : g_app.current_path >= config.pathCount ? config.pathCount : g_app.current_path;
-	Reload(config);
+	g_app.currentIndex--;
+	g_app.currentIndex = g_app.currentIndex < 0 ? 0 : g_app.currentIndex >= g_app.index.size() ? g_app.index.size() : g_app.currentIndex;
+	Reload();
 }
 
-void App::Next(const AppConfig& config)
+void App::Next()
 {
-	g_app.current_path++;
-	g_app.current_path = g_app.current_path < 0 ? 0 : g_app.current_path >= config.pathCount ? config.pathCount : g_app.current_path;
-	Reload(config);
+	g_app.currentIndex++;
+	g_app.currentIndex = g_app.currentIndex < 0 ? 0 : g_app.currentIndex >= g_app.index.size() ? g_app.index.size() : g_app.currentIndex;
+	Reload();
 }
 
-void App::Reload(const AppConfig& config)
+void App::Reload()
 {
 	// Clear resources
 	for (const auto shader : g_app.shaders)
@@ -1448,16 +1522,34 @@ void App::Reload(const AppConfig& config)
 			GuiEndChild();
 		});
 
-	WrenParseFile("app", "Assets/Common/Scripts/app.wren");
+	for (const auto& path : g_app.manifest)
+	{
+		static std::size_t wren_hash = str_hash("wren");
+		if (path.extHash == wren_hash)
+		{
+			bool inIndex = false;
+			for (const auto& path2 : g_app.index)
+			{
+				if (path2.pathHash == path.pathHash)
+				{
+					inIndex = true;
+					break;
+				}
+			}
 
-	config.bindApiFn();
+			if (!inIndex)
+				WrenParseFile(path.name.c_str(), path.path.c_str());
+		}
+	}
 
 	// Main callbacks
-	WrenParseFile("main", config.paths[g_app.current_path]);
+	const auto& index = g_app.index[g_app.currentIndex];
+	WrenParseFile(index.name.c_str(), index.path.c_str());
+
 	if (!g_app.error)
 	{
 		wrenEnsureSlots(g_app.vm, 1);
-		wrenGetVariable(g_app.vm, "main", "Main", 0);
+		wrenGetVariable(g_app.vm, index.name.c_str(), "Main", 0);
 		g_app.mainClass = wrenGetSlotHandle(g_app.vm, 0);
 		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
 		g_app.initMethod = wrenMakeCallHandle(g_app.vm, "init()");
@@ -1666,9 +1758,8 @@ void App::Render()
 	glfwSwapBuffers(g_app.window);
 }
 
-int App::Run(AppConfigureFn configFn)
+int App::Run(const AppConfig& config)
 {
-	auto config = configFn();
 	if (!Initialize(config))
 	{
 		return EXIT_FAILURE;
@@ -1679,9 +1770,9 @@ int App::Run(AppConfigureFn configFn)
 	{
 		switch (g_app.frameOp)
 		{
-		case FrameOp::RELOAD: Reload(config); break;
-		case FrameOp::NEXT: Next(config); break;
-		case FrameOp::PREV: Prev(config); break;
+		case FrameOp::RELOAD: Reload(); break;
+		case FrameOp::NEXT: Next(); break;
+		case FrameOp::PREV: Prev(); break;
 		}
 		g_app.frameOp = FrameOp::NONE;
 
