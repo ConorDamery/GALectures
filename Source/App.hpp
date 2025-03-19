@@ -17,7 +17,7 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define BIT(n) (1u << (n))
 
-#define LOGD(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFF0000, format, ##__VA_ARGS__)
+#define LOGD(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFA0A0A0, format, ##__VA_ARGS__)
 #define LOGI(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFFFFFF, format, ##__VA_ARGS__)
 #define LOGW(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFF00FFFF, format, ##__VA_ARGS__)
 #define LOGE(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFF0000FF, format, ##__VA_ARGS__)

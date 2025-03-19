@@ -6,6 +6,9 @@ Assets/Common/Fonts/UbuntuMono-Regular.ttf
 Assets/Common/GASandbox.png
 Assets/Common/Scripts/app.wren
 Assets/Common/Scripts/util.wren
+Assets/Complex/Scripts/complex.wren
+Assets/Complex/Scripts/main.wren
+Assets/Complex/Shaders/vertex.glsl
 Assets/PGA/Scripts/main.wren
 Assets/PGA/Scripts/pga.wren
 Assets/PGA/Shaders/pga.glsl

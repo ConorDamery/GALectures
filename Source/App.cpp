@@ -113,30 +113,24 @@ static PathInfo file_path_info(const std::string& fullPath)
 	PathInfo info;
 	info.path = fullPath;
 
-	// Find last '/' or '\' (handling both Windows and Unix-style paths)
+	// Find last '/' or '\' (for both Windows and Unix-style paths)
 	std::size_t lastSlash = fullPath.find_last_of("/\\");
 	std::size_t lastDot = fullPath.find_last_of('.');
 
 	// Extract filename and extension
 	if (lastSlash != std::string::npos)
-	{
 		info.name = fullPath.substr(lastSlash + 1, (lastDot != std::string::npos ? lastDot - lastSlash - 1 : std::string::npos));
-	}
 	else
-	{
 		info.name = fullPath.substr(0, lastDot); // No folder, just the name
-	}
 
 	if (lastDot != std::string::npos && lastDot > lastSlash)
-	{
 		info.ext = fullPath.substr(lastDot + 1);
-	}
 
 	// Hash values
-	std::hash<std::string> hasher;
-	info.pathHash = hasher(info.path);
-	info.nameHash = hasher(info.name);
-	info.extHash = hasher(info.ext);
+	static std::hash<std::string> g_hash;
+	info.pathHash = g_hash(info.path);
+	info.nameHash = g_hash(info.name);
+	info.extHash = g_hash(info.ext);
 
 	return info;
 }
@@ -1643,22 +1637,13 @@ void App::Reload()
 
 	for (const auto& path : g_app.manifest)
 	{
+		static std::size_t main_hash = str_hash("main");
+		if (path.nameHash == main_hash)
+			continue;
+
 		static std::size_t wren_hash = str_hash("wren");
 		if (path.extHash == wren_hash)
-		{
-			bool inIndex = false;
-			for (const auto& path2 : g_app.index)
-			{
-				if (path2.pathHash == path.pathHash)
-				{
-					inIndex = true;
-					break;
-				}
-			}
-
-			if (!inIndex)
-				WrenParseFile(path.name.c_str(), path.path.c_str());
-		}
+			WrenParseFile(path.name.c_str(), path.path.c_str());
 	}
 
 	// Main callbacks

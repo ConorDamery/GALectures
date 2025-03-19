@@ -34,6 +34,20 @@ endif()
 
 target_link_libraries(GASandbox Common)
 
+# Generate manifest file for assets (always needed)
+set(MANIFEST_FILE "${ASSETS_FOLDER}/manifest.txt")
+file(GLOB_RECURSE ASSET_FILES "${ASSETS_FOLDER}/*")
+
+# Clear the manifest file before writing
+file(WRITE "${MANIFEST_FILE}" "")
+
+# Write the relative paths of asset files into manifest.txt
+foreach(FILE ${ASSET_FILES})
+    file(RELATIVE_PATH REL_PATH "${ASSETS_FOLDER}" "${FILE}")
+    file(APPEND "${MANIFEST_FILE}" "Assets/${REL_PATH}\n")
+endforeach()
+
+# Ensure manifest.txt is copied for release mode
 if(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug"))
     # Custom target to sync files
     add_custom_target(sync_assets ALL)
@@ -53,17 +67,6 @@ if(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug"))
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${ASSETS_FOLDER}/" "${DEST_FOLDER}/"
             COMMENT "Merging ${ASSETS_FOLDER} into ${DEST_FOLDER}"
         )
-
-        # Generate manifest file
-        set(MANIFEST_FILE "${ASSETS_FOLDER}/manifest.txt")
-        file(GLOB_RECURSE ASSET_FILES "${ASSETS_FOLDER}/*")
-
-        # Write the file list to manifest.txt
-        file(WRITE "${MANIFEST_FILE}" "")
-        foreach(FILE ${ASSET_FILES})
-            file(RELATIVE_PATH REL_PATH "${ASSETS_FOLDER}" "${FILE}")
-            file(APPEND "${MANIFEST_FILE}" "Assets/${REL_PATH}\n")
-        endforeach()
 
         # Ensure manifest.txt is copied as well
         install(FILES "${MANIFEST_FILE}" DESTINATION "bin/Assets")
