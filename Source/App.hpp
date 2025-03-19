@@ -4,7 +4,16 @@
 #include <cstddef>
 #include <cstdlib>
 
-// Util
+// Macros
+#define XSTR(x) #x
+#define STR(x) XSTR(x)
+
+#define VERSION_DEV 1
+#define VERSION_MINOR 0
+#define VERSION_MAJOR 0
+
+#define VERSION_STR STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "." STR(VERSION_DEV)
+
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define BIT(n) (1u << (n))
 

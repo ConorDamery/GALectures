@@ -20,6 +20,10 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <mutex>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 
 struct PathInfo
 {
@@ -52,8 +56,9 @@ struct AppData
 
 	int currentIndex{ 0 };
 
-	// Util
 	std::vector<LogData> logs{};
+	std::mutex logMutex{};
+
 	u32 frames{ 0 };
 	f64 time{ 0 };
 	f64 fps{ 0 };
@@ -89,7 +94,6 @@ struct AppData
 
 	// Editor
 	f32 fontSize{ 1.0f };
-	bool showSettings{ false };
 	bool showConsole{ false };
 };
 static AppData g_app;
@@ -600,10 +604,20 @@ void App::SetFrameOp(FrameOp op)
 	g_app.frameOp = op;
 }
 
-// Util
 void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...)
 {
 	static std::string buffer; // Persistent buffer to reduce allocations
+
+	std::lock_guard<std::mutex> lock(g_app.logMutex);
+
+	// Get timestamp
+	auto now = std::chrono::system_clock::now();
+	auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+	std::ostringstream ss;
+	ss << std::put_time(std::localtime(&in_time_t), "[%Y-%m-%d %H:%M:%S]");
+
+	std::string timestamp = ss.str();
 
 	// Initialize the argument list
 	va_list args;
@@ -633,12 +647,12 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 		filename = filename ? filename + 1 : file; // Move past '/' or '\' if found
 
 		// Format metadata in the same buffer
-		size = std::snprintf(nullptr, 0, "[%s:%d (%s)]\n%s", filename, line, func, buffer.c_str());
+		size = std::snprintf(nullptr, 0, "%s [%s] (%s:%d)\n%s", timestamp.c_str(), func, filename, line, buffer.c_str());
 
 		std::string temp;
 		temp.resize(size + 1);
 
-		std::snprintf(&temp[0], temp.size(), "[%s:%d (%s)]\n%s", filename, line, func, buffer.c_str());
+		std::snprintf(&temp[0], temp.size(), "%s [%s] (%s:%d)\n%s", timestamp.c_str(), func, filename, line, buffer.c_str());
 
 		log.message = std::move(temp);
 	}
@@ -649,6 +663,17 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 
 #if _DEBUG
 	std::cout << log.message << std::endl;
+#else
+	// Write to file immediately
+	std::ofstream logFile("log.txt", std::ios::app); // Append mode
+	if (logFile.is_open())
+	{
+		logFile << log.message << std::endl;
+
+		// Ensure write is committed immediately
+		logFile.flush();
+		logFile.close();
+	}
 #endif
 
 	// Store log message
@@ -1601,7 +1626,7 @@ void App::Render()
 
 	if (ImGui::BeginMainMenuBar())
 	{
-		if (ImGui::BeginMenu("App"))
+		if (ImGui::BeginMenu("Menu"))
 		{
 			if (ImGui::BeginMenu("Tools"))
 			{
@@ -1647,33 +1672,15 @@ void App::Render()
 			ImGui::EndMenu();
 		}
 
+		ImGui::Text("| v%s | %3.0f fps | %6.2f ms |", VERSION_STR, g_app.fps, g_app.spf * 1000);
+
 		if (ImGui::Button("Reload"))
 			g_app.frameOp = FrameOp::RELOAD;
 
 		if (ImGui::Button(g_app.paused ? "Play" : "Pause"))
 			g_app.paused = !g_app.paused;
 
-		ImGui::Text("%.0f fps | %.2f ms", g_app.fps, g_app.spf * 1000);
-
 		ImGui::EndMainMenuBar();
-	}
-
-	if (g_app.showSettings)
-	{
-		ImGui::Begin("Settings", &g_app.showSettings);
-
-		// Script loader
-		//ImGui::InputText("Path", &g_app.filepath);
-		//
-		//ImGui::SameLine();
-		//
-		//if (ImGui::Button("Load"))
-		//	g_app.script = file_load(g_app.filepath.c_str());
-		//
-		//ImGui::SameLine();
-		//
-		//if (ImGui::Button("Save"))
-		//	file_save(g_app.filepath.c_str(), g_app.script);
 	}
 
 	if (g_app.showConsole)
