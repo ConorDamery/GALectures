@@ -17,6 +17,7 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define BIT(n) (1u << (n))
 
+#define LOGD(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFF0000, format, ##__VA_ARGS__)
 #define LOGI(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFFFFFF, format, ##__VA_ARGS__)
 #define LOGW(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFF00FFFF, format, ##__VA_ARGS__)
 #define LOGE(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFF0000FF, format, ##__VA_ARGS__)
@@ -56,7 +57,17 @@ struct ScriptClass
 
 // Application
 enum struct FrameOp { NONE, RELOAD, NEXT, PREV };
-enum struct WindowMode { WINDOW, BORDERLESS, FULLSCREEN };
+
+enum struct WindowMode { WINDOWED, BORDERLESS, FULLSCREEN };
+
+enum struct WindowCursor : i32
+{
+	NORMAL = 0x00034001,
+	HIDDEN = 0x00034002,
+	DISABLED = 0x00034003,
+	CAPTURED = 0x00034004
+};
+
 enum struct GlTopology : u32
 {
 	POINTS = BIT(1),
@@ -72,7 +83,7 @@ struct AppConfig
 {
 	i32 width{ 800 }, height{ 600 };
 	const char* title{ nullptr };
-	WindowMode windowMode{ WindowMode::WINDOW };
+	WindowMode windowMode{ WindowMode::WINDOWED };
 	i32 msaa{ 8 };
 };
 
@@ -98,7 +109,8 @@ public:
 	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
 	
 	// Window
-	static void WinSetMode(WindowMode windowMode);
+	static void WinMode(i32 mode);
+	static void WinCursor(i32 cursor);
 
 	static i32 WinWidth();
 	static i32 WinHeight();
@@ -181,6 +193,8 @@ public:
 	static void GlVertex(f32 x, f32 y, f32 z, u32 c);
 
 	// Gui
+	static void GuiPushItemWidth(f32 w);
+	static void GuiPopItemWidth();
 	static bool GuiBool(const char* label, bool v);
 	static i32 GuiInt(const char* label, i32 i);
 	static i32 GuiInt(const char* label, i32 i, i32 min, i32 max);
@@ -188,7 +202,9 @@ public:
 	static void GuiSeparator(const char* label);
 	static bool GuiButton(const char* label);
 	static void GuiSameLine();
-	static bool GuiBeginChild(const char* label, f32 px, f32 py);
+	static f32 GuiContentAvailWidth();
+	static f32 GuiContentAvailHeight();
+	static bool GuiBeginChild(const char* label, f32 w, f32 h);
 	static void GuiEndChild();
 
 	// Script

@@ -5,6 +5,10 @@ import "pga" for Direction, Point, Line, Rotor, Translator, Motor, PGA
 class State {
 	construct new() {
 		_shader = App.glCreateShader("Assets/PGA/Shaders/vertex.glsl")
+		_showOrigin = true
+		_showGrid = true
+		_lookSpeed = 0.1
+		_moveSpeed = 10.0
 		
 		_mx = App.winMouseX
 		_my = App.winMouseY
@@ -31,9 +35,12 @@ class State {
 		_my = App.winMouseY
 
 		if (App.winButton(App.winButtonRight)) {
-			_camry = _camry - dmx * 0.1
-			_camrx = _camrx + dmy * 0.1
+			App.winCursor(App.winCursorDisabled)
+			_camry = _camry - dmx * _lookSpeed
+			_camrx = _camrx + dmy * _lookSpeed
 			_camrx = _camrx > 89 ? 89 : _camrx < -89 ? -89 : _camrx
+		} else {
+			App.winCursor(App.winCursorNormal)
 		}
 
 		var rx = PGA.e23.exp_r(0.5 * _camrx * Num.pi / 180.0)
@@ -46,16 +53,29 @@ class State {
 			(App.winKey(App.winKeyW) ? 1 : 0) + (App.winKey(App.winKeyS) ? -1 : 0)
 		)
 		move = r >> move.normalized
-		_campx = _campx + move.x * dt * 10.0
-		_campy = _campy + move.y * dt * 10.0
-		_campz = _campz + move.z * dt * 10.0
+		_campx = _campx + move.x * dt * _moveSpeed
+		_campy = _campy + move.y * dt * _moveSpeed
+		_campz = _campz + move.z * dt * _moveSpeed
 
-		var t = Translator.new(-_campx, -_campy, -_campz)
+		var t = Translator.new(-_campx, -_campy, -_campz, 0.0)
 		_view = r * t
 	}
 
 	render() {
-		if (App.guiBeginChild("Params", 0.25, 1.0)) {
+		if (App.guiBeginChild("Settings", -1, 40)) {
+			_showOrigin = App.guiBool("Show Origin", _showOrigin)
+			App.guiSameLine()
+			_showGrid = App.guiBool("Show Grid", _showGrid)
+			App.guiSameLine()
+			App.guiPushItemWidth((App.guiContentAvailWidth() / 4).max(200))
+			_lookSpeed = App.guiFloat("Look Speed", _lookSpeed)
+			App.guiSameLine()
+			_moveSpeed = App.guiFloat("Move Speed", _moveSpeed)
+			App.guiPopItemWidth()
+		}
+		App.guiEndChild()
+
+		if (App.guiBeginChild("Params", (App.guiContentAvailWidth() * 0.25).max(300), -1)) {
 			_deg = App.guiFloat("Deg", _deg).min(360).max(0)
 			_seg = App.guiFloat("Seg", _seg).max(0)
 			_x = App.guiFloat("X", _x)
@@ -75,10 +95,14 @@ class State {
 		App.glUniform("Tint")
 		App.glVec4f(1, 1, 1, 1)
 
-		Util.glDrawOrigin(0, 0, 0)
-		Util.glDrawGrid(5, 1, -1, 1)
+		if (_showOrigin) {
+			Util.glDrawOrigin(0, 0, 0)
+		}
+		if (_showGrid) {
+			Util.glDrawGrid(5, 1, -1, 1)
+		}
 		
-		var p = Point.new(1, 0, 0)
+		var p = Point.new(1, 0, 0, 1)
 		p.glDraw(App.glRed)
 
 		var l = Line.new(_x, _y, _z, 0, 0, 0)
@@ -88,7 +112,7 @@ class State {
 		var rp = r >> p // Apply rotation
 		rp.glDraw(App.glBlue)
 		
-		if (!_slerp) {
+		/*if (!_slerp) {
 			App.glBegin(true, true, 1, 2)
 			App.glVertex(0, 0, 0, App.glGreen)
 			//l = l.motor.normalized.line
@@ -120,7 +144,7 @@ class State {
 			App.glUniform("Tint")
 			App.glVec4f(1, 1, 1, 0.1)
 			App.glEnd(App.glTriangleFan)
-		}
+		}*/
 	}
 }
 

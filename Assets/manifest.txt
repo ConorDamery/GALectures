@@ -3,6 +3,7 @@ Assets/Common/Fonts/UbuntuMono-Bold.ttf
 Assets/Common/Fonts/UbuntuMono-BoldItalic.ttf
 Assets/Common/Fonts/UbuntuMono-Italic.ttf
 Assets/Common/Fonts/UbuntuMono-Regular.ttf
+Assets/Common/GASandbox.png
 Assets/Common/Scripts/app.wren
 Assets/Common/Scripts/util.wren
 Assets/PGA/Scripts/main.wren

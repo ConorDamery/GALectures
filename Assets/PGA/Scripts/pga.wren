@@ -99,11 +99,11 @@ class Line {
 			return e31
 		} else if (i == 2) {
 			return e12
-		} else if (i == 1) {
+		} else if (i == 3) {
 			return e01
-		} else if (i == 1) {
+		} else if (i == 4) {
 			return e02
-		} else if (i == 1) {
+		} else if (i == 5) {
 			return e03
 		} else {
         	Fiber.abort("Index out of bounds: " + i)
@@ -157,7 +157,7 @@ class Line {
 	// Regressive product
 	// Reverse operator
 	~ { Line.new(-e23, -e31, -e12, 0, 0, 0) }
-	
+
 	// Dual operator
 	// Grade selection
 	// Normalization
@@ -184,25 +184,30 @@ class Line {
 }
 
 class Point {
-	construct new(e032, e013, e021) {
+	construct new(e032, e013, e021, e123) {
 		_e032 = e032
 		_e013 = e013
 		_e021 = e021
+		_e123 = e123
 	}
 
 	e032 { _e032 }
 	e013 { _e013 }
 	e021 { _e021 }
+	e123 { _e123 }
 	x { _e032 }
 	y { _e013 }
 	z { _e021 }
+	w { _e123 }
 
 	e032=(v) { _e032 = v }
 	e013=(v) { _e013 = v }
 	e021=(v) { _e021 = v }
+	e123=(v) { _e123 = v }
 	x=(v) { _e032 = v }
 	y=(v) { _e013 = v }
 	z=(v) { _e021 = v }
+	w=(v) { _e123 = v }
 
 	[i] {
 		if (i == 0) {
@@ -211,6 +216,8 @@ class Point {
 			return e013
 		} else if (i == 2) {
 			return e021
+		} else if (i == 3) {
+			return e123
 		} else {
         	Fiber.abort("Index out of bounds: " + i)
 		}
@@ -231,7 +238,7 @@ class Point {
 
 	glUniform(name) {
 		App.glUniform(name)
-		App.glVec3f(e032, e013, e021)
+		App.glVec3f(e032, e013, e021)//e123
 	}
 
 	glDraw(color) {
@@ -240,7 +247,7 @@ class Point {
 		App.glEnd(App.glPoints)
 	}
 
-	toString { "[%(e032), %(e013), %(e021)]" }
+	toString { "[%(e032), %(e013), %(e021), %(e123)]" }
 }
 
 class Direction {
@@ -325,6 +332,20 @@ class Rotor {
 	e31=(v) { _e31 = v }
 	e12=(v) { _e12 = v }
 
+	[i] {
+		if (i == 0) {
+			return s
+		} else if (i == 1) {
+			return e23
+		} else if (i == 2) {
+			return e31
+		} else if (i == 3) {
+			return e12
+		} else {
+        	Fiber.abort("Index out of bounds: " + i)
+		}
+	}
+
 	motor { Motor.new(s, e23, e31, e12, 0.0, 0.0, 0.0, 0.0) }
 
 	// Identity rotor
@@ -358,11 +379,14 @@ class Rotor {
 	// Left contraction
 	// Regressive product
 	// Reverse operator
+	~ { Rotor.new(s, -e23, -e31, -e12) }
+
 	// Dual operator
 	// Grade selection
 	// Normalization
 	// Exponentiation
 	// Logarithm
+	log { Line.new(0, 0, 0, 0, 0, 0) }
 
 	glUniform(name) {
 		App.glUniform(name)
@@ -373,33 +397,38 @@ class Rotor {
 }
 
 class Translator {
-	construct new(e01, e02, e03) {
+	construct new(e01, e02, e03, e0123) {
 		_e01 = e01
 		_e02 = e02
 		_e03 = e03
+		_e0123 = e0123
 	}
 
 	e01 { _e01 }
 	e02 { _e02 }
 	e03 { _e03 }
+	e0123 { _e0123 }
 
 	e01=(v) { _e01 = v }
 	e02=(v) { _e02 = v }
 	e03=(v) { _e03 = v }
+	e0123=(v) { _e0123 = v }
 
 	[i] {
-		if (i == 1) {
+		if (i == 0) {
 			return e01
-		} else if (i == 2) {
+		} else if (i == 1) {
 			return e02
-		} else if (i == 3) {
+		} else if (i == 2) {
 			return e03
+		} else if (i == 3) {
+			return e0123
 		} else {
         	Fiber.abort("Index out of bounds: " + i)
 		}
 	}
 
-	motor { Motor.new(1.0, 0.0, 0.0, 0.0, e01, e02, e03, 0.0) }
+	motor { Motor.new(1.0, 0.0, 0.0, 0.0, e01, e02, e03, e0123) }
 
 	// Geometric product
 	*(b) {
@@ -416,6 +445,8 @@ class Translator {
 	// Left contraction
 	// Regressive product
 	// Reverse operator
+	~ { Translator.new(-e01, -e02, -e03, e0123) }
+
 	// Dual operator
 	// Grade selection
 	// Normalization
@@ -427,7 +458,7 @@ class Translator {
 		App.glVec3f(e01, e02, e03)
 	}
 
-	toString { "[%(s), %(e23), %(e31), %(e12) | %(e01), %(e02), %(e03), %(e0123)]" }
+	toString { "[%(e01), %(e02), %(e03), %(e0123)]" }
 }
 
 class Motor {
@@ -459,8 +490,6 @@ class Motor {
 	e02=(v) { _e02 = v }
 	e03=(v) { _e03 = v }
 	e0123=(v) { _e0123 = v }
-
-	line { Line.new(e23, e31, e12, e01, e02, e03) }
 
 	// Identity motor
 	static identity { Motor.new(1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) }
@@ -593,7 +622,8 @@ class PGA {
 		return Point.new(
 			(a.s * t.e032 + (t.e013 * a.e12 - t.e021 * a.e31) - a.e23 * a.e0123) * 2.0 + b.e032,
 			(a.s * t.e013 + (t.e021 * a.e23 - t.e032 * a.e12) - a.e31 * a.e0123) * 2.0 + b.e013,
-			(a.s * t.e021 + (t.e032 * a.e31 - t.e013 * a.e23) - a.e12 * a.e0123) * 2.0 + b.e021
+			(a.s * t.e021 + (t.e032 * a.e31 - t.e013 * a.e23) - a.e12 * a.e0123) * 2.0 + b.e021,
+			1.0
 		)
 	}
 
@@ -611,7 +641,8 @@ class PGA {
 		return Point.new(
 			a.s * t.e032 + (t.e013 * a.e12 - t.e021 * a.e31) - a.e23 * a.e0123,
 			a.s * t.e013 + (t.e021 * a.e23 - t.e032 * a.e12) - a.e31 * a.e0123,
-			a.s * t.e021 + (t.e032 * a.e31 - t.e013 * a.e23) - a.e12 * a.e0123
+			a.s * t.e021 + (t.e032 * a.e31 - t.e013 * a.e23) - a.e12 * a.e0123,
+			1.0
 		)
 	}
 
@@ -626,7 +657,7 @@ class PGA {
 			b.e032 * a.e31 - b.e013 * a.e23
 		)
 
-		return Point.new(
+		return Direction.new(
 			(a.s * t.e032 + (t.e013 * a.e12 - t.e021 * a.e31)) * 2.0 + b.e032,
 			(a.s * t.e013 + (t.e021 * a.e23 - t.e032 * a.e12)) * 2.0 + b.e013,
 			(a.s * t.e021 + (t.e032 * a.e31 - t.e013 * a.e23)) * 2.0 + b.e021

@@ -1,15 +1,84 @@
 class App {
-    // Window
-    foreign static winWidth
-	foreign static winHeight
 
-	foreign static winMouseX
-	foreign static winMouseY
-	foreign static winButton(b)
-	foreign static winKey(k)
-	foreign static winPadCount()
-	foreign static winPadButton(i, b)
-	foreign static winPadAxis(i, a)
+	// ==============================
+    // Window
+    // ==============================
+
+	static winModeWindowed { 0 }
+	static winModeBorderless { 0 }
+	static winModeFullscreen { 0 }
+
+	foreign static winMode(mode)
+
+    // Cursor is visible and can move freely (default behavior).
+    static winCursorNormal { 0x00034001 }
+
+    // Cursor is hidden when inside the window but still active.
+    static winCursorHidden { 0x00034002 }
+
+    // Cursor is disabled and locked to the window (useful for FPS controls).
+    static winCursorDisabled { 0x00034003 }
+
+	// ???
+	static winCursorCaptured { 0x00034004 }
+
+	foreign static winCursor(mode)
+
+    // The width of the application window in pixels.
+    //
+    // @return (i32) The window width.
+    foreign static winWidth
+
+    // The height of the application window in pixels.
+    //
+    // @return (i32) The window height.
+    foreign static winHeight
+
+    // The current X position of the mouse in window coordinates.
+    //
+    // @return (f64) The mouse X position.
+    foreign static winMouseX
+
+    // The current Y position of the mouse in window coordinates.
+    //
+    // @return (f64) The mouse Y position.
+    foreign static winMouseY
+
+    // Checks if a specific mouse button is pressed.
+    //
+    // @param b (i32) The button ID.
+    // @return (bool) `true` if the button is pressed, `false` otherwise.
+    foreign static winButton(b)
+
+    // Checks if a specific key is pressed.
+    //
+    // @param k (i32) The key code.
+    // @return (bool) `true` if the key is pressed, `false` otherwise.
+    foreign static winKey(k)
+
+    // Returns the number of connected gamepads.
+    //
+    // @return (i32) The number of gamepads detected.
+    foreign static winPadCount()
+
+    // Checks if a specific button on a gamepad is pressed.
+    //
+    // @param i (i32) The gamepad index.
+    // @param b (i32) The button ID.
+    // @return (bool) `true` if the button is pressed, `false` otherwise.
+    foreign static winPadButton(i, b)
+
+    // Gets the value of a gamepad axis.
+    //
+    // @param i (i32) The gamepad index.
+    // @param a (i32) The axis ID.
+    // @return (f32) The axis value (-1 to 1).
+    foreign static winPadAxis(i, a)
+
+    // Closes the application window.
+    foreign static winClose()
+
+    // Mouse Button Constants
 
 	static winButton1 { 0 }
 	static winButton2 { 1 }
@@ -23,6 +92,8 @@ class App {
 	static winButtonLeft { winButton1 }
 	static winButtonRight { winButton2 }
 	static winButtonMiddle { winButton3 }
+
+    // Keyboard Key Constants
 
 	static winKeySpace { 32 }
 	static winKeyApostrophe { 39 }
@@ -146,6 +217,8 @@ class App {
 	static winKeyRightSuper { 347 }
 	static winKeyMenu { 348 }
 
+    // Gamepad Button Constants
+
 	static winPadA { 0 }
 	static winPadB { 1 }
 	static winPadX { 2 }
@@ -167,6 +240,8 @@ class App {
 	static winPadSquare { 2 }
 	static winPadTriangle { 3 }
 
+    // Gamepad Axis Constants
+
 	static winPadLeftX { 0 }
 	static winPadLeftY { 1 }
 	static winPadRightX { 2 }
@@ -174,33 +249,67 @@ class App {
 	static winPadLeftTrigger { 4 }
 	static winPadRightTrigger { 5 }
 
-	foreign static winClose()
-
+    // ==============================
     // Graphics
-	static glRed{ 0xFF0000FF }
-	static glGreen{ 0xFF00FF00 }
-	static glBlue{ 0xFFFF0000 }
-	static glGray{ 0xFF505050 }
+    // ==============================
 
-	static glPoints { 1 }
-	static glLines { 2 }
-	static glLineLoop { 4 }
-	static glLineStrip { 8 }
-    static glTriangles { 16 }
-    static glTriangleStrip { 32 }
-    static glTriangleFan { 64 }
+    // Creates a shader from a file path.
+    //
+    // @param path (string) The file path to the shader.
+    // @return (u32) The shader handle.
+    foreign static glCreateShader(path)
 
-	foreign static glCreateShader(path)
-	foreign static glDestroyShader(shader)
-	foreign static glSetShader(shader)
-	
-	foreign static glBegin(alpha, ztest, pointSize, lineWidth)
-	foreign static glEnd(mode)
+    // Destroys a previously created shader.
+    //
+    // @param shader (u32) The shader handle to be deleted.
+    foreign static glDestroyShader(shader)
 
-	foreign static glViewport(x, y, w, h)
-	foreign static glClear(r, g, b, a, d, s, flags)
+    // Sets the active shader for rendering.
+    //
+    // @param shader (u32) The shader handle.
+    foreign static glSetShader(shader)
 
+    // Begins drawing with optional settings.
+    //
+    // @param alpha (bool) Enable alpha blending.
+    // @param ztest (bool) Enable depth testing.
+    // @param pointSize (f32) The size of points.
+    // @param lineWidth (f32) The width of lines.
+    foreign static glBegin(alpha, ztest, pointSize, lineWidth)
+
+    // Ends drawing and submits the primitives.
+    //
+    // @param mode (u32) The primitive type (e.g., `glTriangles`).
+    foreign static glEnd(mode)
+
+    // Sets the viewport dimensions.
+    //
+    // @param x (u32) The X position.
+    // @param y (u32) The Y position.
+    // @param w (u32) The width.
+    // @param h (u32) The height.
+    foreign static glViewport(x, y, w, h)
+
+    // Clears the screen with a specified color.
+    //
+    // @param r (f32) Red component (0 to 1).
+    // @param g (f32) Green component (0 to 1).
+    // @param b (f32) Blue component (0 to 1).
+    // @param a (f32) Alpha component (0 to 1).
+    // @param d (f32) Depth buffer clear value.
+    // @param s (f32) Stencil buffer clear value.
+    // @param flags (u32) Bitmask specifying which buffers to clear.
+    foreign static glClear(r, g, b, a, d, s, flags)
+
+    // Specifies the name of the uniform variable to be set.
+    // This must be called before setting any uniform value.
+    //
+    // @param name (string) The name of the uniform variable in the shader.
 	foreign static glUniform(name)
+
+    // Shader Uniforms
+	// Requires calling `glUniform(name)` first.
+
 	foreign static glFloat(x)
 	foreign static glVec2f(x, y)
 	foreign static glVec3f(x, y, z)
@@ -215,16 +324,93 @@ class App {
 	foreign static glMat4x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
 	foreign static glMat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 
-	foreign static glVertex(x, y, z, c)
+    // Specifies a vertex position and color.
+    //
+    // @param x (f32) X position.
+    // @param y (f32) Y position.
+    // @param z (f32) Z position.
+    // @param c (u32) Color encoded as RGBA.
+    foreign static glVertex(x, y, z, c)
 
-	// Gui
-	foreign static guiBool(label, v)
-	foreign static guiInt(label, i)
-	foreign static guiInt(label, i, min, max)
-	foreign static guiFloat(label, v)
-	foreign static guiSeparator(label)
-	foreign static guiButton(label)
-	foreign static guiSameLine()
-	foreign static guiBeginChild(name, px, py)
+    // Color Constants
+
+	static glRed{ 0xFF0000FF }
+	static glGreen{ 0xFF00FF00 }
+	static glBlue{ 0xFFFF0000 }
+	static glGray{ 0xFF505050 }
+
+    // Primitive Constants
+
+	static glPoints { 1 }
+	static glLines { 2 }
+	static glLineLoop { 4 }
+	static glLineStrip { 8 }
+    static glTriangles { 16 }
+    static glTriangleStrip { 32 }
+    static glTriangleFan { 64 }
+
+    // ==============================
+    // GUI
+    // ==============================
+
+	foreign static guiPushItemWidth(w)
+	foreign static guiPopItemWidth()
+
+    // Creates a GUI checkbox.
+    //
+    // @param label (string) The label of the checkbox.
+    // @param v (bool) The initial value.
+    // @return (bool) The new state of the checkbox.
+    foreign static guiBool(label, v)
+
+    // Creates a GUI integer input field.
+    //
+    // @param label (string) The label of the input field.
+    // @param i (i32) The initial value.
+    // @return (i32) The new value.
+    foreign static guiInt(label, i)
+
+    // Creates a GUI integer input field with min and max values.
+    //
+    // @param label (string) The label of the input field.
+    // @param i (i32) The initial value.
+    // @param min (i32) The minimum allowed value.
+    // @param max (i32) The maximum allowed value.
+    // @return (i32) The new value.
+    foreign static guiInt(label, i, min, max)
+
+    // Creates a GUI float input field.
+    //
+    // @param label (string) The label of the input field.
+    // @param v (f32) The initial value.
+    // @return (f32) The new value.
+    foreign static guiFloat(label, v)
+
+    // Creates a GUI separator with a label.
+    //
+    // @param label (string) The label of the separator.
+    foreign static guiSeparator(label)
+
+    // Creates a GUI button.
+    //
+    // @param label (string) The label of the button.
+    // @return (bool) `true` if the button was pressed.
+    foreign static guiButton(label)
+
+    // Forces the next GUI element to appear on the same line.
+    foreign static guiSameLine()
+
+	foreign static guiContentAvailWidth()
+	foreign static guiContentAvailHeight()
+	
+    // Begins a child GUI container.
+    //
+    // @param name (string) The name of the child container.
+    // @param w (f32) The width of the container.
+    // @param h (f32) The height of the container.
+    // @return (bool) `true` if the child is open.
+    foreign static guiBeginChild(name, w, h)
+
+    // Ends a child GUI container.
 	foreign static guiEndChild()
 }

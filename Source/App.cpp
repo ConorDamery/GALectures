@@ -1,5 +1,8 @@
 #include "App.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
@@ -66,7 +69,7 @@ struct AppData
 
 	// Window
 	GLFWwindow* window{ nullptr };
-	WindowMode winMode{ WindowMode::WINDOW };
+	WindowMode winMode{ WindowMode::WINDOWED };
 	int winX{ 0 }, winY{ 0 };
 	int winWidth{ 0 }, winHeight{ 0 };
 
@@ -87,7 +90,7 @@ struct AppData
 	bool error{ false };
 	bool paused{ false };
 
-	FrameOp frameOp{ FrameOp::NONE };
+	FrameOp frameOp{ FrameOp::RELOAD };
 
 	std::unordered_map<size_t, ScriptClass> classes{};
 	std::unordered_map<size_t, ScriptMethodFn> methods{};
@@ -211,6 +214,8 @@ static bool glfw_initialize(const AppConfig& config)
 		return false;
 	}
 
+	g_app.winMode = config.windowMode;
+
 	GLFWmonitor* pMonitor = nullptr;
 	i32 width = config.width;
 	i32 height = config.height;
@@ -227,7 +232,7 @@ static bool glfw_initialize(const AppConfig& config)
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_SAMPLES, config.msaa);
 
-	if (config.windowMode == WindowMode::FULLSCREEN)
+	if (g_app.winMode == WindowMode::FULLSCREEN)
 	{
 		pMonitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* pMode = glfwGetVideoMode(pMonitor);
@@ -250,7 +255,7 @@ static bool glfw_initialize(const AppConfig& config)
 	glfwMakeContextCurrent(g_app.window);
 	glfwSwapInterval(1);
 
-	if (config.windowMode == WindowMode::BORDERLESS)
+	if (g_app.winMode == WindowMode::BORDERLESS)
 	{
 		GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
@@ -261,6 +266,30 @@ static bool glfw_initialize(const AppConfig& config)
 	}
 
 	glfwSetInputMode(g_app.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+
+	// Set icon
+	GLFWimage icon;
+	i32 icoWidth, icoHeight, icoChannels;
+
+#if _DEBUG
+	unsigned char* icoPixels = stbi_load(PROJECT_PATH"Assets/Common/GASandbox.png", &icoWidth, &icoHeight, &icoChannels, 4);
+#else
+	unsigned char* icoPixels = stbi_load("Assets/Common/GASandbox.png", &icoWidth, &icoHeight, &icoChannels, 4);
+#endif
+
+	if (icoPixels)
+	{
+		icon.width = icoWidth;
+		icon.height = icoHeight;
+		icon.pixels = icoPixels;
+
+		glfwSetWindowIcon(g_app.window, 1, &icon);
+		stbi_image_free(icoPixels);
+	}
+	else
+	{
+		LOGE("Failed to load window icon!");
+	}
 
 	return true;
 }
@@ -685,23 +714,30 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 }
 
 // Window
-void App::WinSetMode(WindowMode windowMode)
+void App::WinMode(i32 mode)
 {
-	if (windowMode == g_app.winMode)
+
+	if (mode == (i32)g_app.winMode)
 		return;
 
 	GLFWmonitor* pMonitor = glfwGetPrimaryMonitor();
-	const GLFWvidmode* mode = glfwGetVideoMode(pMonitor);
+	const GLFWvidmode* vidmode = glfwGetVideoMode(pMonitor);
 
-	if (windowMode == WindowMode::FULLSCREEN)
+	if (mode == (i32)WindowMode::FULLSCREEN)
 	{
-		glfwSetWindowMonitor(g_app.window, pMonitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+		glfwGetWindowPos(g_app.window, &g_app.winX, &g_app.winY);
+		glfwGetWindowSize(g_app.window, &g_app.winWidth, &g_app.winHeight);
+
+		glfwSetWindowMonitor(g_app.window, pMonitor, 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
 	}
-	else if (windowMode == WindowMode::BORDERLESS)
+	else if (mode == (i32)WindowMode::BORDERLESS)
 	{
+		glfwGetWindowPos(g_app.window, &g_app.winX, &g_app.winY);
+		glfwGetWindowSize(g_app.window, &g_app.winWidth, &g_app.winHeight);
+
 		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_FALSE);
 		glfwSetWindowPos(g_app.window, 0, 0);
-		glfwSetWindowSize(g_app.window, mode->width, mode->height);
+		glfwSetWindowSize(g_app.window, vidmode->width, vidmode->height);
 	}
 	else
 	{
@@ -709,7 +745,12 @@ void App::WinSetMode(WindowMode windowMode)
 		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_TRUE);
 	}
 
-	g_app.winMode = windowMode;
+	g_app.winMode = (WindowMode)mode;
+}
+
+void App::WinCursor(i32 cursor)
+{
+	glfwSetInputMode(g_app.window, GLFW_CURSOR, cursor);
 }
 
 i32 App::WinWidth()
@@ -1003,6 +1044,16 @@ void App::GlVertex(f32 x, f32 y, f32 z, u32 c)
 }
 
 // Gui
+void App::GuiPushItemWidth(f32 w)
+{
+	ImGui::PushItemWidth(w);
+}
+
+void App::GuiPopItemWidth()
+{
+	ImGui::PopItemWidth();
+}
+
 bool App::GuiBool(const char* label, bool v)
 {
 	ImGui::Checkbox(label, &v);
@@ -1042,15 +1093,19 @@ void App::GuiSameLine()
 	ImGui::SameLine();
 }
 
-bool App::GuiBeginChild(const char* label, f32 px, f32 py)
+f32 App::GuiContentAvailWidth()
 {
-	ImVec2 available = ImGui::GetContentRegionAvail();
-	ImVec2 size = ImVec2(
-		px == -1 ? available.x : px * available.x,
-		py == -1 ? available.y : py * available.y
-	);
+	return ImGui::GetContentRegionAvail().x;
+}
 
-	return ImGui::BeginChild(label, size);
+f32 App::GuiContentAvailHeight()
+{
+	return ImGui::GetContentRegionAvail().y;
+}
+
+bool App::GuiBeginChild(const char* label, f32 w, f32 h)
+{
+	return ImGui::BeginChild(label, ImVec2(w, h));
 }
 
 void App::GuiEndChild()
@@ -1195,9 +1250,6 @@ bool App::Initialize(const AppConfig& config)
 	std::string manifestSrc = file_load("Assets/manifest.txt");
 	file_parse_lines(manifestSrc, g_app.manifest);
 
-	g_app.currentIndex = 0;
-	g_app.frameOp = FrameOp::RELOAD;
-
 	return true;
 }
 
@@ -1236,6 +1288,20 @@ void App::Reload()
 	wren_initialize();
 
 	// Window
+	WrenBindMethod("app", "App", true, "winMode(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			WinMode(WrenGetSlotInt(vm, 1));
+		});
+
+	WrenBindMethod("app", "App", true, "winCursor(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			WinCursor(WrenGetSlotInt(vm, 1));
+		});
+
 	WrenBindMethod("app", "App", true, "winWidth",
 		[](ScriptVM* vm)
 		{
@@ -1484,6 +1550,20 @@ void App::Reload()
 		});
 
 	// Gui
+	WrenBindMethod("app", "App", true, "guiPushItemWidth(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GuiPushItemWidth(WrenGetSlotFloat(vm, 1));
+		});
+
+	WrenBindMethod("app", "App", true, "guiPopItemWidth()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GuiPopItemWidth();
+		});
+
 	WrenBindMethod("app", "App", true, "guiBool(_,_)",
 		[](ScriptVM* vm)
 		{
@@ -1531,6 +1611,20 @@ void App::Reload()
 		{
 			WrenEnsureSlots(vm, 1);
 			GuiSameLine();
+		});
+
+	WrenBindMethod("app", "App", true, "guiContentAvailWidth()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotFloat(vm, 0, GuiContentAvailWidth());
+		});
+
+	WrenBindMethod("app", "App", true, "guiContentAvailHeight()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotFloat(vm, 0, GuiContentAvailHeight());
 		});
 
 	WrenBindMethod("app", "App", true, "guiBeginChild(_,_,_)",
@@ -1643,11 +1737,11 @@ void App::Render()
 					if (ImGui::BeginMenu("Mode"))
 					{
 						if (ImGui::MenuItem("Windowed"))
-							WinSetMode(WindowMode::WINDOW);
+							WinMode((i32)WindowMode::WINDOWED);
 						if (ImGui::MenuItem("Borderless"))
-							WinSetMode(WindowMode::BORDERLESS);
+							WinMode((i32)WindowMode::BORDERLESS);
 						if (ImGui::MenuItem("Fullscreen"))
-							WinSetMode(WindowMode::FULLSCREEN);
+							WinMode((i32)WindowMode::FULLSCREEN);
 
 						ImGui::EndMenu();
 					}
@@ -1747,7 +1841,7 @@ void App::Render()
 		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
 
 	ImGui::SetWindowFontScale(g_app.fontSize);
-	if (!g_app.error && !g_app.paused)
+	if (!g_app.error)
 	{
 		wrenEnsureSlots(g_app.vm, 1);
 		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
@@ -1767,10 +1861,12 @@ void App::Render()
 
 int App::Run(const AppConfig& config)
 {
+	LOGD("App initializing ...");
 	if (!Initialize(config))
 	{
 		return EXIT_FAILURE;
 	}
+	LOGD("App initialized.");
 
 	f64 lastTime = glfwGetTime();
 	while (!glfwWindowShouldClose(g_app.window))
@@ -1791,6 +1887,9 @@ int App::Run(const AppConfig& config)
 		Render();
 	}
 
+	LOGD("App shutting down ...");
 	Shutdown();
+	LOGD("App shutdown.");
+
 	return EXIT_SUCCESS;
 }

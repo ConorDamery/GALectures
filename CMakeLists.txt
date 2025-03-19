@@ -4,7 +4,7 @@ message("CMake Version: ${CMAKE_VERSION}")
 set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
-project (GALectures)
+project (GASandbox)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(PROJECT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
@@ -17,10 +17,21 @@ add_subdirectory(ThirdParty)
 add_library (Common STATIC
 	"Source/App.cpp"
 )
-target_link_libraries (Common glfw glad imgui wren)
+target_link_libraries (Common stb glfw glad imgui wren)
 target_include_directories (Common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source")
 
-add_executable(GASandbox "Source/Main.cpp")
+if(WIN32)
+    set(ICON_RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/GASandbox.rc")
+    add_executable(GASandbox WIN32 "Source/Main.cpp" ${ICON_RESOURCE})
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set_target_properties(GASandbox PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE")
+    else()
+        set_target_properties(GASandbox PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+    endif()
+else()
+    add_executable(GASandbox "Source/Main.cpp")
+endif()
+
 target_link_libraries(GASandbox Common)
 
 if(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug"))
