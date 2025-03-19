@@ -7,3 +7,6 @@
 [submodule "ThirdParty/wren"]
 	path = ThirdParty/wren
 	url = https://github.com/wren-lang/wren.git
+[submodule "ThirdParty/klein"]
+	path = ThirdParty/klein
+	url = https://github.com/jeremyong/klein.git
