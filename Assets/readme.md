@@ -5,6 +5,14 @@
 
 The application supports **scripting via Wren**, providing a simple and efficient way to interact with the engine.  
 
+### **Recommended Resources for Learning GA**  
+- [bivector.net](https://bivector.net/) — Introductory site for geometric algebra concepts  
+- [PGA for Computer Science](https://bivector.net/PGA4CS.html) — Projective Geometric Algebra guide  
+- [Dual Quaternions Demystified (and more!)](https://www.youtube.com/watch?v=ichOiuBoBoQ) — GAME2020 talk by Steven De Keninck
+- [Look Ma, No Matrices!](https://enkimute.github.io/LookMaNoMatrices/) — Visual intro to transformations with GA  
+- [ganja.js](https://enkimute.github.io/ganja.js/) — JavaScript library for geometric algebra experiments  
+- [bivector.net Discord](https://discord.com/invite/vGY6pPk) — Join the community to discuss Geometric Algebra
+
 ## **Getting Started**  
 - **Scripting**: The entire engine is exposed to Wren through a single class called `App`.  
 - **Documentation**: The `App` class contains **well-documented functions** with explicit type information, ensuring clarity on what the native code expects.  
