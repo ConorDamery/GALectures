@@ -1,5 +1,5 @@
 import "app" for App
-import "complex" for Complex
+import "complex" for Point, Complex
 
 class Util {
     static glDrawGrid(width, height, depth, resolution, color) {
@@ -28,8 +28,9 @@ class State {
 		_shader = App.glCreateShader("Assets/Complex/Shaders/vertex.glsl")
         _scale = 2
 
-        _a = Complex.new(1, 1)
-        _b = Complex.new(-1, 1)
+        _c = Complex.new(0.5, Num.pi/4)
+        _p = Point.new(0.919, 0.394)
+		_mode = 0
     }
 
 	update(dt) {
@@ -39,10 +40,23 @@ class State {
 		if (App.guiBeginChild("Settings", 500, -1)) {
 			_scale = App.guiFloat("Scale", _scale).max(1).min(10)
             App.guiSeparator("Data")
-            _a.r = App.guiFloat("A Real", _a.r)
-            _a.i = App.guiFloat("A Img", _a.i)
-            _b.r = App.guiFloat("B Real", _b.r)
-            _b.i = App.guiFloat("B Img", _b.i)
+            _c.r = App.guiFloat("c.s", _c.r)
+            _c.i = App.guiFloat("c.e12", _c.i)
+            _p.x = App.guiFloat("p.e01", _p.x)
+            _p.y = App.guiFloat("p.e02", _p.y)
+			
+			App.guiSeparator("Formula")
+			_mode = App.guiInt("Mode", _mode, 0, 3)
+
+			if (_mode == 0) {
+				App.guiText("= c * p")
+			} else if (_mode == 1) {
+				App.guiText("= c.exp * p")
+			} else if (_mode == 2) {
+				App.guiText("= c * p * ~c")
+			} else if (_mode == 3) {
+				App.guiText("= c.exp * p * ~c.exp")
+			}
 		}
 		App.guiEndChild()
 
@@ -54,11 +68,58 @@ class State {
 
         Util.glDrawGrid(20, 20, 0.5, 20, App.glGray)
 
-		_a.glDraw(0xFF00FFFF)
-		_b.glDraw(0xFFFFFF00)
+		_c.glDraw(0xFF00FFFF)
+		_p.glDraw(0xFFFFFF00)
 
-        var c = (_a * _b).exp
-		c.glDraw(0xFFFFFFFF)
+		//System.print((_c*~_c).toString)
+
+		if (_mode == 0) {
+			var c = _c * _p
+			c.glDraw(0xFFFFFFFF)
+
+			App.glBegin(true, true, 1, 2)
+			for (i in -100..100) {
+				var z = Complex.new(_c.r, i * 0.1)
+				var x = z * _p
+				App.glVertex(x.x, x.y, 0, 0xA0FFFFFF)
+			}
+			App.glEnd(App.glLines)
+			
+		} else if (_mode == 1) {
+			var c = _c.exp * _p
+			c.glDraw(0xFFFFFFFF)
+
+			App.glBegin(true, true, 1, 2)
+			for (i in -180..180) {
+				var z = Complex.new(_c.r, i * Num.pi / 180.0)
+				var x = z.exp * _p
+				App.glVertex(x.x, x.y, 0, 0xA0FFFFFF)
+			}
+			App.glEnd(App.glLines)
+			
+		} else if (_mode == 2) {
+			var c = _c * _p * ~_c
+			c.glDraw(0xFFFFFFFF)
+
+			App.glBegin(true, true, 1, 2)
+			for (i in -100..100) {
+				var z = Complex.new(_c.r, i * 0.1)
+				var x = z * _p * ~z
+				App.glVertex(x.x, x.y, 0, 0xA0FFFFFF)
+			}
+			App.glEnd(App.glLines)	
+		} else if (_mode == 3) {
+			var c = _c.exp * _p * ~_c.exp
+			c.glDraw(0xFFFFFFFF)
+
+			App.glBegin(true, true, 1, 2)
+			for (i in -180..180) {
+				var z = Complex.new(_c.r, i * Num.pi / 180.0)
+				var x = z.exp * _p * ~z.exp
+				App.glVertex(x.x, x.y, 0, 0xA0FFFFFF)
+			}
+			App.glEnd(App.glLines)	
+		}
 	}
 }
 

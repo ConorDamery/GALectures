@@ -1048,6 +1048,11 @@ void App::GuiPopItemWidth()
 	ImGui::PopItemWidth();
 }
 
+void App::GuiText(const char* text)
+{
+	ImGui::Text(text);
+}
+
 bool App::GuiBool(const char* label, bool v)
 {
 	ImGui::Checkbox(label, &v);
@@ -1558,6 +1563,13 @@ void App::Reload()
 			GuiPopItemWidth();
 		});
 
+	WrenBindMethod("app", "App", true, "guiText(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GuiText(WrenGetSlotString(vm, 1));
+		});
+
 	WrenBindMethod("app", "App", true, "guiBool(_,_)",
 		[](ScriptVM* vm)
 		{
@@ -1653,7 +1665,7 @@ void App::Reload()
 	if (!g_app.error)
 	{
 		wrenEnsureSlots(g_app.vm, 1);
-		wrenGetVariable(g_app.vm, index.name.c_str(), "Main", 0);
+		wrenGetVariable(g_app.vm, "main", "Main", 0);
 		g_app.mainClass = wrenGetSlotHandle(g_app.vm, 0);
 		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
 		g_app.initMethod = wrenMakeCallHandle(g_app.vm, "init()");

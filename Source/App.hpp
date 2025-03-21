@@ -195,6 +195,7 @@ public:
 	// Gui
 	static void GuiPushItemWidth(f32 w);
 	static void GuiPopItemWidth();
+	static void GuiText(const char* text);
 	static bool GuiBool(const char* label, bool v);
 	static i32 GuiInt(const char* label, i32 i);
 	static i32 GuiInt(const char* label, i32 i, i32 min, i32 max);

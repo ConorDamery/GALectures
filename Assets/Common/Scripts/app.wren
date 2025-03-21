@@ -355,6 +355,7 @@ class App {
 
 	foreign static guiPushItemWidth(w)
 	foreign static guiPopItemWidth()
+	foreign static guiText(text)
 
     // Creates a GUI checkbox.
     //

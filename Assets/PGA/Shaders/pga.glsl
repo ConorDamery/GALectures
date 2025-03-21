@@ -1,5 +1,5 @@
-#ifndef PGA
-#define PGA
+#ifndef PGA_GUARD
+#define PGA_GUARD
 
 /******************************************************************************
  *
@@ -464,4 +464,4 @@ vec4 project(const mat3x2 proj, const vec3 p)
 	return vec4(sx * p.x + ox * p.z, sy * p.y + oy * p.z, fa - fb * p.z, p.z);
 }
 
-#endif
+#endif // PGA_GUARD
