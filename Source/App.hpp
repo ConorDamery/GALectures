@@ -113,7 +113,8 @@ public:
 	// Util
 	static void SetFrameOp(FrameOp op);
 	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
-	
+	static void LogClear();
+
 	// Window
 	static void WinMode(i32 mode);
 	static void WinCursor(i32 cursor);

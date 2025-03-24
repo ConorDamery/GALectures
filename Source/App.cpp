@@ -762,6 +762,12 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 	}
 }
 
+void App::LogClear()
+{
+	g_app.logs.clear();
+	g_app.logsHash.clear();
+}
+
 // Window
 void App::WinMode(i32 mode)
 {
@@ -1482,8 +1488,7 @@ void App::Next()
 void App::Reload()
 {
 	// Clear logs
-	g_app.logs.clear();
-	g_app.logsHash.clear();
+	LogClear();
 
 	LOGD("App reloading ...");
 
@@ -1980,7 +1985,9 @@ void App::Reload()
 
 void App::Update(f64 dt)
 {
-	wrenCollectGarbage(g_app.vm);
+	if (!g_app.error)
+		wrenCollectGarbage(g_app.vm);
+
 	glfwPollEvents();
 
 	g_app.frames++;
@@ -2091,7 +2098,8 @@ void App::Render()
 		if (ImGui::MenuItem(g_app.paused ? "Play" : "Pause"))
 			g_app.paused = !g_app.paused;
 
-		ImGui::Text(" |  v%s  | %5.0f fps | %6.2f ms | %6.2f mb", VERSION_STR, g_app.fps, g_app.spf * 1000, g_app.vm->bytesAllocated / 100000.f);
+		const std::size_t bytesAllocated = g_app.error ? 0 : g_app.vm->bytesAllocated;
+		ImGui::Text(" |  v%s  | %5.0f fps | %6.2f ms | %6.2f mb", VERSION_STR, g_app.fps, g_app.spf * 1000, bytesAllocated / 100000.f);
 		ImGui::EndMainMenuBar();
 	}
 
@@ -2113,7 +2121,7 @@ void App::Render()
 			if (ImGui::BeginPopupContextWindow())
 			{
 				if (ImGui::Selectable("Clear"))
-					g_app.logs.clear();
+					LogClear();
 				
 				if (ImGui::Selectable("Copy"))
 				{

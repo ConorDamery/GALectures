@@ -1,6 +1,7 @@
-Assets/Skinning/main.wren
+Assets/PGA2/main.wren
 
 Assets/Complex/main.wren
 Assets/PGA2/main.wren
 Assets/PGA3/main.wren
 Assets/Physics2/main.wren
+Assets/Skinning/main.wren
