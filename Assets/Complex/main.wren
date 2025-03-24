@@ -25,8 +25,10 @@ class Util {
 
 class State {
 	construct new() {
-		_shader = App.glCreateShader("Assets/Complex/Shaders/vertex.glsl")
-        _scale = 2
+		_shader = App.glCreateShader("Assets/Common/vertex2.glsl")
+        _camScale = 2
+		_camX = 0
+		_camY = 0
 
         _c = Complex.new(0.5, Num.pi/4)
         _p = Point.new(0.919, 0.394)
@@ -38,7 +40,7 @@ class State {
 
 	render() {
 		if (App.guiBeginChild("Settings", 500, -1)) {
-			_scale = App.guiFloat("Scale", _scale).max(1).min(10)
+			_camScale = App.guiFloat("Cam Scale", _camScale).max(1).min(10)
             App.guiSeparator("Data")
             _c.r = App.guiFloat("c.s", _c.r)
             _c.i = App.guiFloat("c.e12", _c.i)
@@ -64,7 +66,7 @@ class State {
 		App.glSetShader(_shader)
 
 		App.glUniform("Proj")
-		App.glVec2f(App.winWidth / App.winHeight, _scale)
+		App.glVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
 
         Util.glDrawGrid(20, 20, 0.5, 20, App.glGray)
 

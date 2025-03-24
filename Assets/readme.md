@@ -9,7 +9,7 @@ The application supports **scripting via Wren**, providing a simple and efficien
 - [bivector.net](https://bivector.net/) — Introductory site for geometric algebra concepts  
 - [PGA for Computer Science](https://bivector.net/PGA4CS.html) — Projective Geometric Algebra guide  
 - [Dual Quaternions Demystified (and more!)](https://www.youtube.com/watch?v=ichOiuBoBoQ) — GAME2020 talk by Steven De Keninck
-- [Look Ma, No Matrices!](https://enkimute.github.io/LookMaNoMatrices/) — Visual intro to transformations with GA  
+- [Look Ma, No Matrices!](https://enkimute.github.io/LookMaNoMatrices/) — Visual intro to transformations with PGA  
 - [ganja.js](https://enkimute.github.io/ganja.js/) — JavaScript library for geometric algebra experiments  
 - [bivector.net Discord](https://discord.com/invite/vGY6pPk) — Join the community to discuss Geometric Algebra
 

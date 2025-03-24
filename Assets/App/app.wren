@@ -8,6 +8,7 @@ class App {
 	static winModeBorderless { 0 }
 	static winModeFullscreen { 0 }
 
+	// TODO
 	foreign static winMode(mode)
 
     // Cursor is visible and can move freely (default behavior).
@@ -22,6 +23,7 @@ class App {
 	// ???
 	static winCursorCaptured { 0x00034004 }
 
+	// TODO
 	foreign static winCursor(mode)
 
     // The width of the application window in pixels.
@@ -269,6 +271,44 @@ class App {
     // @param shader (u32) The shader handle.
     foreign static glSetShader(shader)
 
+	// TODO
+	foreign static glCreateImage(path, flipY)
+
+	// TODO
+	foreign static glDestroyImage(image)
+	
+	// TODO
+	foreign static glImageWidth(image)
+
+	// TODO
+	foreign static glImageHeight(image)
+
+	// TODO
+	foreign static glImageChannels(image)
+
+	// Texture Format Constants
+
+	static glTexFmtR8 { 0 }
+	static glTexFmtRG8 { 1 }
+	static glTexFmtRGB8 { 2 }
+	static glTexFmtRGBA8 { 3 }
+
+	// Texture Filter Constants
+
+	static glTexFltNearest { 0 }
+	static glTexFltLinear { 1 }
+
+	// Texture Wrap Constants
+
+	static glTexWrpRepeat { 0 }
+	static glTexWrpClampEdge { 1 }
+
+	// TODO
+	foreign static glCreateTexture(image, format, minFilter, magFilter, wrapS, wrapT, genMipmaps)
+
+	// TODO
+	foreign static glDestroyTexture(texture)
+
     // Begins drawing with optional settings.
     //
     // @param alpha (bool) Enable alpha blending.
@@ -309,7 +349,8 @@ class App {
 
     // Shader Uniforms
 	// Requires calling `glUniform(name)` first.
-
+	
+	foreign static glTex2D(i, texture)
 	foreign static glFloat(x)
 	foreign static glVec2f(x, y)
 	foreign static glVec3f(x, y, z)
@@ -324,13 +365,23 @@ class App {
 	foreign static glMat4x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
 	foreign static glMat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 
-    // Specifies a vertex position and color.
+    // Specifies a vertex position and color (utility from having to fill the entire vertex format).
     //
     // @param x (f32) X position.
     // @param y (f32) Y position.
     // @param z (f32) Z position.
     // @param c (u32) Color encoded as RGBA.
-    foreign static glVertex(x, y, z, c)
+    static glVertex(x, y, z, c) {
+		glVertex(x, y, z, 1, c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	}
+
+	// TODO
+	static glVertex(x, y, z, c, u, v) {
+		glVertex(x, y, z, 1, c, 0, 0, 0, u, v, 0, 0, 0, 0, 0, 0)
+	}
+
+	// TODO
+	foreign static glVertex(x, y, z, w, c0, c1, i0, i1, v0, v1, v2, v3, v4, v5, v6, v7)
 
     // Color Constants
 
@@ -353,8 +404,13 @@ class App {
     // GUI
     // ==============================
 
+	// TODO
 	foreign static guiPushItemWidth(w)
+	
+	// TODO
 	foreign static guiPopItemWidth()
+	
+	// TODO
 	foreign static guiText(text)
 
     // Creates a GUI checkbox.
@@ -387,6 +443,9 @@ class App {
     // @return (f32) The new value.
     foreign static guiFloat(label, v)
 
+	// TODO
+	foreign static guiFloat(label, v, min, max)
+
     // Creates a GUI separator with a label.
     //
     // @param label (string) The label of the separator.
@@ -401,7 +460,10 @@ class App {
     // Forces the next GUI element to appear on the same line.
     foreign static guiSameLine()
 
+	// TODO
 	foreign static guiContentAvailWidth()
+	
+	// TODO
 	foreign static guiContentAvailHeight()
 	
     // Begins a child GUI container.

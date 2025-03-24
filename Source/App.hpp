@@ -68,6 +68,12 @@ enum struct WindowCursor : i32
 	CAPTURED = 0x00034004
 };
 
+enum struct TextureFormat : u32 { R8 = 0, RG8 = 1, RGB8 = 2, RGBA8 = 3 };
+
+enum struct TextureFilter : u32 { NEAREST = 0, LINEAR = 1 };
+
+enum struct TextureWrap : u32 { REPEAT = 0, CLAMP_TO_EDGE = 1 };
+
 enum struct GlTopology : u32
 {
 	POINTS = BIT(1),
@@ -127,9 +133,22 @@ public:
 	static void WinClose();
 
 	// Graphics
-	static u32 GlCreateShader(const char* path);
+	static u32 GlCreateShader(const char* filepath);
 	static void GlDestroyShader(u32 shader);
 	static void GlSetShader(u32 shader);
+
+	static u32 GlCreateImage(const char* filepath, bool flipY);
+	static void GlDestroyImage(u32 image);
+	static i32 GlImageWidth(u32 image);
+	static i32 GlImageHeight(u32 image);
+	static i32 GlImageChannels(u32 image);
+
+	static u32 GlCreateTexture(
+		u32 image, TextureFormat format,
+		TextureFilter minFilter, TextureFilter magFilter,
+		TextureWrap wrapS, TextureWrap wrapT,
+		bool genMipmaps);
+	static void GlDestroyTexture(u32 texture);
 
 	static void GlBegin(bool alpha, bool ztest, f32 pointSize, f32 lineWidth);
 	static void GlEnd(u32 mode);
@@ -138,6 +157,8 @@ public:
 	static void GlClear(f32 r, f32 g, f32 b, f32 a, f32 d, f32 s, u32 flags);
 
 	static void GlUniform(const char* name);
+
+	static void GlTex2D(u32 i, u32 texture);
 
 	static void GlFloat(f32 x);
 
@@ -190,7 +211,11 @@ public:
 		f32 m20, f32 m21, f32 m22, f32 m23,
 		f32 m30, f32 m31, f32 m32, f32 m33);
 
-	static void GlVertex(f32 x, f32 y, f32 z, u32 c);
+	static void GlVertex(
+		f32 x, f32 y, f32 z, f32 w,
+		u32 c0, u32 c1, u32 i0, u32 i1,
+		f32 v0, f32 v1, f32 v2, f32 v3,
+		f32 v4, f32 v5, f32 v6, f32 v7);
 
 	// Gui
 	static void GuiPushItemWidth(f32 w);
@@ -200,6 +225,7 @@ public:
 	static i32 GuiInt(const char* label, i32 i);
 	static i32 GuiInt(const char* label, i32 i, i32 min, i32 max);
 	static f32 GuiFloat(const char* label, f32 v);
+	static f32 GuiFloat(const char* label, f32 v, f32 min, f32 max);
 	static void GuiSeparator(const char* label);
 	static bool GuiButton(const char* label);
 	static void GuiSameLine();
