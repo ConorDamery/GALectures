@@ -9,6 +9,7 @@ Assets/App/Fonts/fa-solid-900.ttf
 Assets/App/GASandbox.png
 Assets/App/app.wren
 Assets/App/imgui_style.json
+Assets/Common/pga2.glsl
 Assets/Common/pga2.wren
 Assets/Common/pga3.glsl
 Assets/Common/pga3.wren

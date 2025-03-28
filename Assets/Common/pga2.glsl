@@ -9,8 +9,8 @@ const float PI = 3.141592653;
 point sw_mp(motor a, point b)
 {
 	return point(
-		a.x*a.x*b.y + a.x*a.y*b.x - a.x*a.z + a.y*a.w - a.x*a.z + a.x*a.y*b.x + a.y*a.y*b.y + a.y*a.w,
-		a.x*a.x*b.x + a.x*a.y*b.y + a.x*a.w + a.y*a.z + a.x*a.w - a.x*a.y*b.y - a.y*a.y*b.x + a.y*a.z
+		2*a.x*a.w + 2*a.y*a.z - 2*a.x*a.y*b.y + b.x * (a.x*a.x - a.y*a.y),
+		2*a.y*a.w - 2*a.x*a.z + 2*a.x*a.y*b.x + b.y * (a.x*a.x - a.y*a.y)
 	);
 }
 

@@ -1,7 +1,10 @@
 import "app" for App
-import "pga2" for Point2, Motor2
+import "pga2" for Line2, Point2, Motor2
 
 class Util {
+	static winMouseX { (App.winWidth / App.winHeight) * ((2 * App.winMouseX / App.winWidth) - 1) }
+	static winMouseY { 1 - (2 * App.winMouseY / App.winHeight) }
+
     static glDrawGrid(width, height, depth, resolution, color) {
 		App.glBegin(true, true, 1, 1)
 		var ystep = height / resolution
@@ -23,6 +26,45 @@ class Util {
 	}
 }
 
+class Handle {
+	construct new(x, y) {
+		_x = x
+		_y = y
+		__sel = null
+	}
+
+	x { _x }
+	y { _y }
+
+	x=(v) { _x = v }
+	y=(v) { _y = v }
+
+	isOver(s, mx, my) {
+		return (mx > x - s*0.05 && mx < x + s*0.05 &&
+			 	my > y - s*0.05 && my < y + s*0.05)
+	}
+
+	update(s, dt) {
+		var mx = s * Util.winMouseX
+		var my = s * Util.winMouseY
+
+		if (__sel == null &&
+			App.winButton(App.winButtonLeft) &&
+			isOver(s, mx, my)) {
+			__sel = this
+		}
+
+		if (__sel == this) {
+			x = mx
+			y = my
+
+			if (!App.winButton(App.winButtonLeft)) {
+				__sel = null
+			}
+		}
+	}
+}
+
 class State {
 	construct new() {
 		_shader = App.glCreateShader("Assets/Common/vertex2.glsl")
@@ -31,20 +73,20 @@ class State {
 		_camX = 0
 		_camY = 0
 
-		_angle = 0
-		_x = 0
-		_y = 0
+		_a = Handle.new(-1, -1)
+		_b = Handle.new(-1, 1)
+		_c = Handle.new(1, 1)
     }
 
 	update(dt) {
+		_a.update(_camScale, dt)
+		_b.update(_camScale, dt)
+		_c.update(_camScale, dt)
 	}
 
 	render() {
 		if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
 			_camScale = App.guiFloat("Cam Scale", _camScale, 1, 10)
-			_angle = App.guiFloat("Angle", _angle, -180, 180)
-			_x = App.guiFloat("X", _x)
-			_y = App.guiFloat("Y", _y)
 		}
 		App.guiEndChild()
 
@@ -54,48 +96,33 @@ class State {
 		App.glUniform("Proj")
 		App.glVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
 
-        Util.glDrawGrid(20, 20, 0.5, 20, App.glGray)
+        Util.glDrawGrid(10, 10, 0.5, 10, App.glGray)
 
-		var a = Num.pi * _angle / -360
-		var r = Motor2.new(a.cos, a.sin, 0, 0)
-		var t = Motor2.new(1, 0, -0.5 * _x, -0.5 * _y)
-		var m = r * t
-		App.guiText(" R: %(r)")
-		App.guiText(" T: %(t)")
-		App.guiText(" M: %(m)")
-		App.guiText("~M: %(~m)")
+		var a = Point2.new(_a.x, _a.y)
+		var b = Point2.new(_b.x, _b.y)
+		var c = Point2.new(_c.x, _c.y)
 
-		var p = Point2.new(0, 0)
-		var pm = m * p * ~m
-		var pp = Point2.new(pm.e01, pm.e02)
-		pp.glDraw(0xFFFFFFFF)
-		App.guiText(" P: %(pp)")
+		App.glBegin(true, true, 1, 1)
+		App.glVertex(a.x, a.y, 0.1, 0x0F00FF00)
+		App.glVertex(b.x, b.y, 0.1, 0x0F00FF00)
+		App.glVertex(c.x, c.y, 0.1, 0x0F00FF00)
+		App.glEnd(App.glTriangles)
 
-		System.print(" R: %(r)")
-		System.print(" T: %(t)")
-		System.print(" M: %(m)")
-		System.print("~M: %(~m)")
-		System.print(" MP: %(m * p)")
-		System.print(" M~M: %(m * ~m)")
-		System.print(" MP~M: %(m * p * ~m)")
-		System.print(" M>>P: %(m >> pp)")
+		var l = Line2.new(-0.5, 1, 1)
 
-		App.glBegin(true, true, 1, 2)
-		for (i in -180...180) {
-			var ia = Num.pi * i / -360
-			var ir = Motor2.new(ia.cos, ia.sin, 0, 0)
-			var it = Motor2.new(1, 0, -0.5 * _x, -0.5 * _y)
-			var im = ir * it
+		var m = c & a
+		var d = l ^ m
 
-			//var ip = Motor2.new(0, 1, 0, 0)
-			//var ipm = im * ip * ~im
-			//var ipp = Point2.new(ipm.e01, ipm.e02)
+		System.print(l)
+		System.print(m)
+		System.print(d)
 
-			var ip = Point2.new(0, 0)
-			var ipp = im >> ip
-			App.glVertex(ipp.x, ipp.y, 0, 0xFFFFFFFF)
-		}
-		App.glEnd(App.glLines)
+		a.glDraw(0xFF00FF00)
+		b.glDraw(0xFF00FF00)
+		c.glDraw(0xFF00FF00)
+		l.glDraw(0xFF00FFFF)
+		m.glDraw(0xFFFFFFFF)
+		d.glDraw(0xFFFF0000)
 	}
 }
 
