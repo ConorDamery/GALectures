@@ -122,7 +122,7 @@ class State {
 		c.glDraw(0xFF00FF00)
 		l.glDraw(0xFF00FFFF)
 		m.glDraw(0xFFFFFFFF)
-		d.glDraw(0xFFFF0000)
+		d.glDraw(0xFFFFFF00)
 	}
 }
 

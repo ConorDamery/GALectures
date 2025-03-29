@@ -18,7 +18,11 @@ class Line2 {
     // Geometric & scalar product
     *(b) {
         if (b is Num) {
-            return Line2.new(e0 * b, e1 * b, e2 * b)
+            return Line2.new(
+                e0 * b,
+                e1 * b,
+                e2 * b
+            )
         } else if (b is Line2) {
             return Motor2.new(
                 e1*b.e1 + e2*b.e2,
@@ -51,7 +55,7 @@ class Line2 {
         App.glBegin(true, true, 1, 2)
         var n = 1e3 // Large number simulate infinity
         var d = this ^ Line2.new(1, 0, 0)
-        var p = Point2.new(e1, e2) * (e0 / e1*e1 + e2*e2)
+        var p = Point2.new(0, 0).proj(this)
         App.glVertex(p.y - d.x * n, p.x - d.y * n, 0, color)
         App.glVertex(p.y + d.x * n, p.x + d.y * n, 0, color)
         App.glEnd(App.glLines)
@@ -79,19 +83,36 @@ class Point2 {
     // Geometric & scalar product
     *(b) {
         if (b is Num) {
-            return Point2.new(e20 * b, e01 * b)
+            return Point2.new(
+                e20 * b,
+                e01 * b
+            )
         } else if (b is Point2) {
-            return Point2.new(b.e01 - e01, e02 - b.e02)
+            return Point2.new(
+                b.e01 - e01,
+                e02 - b.e02
+            )
         } else if (b is Rotor2) {
-            return Motor2.new(-b.e12, e01*b.s - e20*b.e12, e01*b.e12 + e20*b.s, b.s)
+            return Motor2.new(
+                -b.e12,
+                e01*b.s - e20*b.e12,
+                e01*b.e12 + e20*b.s,
+                b.s
+            )
         } else if (b is Translator2) {
-            return Point2.new(0, e01 + b.e02, e20 - b.e01, 1)
+            return Point2.new(
+                0,
+                e01 + b.e02,
+                e20 - b.e01,
+                1
+            )
         } else if (b is Motor2) {
             return Motor2.new(
                 -b.e12,
                 b.s*e01 - b.e12*e20 + b.e02,
                 b.s*e20 + b.e12*e01 - b.e01,
-                b.s)
+                b.s
+            )
         } else {
             Fiber.abort("Geometric product not supported for: %(type.name) * %(b.type.name)")
         }
@@ -124,6 +145,19 @@ class Point2 {
 	// Exponentiation
 	// Logarithm
 
+    proj(b) {
+        if (b is Line2) {
+            var e12 = b.e1*b.e1+b.e2*b.e2
+            var ie12 = e12 == 0 ? 1 : 1 / e12
+            return Point2.new(
+                (b.e1*b.e1*e01 - b.e0*b.e2 + b.e1*b.e2*e20) * ie12,
+                (-b.e0*b.e1 - b.e1*b.e2*e01 - b.e2*b.e2*e20) * ie12
+            )
+        } else {
+            Fiber.abort("Project not supported for: %(type.name) ontp %(b.type.name)")
+        }
+    }
+
     glDraw(color) {
         App.glBegin(true, true, 10, 2)
         App.glVertex(e20, e01, 0, color)
@@ -148,11 +182,22 @@ class Rotor2 {
     // Geometric & scalar product
     *(b) {
         if (b is Num) {
-            return Rotor2.new(s * b, e12 * b)
+            return Rotor2.new(
+                s * b,
+                e12 * b
+            )
         } else if (b is Rotor2) {
-            return Rotor2.new(s*b.s - e12*b.e12, e12*b.s + s*b.e12)
+            return Rotor2.new(
+                s*b.s - e12*b.e12,
+                e12*b.s + s*b.e12
+            )
         } else if (b is Point2) {
-            return Motor2.new(-e12, b.e01*s + b.e20*e12, b.e20*s - b.e01*e12, s)
+            return Motor2.new(
+                -e12,
+                b.e01*s + b.e20*e12,
+                b.e20*s - b.e01*e12,
+                s
+            )
         } else if (b is Translator2) {
             return Motor2.new(
                 s,
@@ -213,11 +258,22 @@ class Translator2 {
     // Geometric & scalar product
     *(b) {
         if (b is Num) {
-            return Translator2.new(e01 * b, e02 * b)
+            return Translator2.new(
+                e01 * b,
+                e02 * b
+            )
         } else if (b is Translator2) {
-            return Translator2.new(e01 + b.e01, e02 + b.e02)
+            return Translator2.new(
+                e01 + b.e01,
+                e02 + b.e02
+            )
         } else if (b is Point2) {
-            return Motor2.new(0, e01 + b.e01, e02 - b.e20, 1)
+            return Motor2.new(
+                0,
+                e01 + b.e01,
+                e02 - b.e20,
+                1
+            )
         } else if (b is Rotor2) {
             return Motor2.new(
                 b.s,
@@ -240,7 +296,10 @@ class Translator2 {
     // Sandwich product
     >>(b) {
 		if (b is Point2) {
-            return Point2.new(-b.e20 - 2*e01, b.e01 - 2*e02)
+            return Point2.new(
+                -b.e20 - 2*e01,
+                b.e01 - 2*e02
+            )
 		} else {
 			Fiber.abort("Sandwich not supported for: %(type.name) * %(b.type.name)")
 		}
@@ -276,7 +335,12 @@ class Motor2 {
     // Geometric & scalar product
     *(b) {
         if (b is Num) {
-            return Motor2.new(s * b, e12 * b, e20 * b, e01 * b)
+            return Motor2.new(
+                s * b,
+                e12 * b,
+                e20 * b,
+                e01 * b
+            )
         } else if (b is Motor2) {
             return Motor2.new(
                 s*b.s - e12*b.e12,
@@ -316,7 +380,7 @@ class Motor2 {
     >>(b) {
 		if (b is Point2) {
             return Point2.new(
-                2*e12*s*b.e01 - 2*e01*s - 2*e02*e12 + 2*e12*e12*b.e20 - b.e20,
+                2*e12*s*b.e01 - 2*e01*s - 2*e02*e12 - 2*e12*e12*b.e20 + b.e20,
                 2*e12*s*b.e20 - 2*e02*s + 2*e01*e12 - 2*e12*e12*b.e01 + b.e01
             )
 		} else {
