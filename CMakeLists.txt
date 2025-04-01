@@ -16,8 +16,9 @@ add_subdirectory(ThirdParty)
 
 add_library (Common STATIC
 	"Source/App.cpp"
+    "Source/Net.cpp"
 )
-target_link_libraries (Common stb glfw glad imgui wren)
+target_link_libraries (Common stb glfw enet_static glad imgui wren)
 target_include_directories (Common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source")
 
 if(WIN32)

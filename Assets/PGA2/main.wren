@@ -113,10 +113,6 @@ class State {
 		var m = c & a
 		var d = l ^ m
 
-		System.print(l)
-		System.print(m)
-		System.print(d)
-
 		a.glDraw(0xFF00FF00)
 		b.glDraw(0xFF00FF00)
 		c.glDraw(0xFF00FF00)

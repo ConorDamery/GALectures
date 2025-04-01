@@ -9,6 +9,8 @@ Assets/App/Fonts/fa-solid-900.ttf
 Assets/App/GASandbox.png
 Assets/App/app.wren
 Assets/App/imgui_style.json
+Assets/App/klein.glsl
+Assets/App/klein.wren
 Assets/Common/pga2.glsl
 Assets/Common/pga2.wren
 Assets/Common/pga3.glsl
@@ -18,11 +20,12 @@ Assets/Common/vertex2.glsl
 Assets/Common/vertex3.glsl
 Assets/Complex/complex.wren
 Assets/Complex/main.wren
+Assets/Net/main.wren
 Assets/PGA2/main.wren
 Assets/PGA3/main.wren
 Assets/Physics2/main.wren
 Assets/Skinning/main.wren
-Assets/Skinning/vertex.glsl
+Assets/Skinning/skinning.glsl
 Assets/index.txt
 Assets/manifest.txt
 Assets/readme.md

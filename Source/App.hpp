@@ -15,7 +15,7 @@
 #define VERSION_STR STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "." STR(VERSION_DEV)
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-#define BIT(n) (1u << (n))
+#define BIT(n) (1u << (n - 1))
 
 #define LOGD(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFA0A0A0, format, ##__VA_ARGS__)
 #define LOGI(format, ...) App::Log(true, __FILE__, __LINE__, __func__, 0xFFFFFFFF, format, ##__VA_ARGS__)
@@ -43,22 +43,8 @@ using i64 = int64_t;
 using f32 = float;
 using f64 = double;
 
-// Script
-using ScriptVM = struct WrenVM;
-using ScriptHandle = struct WrenHandle;
-using ScriptMethodFn = void (*)(ScriptVM* vm);
-using ScriptFinalizerFn = void (*)(void* data);
-
-struct ScriptClass
-{
-	ScriptMethodFn allocate;
-	ScriptFinalizerFn finalize;
-};
-
-// Application
-enum struct FrameOp { NONE, RELOAD, NEXT, PREV };
-
-enum struct WindowMode { WINDOWED, BORDERLESS, FULLSCREEN };
+// Window
+enum struct WindowMode { WINDOWED = 0, UNDECORATED = 1, BORDERLESS = 2, FULLSCREEN = 3 };
 
 enum struct WindowCursor : i32
 {
@@ -68,6 +54,7 @@ enum struct WindowCursor : i32
 	CAPTURED = 0x00034004
 };
 
+// Graphics
 enum struct TextureFormat : u32 { R8 = 0, RG8 = 1, RGB8 = 2, RGBA8 = 3 };
 
 enum struct TextureFilter : u32 { NEAREST = 0, LINEAR = 1 };
@@ -85,12 +72,34 @@ enum struct GlTopology : u32
 	TRIANGLE_FAN = BIT(7)
 };
 
+// Net
+enum struct NetEvent : u32 { CONNECT = 0, RECEIVE = 1, DISCONNECT = 2, TIMEOUT = 3 };
+enum struct NetPacketMode : u32 { RELIABLE = BIT(1), UNSEQUENCED = BIT(2), UNREALIABLE = BIT(4) };
+
+using NetRelayFn = void (*)(bool, u32, u32, u32, u32);
+
+// Script
+using ScriptVM = struct WrenVM;
+using ScriptHandle = struct WrenHandle;
+using ScriptMethodFn = void (*)(ScriptVM* vm);
+using ScriptFinalizerFn = void (*)(void* data);
+
+struct ScriptClass
+{
+	ScriptMethodFn allocate;
+	ScriptFinalizerFn finalize;
+};
+
+// Application
+enum struct FrameOp { NONE, RELOAD };
+
 struct AppConfig
 {
 	i32 width{ 800 }, height{ 600 };
 	const char* title{ nullptr };
 	WindowMode windowMode{ WindowMode::WINDOWED };
 	i32 msaa{ 8 };
+	bool headless{ false };
 };
 
 class App
@@ -99,13 +108,16 @@ private:
 	static bool Initialize(const AppConfig& config);
 	static void Shutdown();
 
-	static void Prev();
-	static void Next();
+	static bool NetInitialize(NetRelayFn relayFn);
+	static void NetShutdown();
 
 	static void Reload();
 
 	static void Update(f64 dt);
 	static void Render();
+	static void Netcode();
+
+	static void NetRelay(bool server, u32 event, u32 peer, u32 channel, u32 packet);
 
 public:
 	static int Run(const AppConfig& config);
@@ -114,6 +126,9 @@ public:
 	static void SetFrameOp(FrameOp op);
 	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
 	static void LogClear();
+
+	static void Wait(u32 ms);
+	static bool IsHeadless();
 
 	// Window
 	static void WinMode(i32 mode);
@@ -234,6 +249,35 @@ public:
 	static f32 GuiContentAvailHeight();
 	static bool GuiBeginChild(const char* label, f32 w, f32 h);
 	static void GuiEndChild();
+
+	// Net
+	static void NetStartServer(const char* ip, u32 port, u32 peerCount, u32 channelLimit);
+	static void NetStopServer();
+
+	static u32 NetConnectClient(const char* ip, u32 port, u32 peerCount, u32 channelLimit);
+	static void NetDisconnectClient(u32 client);
+
+	static bool NetIsServer();
+	static bool NetIsClient(u32 client);
+
+	static u32 NetCreatePacket(const char* id, u32 size);
+
+	static void NetBroadcast(u32 packet, u32 mode);
+	static void NetSend(u32 client, u32 packet, u32 mode);
+
+	static void NetPollEvents();
+
+	static bool NetGetBool(u32 packet, u32 offset);
+	static u32 NetGetUInt(u32 packet, u32 offset);
+	static i32 NetGetInt(u32 packet, u32 offset);
+	static f32 NetGetFloat(u32 packet, u32 offset);
+	static f64 NetGetDouble(u32 packet, u32 offset);
+
+	static void NetSetBool(u32 packet, u32 offset, bool v);
+	static void NetSetUInt(u32 packet, u32 offset, u32 v);
+	static void NetSetInt(u32 packet, u32 offset, i32 v);
+	static void NetSetFloat(u32 packet, u32 offset, f32 v);
+	static void NetSetDouble(u32 packet, u32 offset, f64 v);
 
 	// Script
 	static void WrenParseFile(const char* moduleName, const char* filepath);

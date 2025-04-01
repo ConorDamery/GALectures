@@ -1,4 +1,4 @@
-#include "App.hpp"
+#include <App.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -48,6 +48,7 @@ struct LogData
 	u32 color{ 0xFFFFFFFF };
 	std::string message{};
 	std::size_t hash{ 0 };
+	std::size_t count{ 0 };
 };
 
 struct Image
@@ -73,13 +74,15 @@ struct AppData
 	int currentIndex{ 0 };
 
 	std::vector<LogData> logs{};
-	std::unordered_set<std::size_t> logsHash{};
+	std::unordered_map<std::size_t, std::size_t> logsHash{};
 	std::mutex logMutex{};
 
 	u32 frames{ 0 };
 	f64 time{ 0 };
 	f64 fps{ 0 };
 	f64 spf{ 0 };
+
+	bool headless{ false };
 
 	// Window
 	GLFWwindow* window{ nullptr };
@@ -97,12 +100,18 @@ struct AppData
 	const char* uniformName{ nullptr };
 	std::vector<Vertex> vertices{};
 
+	// Gui
+	f32 fontSize{ 1.0f };
+	bool showImGuiDemo{ false };
+	bool showConsole{ false };
+
 	// Script
 	WrenVM* vm{ nullptr };
 	WrenHandle* mainClass{ nullptr };
 	WrenHandle* initMethod{ nullptr };
 	WrenHandle* updateMethod{ nullptr };
 	WrenHandle* renderMethod{ nullptr };
+	WrenHandle* netcodeMethod{ nullptr };
 	bool error{ false };
 	bool paused{ false };
 
@@ -110,11 +119,6 @@ struct AppData
 
 	std::unordered_map<size_t, ScriptClass> classes{};
 	std::unordered_map<size_t, ScriptMethodFn> methods{};
-
-	// Gui
-	f32 fontSize{ 1.0f };
-	bool showImGuiDemo{ false };
-	bool showConsole{ false };
 };
 static AppData g_app;
 
@@ -711,8 +715,13 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 	// We have the same log already, skip to avoid many repeating logs
 	static std::hash<std::string> g_hash{};
 	std::size_t hash = g_hash(func) ^ g_hash(filename) ^ line ^ g_hash(buffer);
-	if (g_app.logsHash.find(hash) != g_app.logsHash.end()) return;
-	g_app.logsHash.insert(hash);
+	auto it = g_app.logsHash.find(hash);
+	if (it != g_app.logsHash.end())
+	{
+		g_app.logs[it->second].count++;
+		return;
+	}
+	g_app.logsHash.insert(std::make_pair(hash, g_app.logs.size()));
 
 	// Create log entry
 	LogData log{};
@@ -768,39 +777,53 @@ void App::LogClear()
 	g_app.logsHash.clear();
 }
 
+void App::Wait(u32 ms)
+{
+	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+bool App::IsHeadless()
+{
+	return g_app.headless;
+}
+
 // Window
 void App::WinMode(i32 mode)
 {
-
-	if (mode == (i32)g_app.winMode)
+	auto winMode = (WindowMode)mode;
+	if (winMode == g_app.winMode)
 		return;
 
 	GLFWmonitor* pMonitor = glfwGetPrimaryMonitor();
 	const GLFWvidmode* vidmode = glfwGetVideoMode(pMonitor);
 
-	if (mode == (i32)WindowMode::FULLSCREEN)
+	g_app.winMode = winMode;
+	switch(g_app.winMode)
 	{
+	case WindowMode::FULLSCREEN:
 		glfwGetWindowPos(g_app.window, &g_app.winX, &g_app.winY);
 		glfwGetWindowSize(g_app.window, &g_app.winWidth, &g_app.winHeight);
 
 		glfwSetWindowMonitor(g_app.window, pMonitor, 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
-	}
-	else if (mode == (i32)WindowMode::BORDERLESS)
-	{
+		break;
+
+	case WindowMode::BORDERLESS:
 		glfwGetWindowPos(g_app.window, &g_app.winX, &g_app.winY);
 		glfwGetWindowSize(g_app.window, &g_app.winWidth, &g_app.winHeight);
 
 		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_FALSE);
 		glfwSetWindowPos(g_app.window, 0, 0);
 		glfwSetWindowSize(g_app.window, vidmode->width, vidmode->height);
-	}
-	else
-	{
+		break;
+
+	case WindowMode::UNDECORATED:
+		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_FALSE);
+		break;
+
+	default:
 		glfwSetWindowMonitor(g_app.window, nullptr, g_app.winX, g_app.winY, g_app.winWidth, g_app.winHeight, 0);
 		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_TRUE);
 	}
-
-	g_app.winMode = (WindowMode)mode;
 }
 
 void App::WinCursor(i32 cursor)
@@ -1445,13 +1468,19 @@ void* App::WrenSetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t si
 
 bool App::Initialize(const AppConfig& config)
 {
-	if (!glfw_initialize(config))
-		return false;
+	if (!config.headless)
+	{
+		if (!glfw_initialize(config))
+			return false;
 
-	if (!opengl_initialize(config))
-		return false;
+		if (!opengl_initialize(config))
+			return false;
 
-	if (!imgui_initialize(config))
+		if (!imgui_initialize(config))
+			return false;
+	}
+
+	if (!NetInitialize(NetRelay))
 		return false;
 
 	std::string indexSrc = file_load("Assets/index.txt");
@@ -1460,29 +1489,290 @@ bool App::Initialize(const AppConfig& config)
 	std::string manifestSrc = file_load("Assets/manifest.txt");
 	file_parse_lines(manifestSrc, g_app.manifest);
 
+	g_app.headless = config.headless;
+
 	return true;
 }
 
 void App::Shutdown()
 {
 	wren_shutdown();
-	imgui_shutdown();
-	opengl_shutdown();
-	glfw_shutdown();
+
+	NetShutdown();
+	
+	if (!g_app.headless)
+	{
+		imgui_shutdown();
+		opengl_shutdown();
+		glfw_shutdown();
+	}
 }
 
-void App::Prev()
+void App::Update(f64 dt)
 {
-	g_app.currentIndex--;
-	g_app.currentIndex = g_app.currentIndex < 0 ? 0 : g_app.currentIndex >= g_app.index.size() ? g_app.index.size() : g_app.currentIndex;
-	Reload();
+	if (!g_app.error)
+		wrenCollectGarbage(g_app.vm);
+
+	glfwPollEvents();
+
+	g_app.frames++;
+	g_app.time += dt;
+	if (g_app.time >= 1.f)
+	{
+		g_app.fps = g_app.frames / g_app.time;
+		g_app.spf = g_app.time / g_app.frames;
+		g_app.frames = 1;
+		g_app.time = std::fmodf(g_app.time, 1.f);
+	}
+
+	if (!g_app.error && !g_app.paused)
+	{
+		wrenEnsureSlots(g_app.vm, 2);
+		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
+		wrenSetSlotDouble(g_app.vm, 1, dt);
+		wrenCall(g_app.vm, g_app.updateMethod);
+	}
 }
 
-void App::Next()
+void App::Render()
 {
-	g_app.currentIndex++;
-	g_app.currentIndex = g_app.currentIndex < 0 ? 0 : g_app.currentIndex >= g_app.index.size() ? g_app.index.size() : g_app.currentIndex;
-	Reload();
+	glViewport(0, 0, WinWidth(), WinHeight());
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+	ImGui_ImplGlfw_NewFrame();
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui::NewFrame();
+
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("Menu"))
+		{
+			if (ImGui::BeginMenu("App"))
+			{
+				int idx = 0;
+				for (const auto& i : g_app.index)
+				{
+					if (ImGui::MenuItem(i.path.c_str()))
+						break;
+					idx++;
+				}
+				if (idx != g_app.index.size())
+				{
+					g_app.currentIndex = idx;
+					SetFrameOp(FrameOp::RELOAD);
+				}
+
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Tools"))
+			{
+				if (ImGui::MenuItem("ImGui Demo"))
+					g_app.showImGuiDemo = !g_app.showImGuiDemo;
+
+				if (ImGui::MenuItem("Console"))
+					g_app.showConsole = !g_app.showConsole;
+
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Settings"))
+			{
+				if (ImGui::BeginMenu("Window"))
+				{
+					if (ImGui::BeginMenu("Mode"))
+					{
+						if (ImGui::MenuItem("Windowed"))
+							WinMode((i32)WindowMode::WINDOWED);
+						if (ImGui::MenuItem("Undecorated"))
+							WinMode((i32)WindowMode::UNDECORATED);
+						if (ImGui::MenuItem("Borderless"))
+							WinMode((i32)WindowMode::BORDERLESS);
+						if (ImGui::MenuItem("Fullscreen"))
+							WinMode((i32)WindowMode::FULLSCREEN);
+
+						ImGui::EndMenu();
+					}
+
+					ImGui::EndMenu();
+				}
+				
+				if (ImGui::BeginMenu("GUI"))
+				{
+					ImGui::SliderFloat("Font Size", &g_app.fontSize, 0.5f, 2.0f);
+
+					ImGui::EndMenu();
+				}
+				ImGui::EndMenu();
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Exit"))
+				WinClose();
+
+			ImGui::EndMenu();
+		}
+
+		//ImGui::Text(" v%s ", VERSION_STR);
+
+		ImGui::Text(" | ");
+
+		if (ImGui::MenuItem("Reload"))
+			g_app.frameOp = FrameOp::RELOAD;
+
+		if (ImGui::MenuItem(g_app.paused ? "Play" : "Pause"))
+			g_app.paused = !g_app.paused;
+
+		const std::size_t bytesAllocated = g_app.error ? 0 : g_app.vm->bytesAllocated;
+		ImGui::Text(" |  v%s  | %5.0f fps | %6.2f ms | %6.2f mb", VERSION_STR, g_app.fps, g_app.spf * 1000, bytesAllocated / 100000.f);
+		ImGui::EndMainMenuBar();
+	}
+
+	if (g_app.showImGuiDemo)
+	{
+		ImGui::ShowDemoWindow(&g_app.showImGuiDemo);
+	}
+
+	if (g_app.showConsole)
+	{
+		ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.05f, ImGui::GetFrameHeight() + (ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()) * 0.25f), ImGuiCond_Appearing);
+		ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x * 0.9f, (ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()) * 0.5f), ImGuiCond_Appearing);
+
+		ImGui::Begin("Console", &g_app.showConsole, ImGuiWindowFlags_NoSavedSettings);
+
+		const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
+		if (ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
+		{
+			if (ImGui::BeginPopupContextWindow())
+			{
+				if (ImGui::Selectable("Clear"))
+					LogClear();
+				
+				if (ImGui::Selectable("Copy"))
+				{
+					static std::string clipboard;
+					clipboard.clear();
+					clipboard.reserve(4096);
+
+					for (const auto& log : g_app.logs)
+					{
+						std::size_t length = log.message.size();
+						if (length > 0 && log.message[length - 1] == '\0') --length;
+						clipboard.append(log.message, 0, length).append("\n");
+					}
+
+					ImGui::SetClipboardText(clipboard.c_str());
+				}
+
+				ImGui::EndPopup();
+			}
+
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1));
+			for (const auto& log : g_app.logs)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, log.color);
+				if (log.count > 0)
+					ImGui::Text("(%d) %s", log.count, log.message.c_str());
+				else
+					ImGui::TextUnformatted(log.message.c_str());
+				ImGui::PopStyleColor();
+			}
+
+			if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+				ImGui::SetScrollHereY(1.0f);
+
+			ImGui::PopStyleVar();
+		}
+		ImGui::EndChild();
+
+		ImGui::End();
+	}
+
+	ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetFrameHeight()));
+	ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+
+	ImGui::Begin("##Overlay", nullptr, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
+		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
+
+	ImGui::SetWindowFontScale(g_app.fontSize);
+	if (!g_app.error)
+	{
+		wrenEnsureSlots(g_app.vm, 1);
+		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
+		wrenCall(g_app.vm, g_app.renderMethod);
+	}
+	ImGui::SetWindowFontScale(1.0f);
+
+	ImGui::PopStyleVar(2);
+	ImGui::PopStyleColor();
+	ImGui::End();
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+	glfwSwapBuffers(g_app.window);
+}
+
+void App::NetRelay(bool server, u32 event, u32 peer, u32 channel, u32 packet)
+{
+	if (!g_app.error && !g_app.paused)
+	{
+		wrenEnsureSlots(g_app.vm, 5);
+		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
+		wrenSetSlotBool(g_app.vm, 1, server);
+		wrenSetSlotDouble(g_app.vm, 2, event);
+		wrenSetSlotDouble(g_app.vm, 3, peer);
+		wrenSetSlotDouble(g_app.vm, 4, channel);
+		wrenSetSlotDouble(g_app.vm, 5, packet);
+		wrenCall(g_app.vm, g_app.netcodeMethod);
+	}
+}
+
+void App::Netcode()
+{
+	NetPollEvents();
+}
+
+int App::Run(const AppConfig& config)
+{
+	LOGD("App initializing ...");
+	if (!Initialize(config))
+	{
+		return EXIT_FAILURE;
+	}
+	LOGD("App initialized.");
+
+	f64 lastTime = glfwGetTime();
+	while (!glfwWindowShouldClose(g_app.window))
+	{
+		switch (g_app.frameOp)
+		{
+		case FrameOp::RELOAD: Reload(); break;
+		}
+		g_app.frameOp = FrameOp::NONE;
+
+		f64 currentTime = glfwGetTime();
+		f64 deltaTime = currentTime - lastTime;
+		lastTime = currentTime;
+
+		Update(deltaTime);
+		if (!config.headless)
+			Render();
+		Netcode();
+	}
+
+	LOGD("App shutting down ...");
+	Shutdown();
+	LOGD("App shutdown.");
+
+	return EXIT_SUCCESS;
 }
 
 void App::Reload()
@@ -1505,10 +1795,29 @@ void App::Reload()
 		GlDestroyTexture(texture);
 	g_app.textures.clear();
 
+	// Restart networks
+	NetStopServer();
+	NetStopClient();
+
 	// Reload wren vm
 	if (g_app.vm != nullptr)
 		wren_shutdown();
 	wren_initialize();
+
+	// Application
+	WrenBindMethod("app", "App", true, "wait(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			Wait(WrenGetSlotUInt(vm, 1));
+		});
+
+	WrenBindMethod("app", "App", true, "isHeadless",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotBool(vm, 0, IsHeadless());
+		});
 
 	// Window
 	WrenBindMethod("app", "App", true, "winMode(_)",
@@ -1946,6 +2255,98 @@ void App::Reload()
 			GuiEndChild();
 		});
 
+	// Net
+	WrenBindMethod("app", "App", true, "netStartServer()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			NetStartServer();
+		});
+
+	WrenBindMethod("app", "App", true, "netStopServer()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			NetStopServer();
+		});
+
+	WrenBindMethod("app", "App", true, "netStartClient()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			NetStartClient();
+		});
+
+	WrenBindMethod("app", "App", true, "netStopClient()",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			NetStopClient();
+		});
+
+	WrenBindMethod("app", "App", true, "netIsServer",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			wrenSetSlotBool(vm, 0, NetIsServer());
+		});
+
+	WrenBindMethod("app", "App", true, "netIsClient",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			wrenSetSlotBool(vm, 0, NetIsClient());
+		});
+
+	WrenBindMethod("app", "App", true, "netCreatePacket(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			WrenSetSlotUInt(vm, 0, NetCreatePacket(WrenGetSlotUInt(vm, 1)));
+		});
+
+	WrenBindMethod("app", "App", true, "netBroadcast(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			NetBroadcast(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+		});
+
+	WrenBindMethod("app", "App", true, "netSend(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			NetSend(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+		});
+
+#define SCRIPT_NET_GET(Type)																					\
+	WrenBindMethod("app", "App", true, "netGet"#Type"(_,_)",											\
+	[](ScriptVM* vm)																					\
+		{																								\
+			WrenEnsureSlots(vm, 2);																		\
+			WrenSetSlot##Type(vm, 0, NetGet##Type(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2)));		\
+		});
+
+	SCRIPT_NET_GET(Bool);
+	SCRIPT_NET_GET(UInt);
+	SCRIPT_NET_GET(Int);
+	SCRIPT_NET_GET(Float);
+	SCRIPT_NET_GET(Double);
+
+#define SCRIPT_NET_SET(Type)																					\
+	WrenBindMethod("app", "App", true, "netSet"#Type"(_,_,_)",											\
+	[](ScriptVM* vm)																					\
+		{																								\
+			WrenEnsureSlots(vm, 3);																		\
+			NetSet##Type(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlot##Type(vm, 3));		\
+		});
+
+	SCRIPT_NET_SET(Bool);
+	SCRIPT_NET_SET(UInt);
+	SCRIPT_NET_SET(Int);
+	SCRIPT_NET_SET(Float);
+	SCRIPT_NET_SET(Double);
+
 	for (const auto& path : g_app.manifest)
 	{
 		static std::size_t main_hash = str_hash("main");
@@ -1970,6 +2371,7 @@ void App::Reload()
 		g_app.initMethod = wrenMakeCallHandle(g_app.vm, "init()");
 		g_app.updateMethod = wrenMakeCallHandle(g_app.vm, "update(_)");
 		g_app.renderMethod = wrenMakeCallHandle(g_app.vm, "render()");
+		g_app.netcodeMethod = wrenMakeCallHandle(g_app.vm, "netcode(_,_,_,_,_)");
 
 		wrenEnsureSlots(g_app.vm, 1);
 		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
@@ -1981,246 +2383,4 @@ void App::Reload()
 	}
 
 	LOGD("App reloaded.");
-}
-
-void App::Update(f64 dt)
-{
-	if (!g_app.error)
-		wrenCollectGarbage(g_app.vm);
-
-	glfwPollEvents();
-
-	g_app.frames++;
-	g_app.time += dt;
-	if (g_app.time >= 1.f)
-	{
-		g_app.fps = g_app.frames / g_app.time;
-		g_app.spf = g_app.time / g_app.frames;
-		g_app.frames = 1;
-		g_app.time = std::fmodf(g_app.time, 1.f);
-	}
-
-	if (!g_app.error && !g_app.paused)
-	{
-		wrenEnsureSlots(g_app.vm, 2);
-		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
-		wrenSetSlotDouble(g_app.vm, 1, dt);
-		wrenCall(g_app.vm, g_app.updateMethod);
-	}
-}
-
-void App::Render()
-{
-	glViewport(0, 0, WinWidth(), WinHeight());
-	glClearColor(0, 0, 0, 1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-	ImGui_ImplGlfw_NewFrame();
-	ImGui_ImplOpenGL3_NewFrame();
-	ImGui::NewFrame();
-
-	if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("Menu"))
-		{
-			if (ImGui::BeginMenu("App"))
-			{
-				int idx = 0;
-				for (const auto& i : g_app.index)
-				{
-					if (ImGui::MenuItem(i.path.c_str()))
-						break;
-					idx++;
-				}
-				if (idx != g_app.index.size())
-				{
-					g_app.currentIndex = idx;
-					SetFrameOp(FrameOp::RELOAD);
-				}
-
-				ImGui::EndMenu();
-			}
-
-			if (ImGui::BeginMenu("Tools"))
-			{
-				if (ImGui::MenuItem("ImGui Demo"))
-					g_app.showImGuiDemo = !g_app.showImGuiDemo;
-
-				if (ImGui::MenuItem("Console"))
-					g_app.showConsole = !g_app.showConsole;
-
-				ImGui::EndMenu();
-			}
-
-			if (ImGui::BeginMenu("Settings"))
-			{
-				if (ImGui::BeginMenu("Window"))
-				{
-					if (ImGui::BeginMenu("Mode"))
-					{
-						if (ImGui::MenuItem("Windowed"))
-							WinMode((i32)WindowMode::WINDOWED);
-						if (ImGui::MenuItem("Borderless"))
-							WinMode((i32)WindowMode::BORDERLESS);
-						if (ImGui::MenuItem("Fullscreen"))
-							WinMode((i32)WindowMode::FULLSCREEN);
-
-						ImGui::EndMenu();
-					}
-
-					ImGui::EndMenu();
-				}
-				
-				if (ImGui::BeginMenu("GUI"))
-				{
-					ImGui::SliderFloat("Font Size", &g_app.fontSize, 0.5f, 2.0f);
-
-					ImGui::EndMenu();
-				}
-				ImGui::EndMenu();
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Exit"))
-				WinClose();
-
-			ImGui::EndMenu();
-		}
-
-		//ImGui::Text(" v%s ", VERSION_STR);
-
-		ImGui::Text(" | ");
-
-		if (ImGui::MenuItem("Reload"))
-			g_app.frameOp = FrameOp::RELOAD;
-
-		if (ImGui::MenuItem(g_app.paused ? "Play" : "Pause"))
-			g_app.paused = !g_app.paused;
-
-		const std::size_t bytesAllocated = g_app.error ? 0 : g_app.vm->bytesAllocated;
-		ImGui::Text(" |  v%s  | %5.0f fps | %6.2f ms | %6.2f mb", VERSION_STR, g_app.fps, g_app.spf * 1000, bytesAllocated / 100000.f);
-		ImGui::EndMainMenuBar();
-	}
-
-	if (g_app.showImGuiDemo)
-	{
-		ImGui::ShowDemoWindow(&g_app.showImGuiDemo);
-	}
-
-	if (g_app.showConsole)
-	{
-		ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.05f, ImGui::GetFrameHeight() + (ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()) * 0.25f), ImGuiCond_Appearing);
-		ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x * 0.9f, (ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()) * 0.5f), ImGuiCond_Appearing);
-
-		ImGui::Begin("Console", &g_app.showConsole, ImGuiWindowFlags_NoSavedSettings);
-
-		const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
-		if (ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
-		{
-			if (ImGui::BeginPopupContextWindow())
-			{
-				if (ImGui::Selectable("Clear"))
-					LogClear();
-				
-				if (ImGui::Selectable("Copy"))
-				{
-					static std::string clipboard;
-					clipboard.clear();
-					clipboard.reserve(4096);
-
-					for (const auto& log : g_app.logs)
-					{
-						std::size_t length = log.message.size();
-						if (length > 0 && log.message[length - 1] == '\0') --length;
-						clipboard.append(log.message, 0, length).append("\n");
-					}
-
-					ImGui::SetClipboardText(clipboard.c_str());
-				}
-
-				ImGui::EndPopup();
-			}
-
-			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1));
-			for (const auto& log : g_app.logs)
-			{
-				ImGui::PushStyleColor(ImGuiCol_Text, log.color);
-				ImGui::TextUnformatted(log.message.c_str());
-				ImGui::PopStyleColor();
-			}
-
-			if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-				ImGui::SetScrollHereY(1.0f);
-
-			ImGui::PopStyleVar();
-		}
-		ImGui::EndChild();
-
-		ImGui::End();
-	}
-
-	ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetFrameHeight()));
-	ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()));
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
-
-	ImGui::Begin("##Overlay", nullptr, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
-
-	ImGui::SetWindowFontScale(g_app.fontSize);
-	if (!g_app.error)
-	{
-		wrenEnsureSlots(g_app.vm, 1);
-		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
-		wrenCall(g_app.vm, g_app.renderMethod);
-	}
-	ImGui::SetWindowFontScale(1.0f);
-
-	ImGui::PopStyleVar(2);
-	ImGui::PopStyleColor();
-	ImGui::End();
-
-	ImGui::Render();
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-	glfwSwapBuffers(g_app.window);
-}
-
-int App::Run(const AppConfig& config)
-{
-	LOGD("App initializing ...");
-	if (!Initialize(config))
-	{
-		return EXIT_FAILURE;
-	}
-	LOGD("App initialized.");
-
-	f64 lastTime = glfwGetTime();
-	while (!glfwWindowShouldClose(g_app.window))
-	{
-		switch (g_app.frameOp)
-		{
-		case FrameOp::RELOAD: Reload(); break;
-		case FrameOp::NEXT: Next(); break;
-		case FrameOp::PREV: Prev(); break;
-		}
-		g_app.frameOp = FrameOp::NONE;
-
-		f64 currentTime = glfwGetTime();
-		f64 deltaTime = currentTime - lastTime;
-		lastTime = currentTime;
-
-		Update(deltaTime);
-		Render();
-	}
-
-	LOGD("App shutting down ...");
-	Shutdown();
-	LOGD("App shutdown.");
-
-	return EXIT_SUCCESS;
 }

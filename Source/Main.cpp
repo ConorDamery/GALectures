@@ -8,6 +8,7 @@ int main(int argc, char** args)
 	config.title = "GA Sandbox";
 	config.windowMode = WindowMode::WINDOWED;
 	config.msaa = 8;
+	config.headless = false;
 
 	return App::Run(config);
 }

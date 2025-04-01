@@ -1,6 +1,16 @@
 class App {
 
 	// ==============================
+    // Application
+    // ==============================
+
+	// TODO
+	foreign static wait(ms)
+
+	// TODO
+	foreign static isHeadless
+
+	// ==============================
     // Window
     // ==============================
 
@@ -476,4 +486,62 @@ class App {
 
     // Ends a child GUI container.
 	foreign static guiEndChild()
+
+	// ==============================
+    // Network
+    // ==============================
+
+	// Network Events
+
+	static netEvConnect { 0 }
+	static netEvReceive { 1 }
+	static netEvDisconnect { 2 }
+	static netEvTimeout { 3 }
+
+	// Relay Modes
+
+	static netPktReliable { 1 }
+	static netPktUnsequenced { 2 }
+	static netPktUnreliable { 8 }
+
+	// TODO
+	foreign static netStartServer()
+	
+	// TODO
+	foreign static netStopServer()
+	
+	// TODO
+	foreign static netStartClient()
+	
+	// TODO
+	foreign static netStopClient()
+
+	// TODO
+	foreign static netIsServer
+
+	// TODO
+	foreign static netIsClient
+
+	// TODO
+	foreign static netCreatePacket(size)
+	
+	// TODO
+	foreign static netBroadcast(packet, mode)
+
+	// TODO
+	foreign static netSend(packet, mode)
+
+	// TODO
+	foreign static netGetBool(packet, offset)
+	foreign static netGetUInt(packet, offset)
+	foreign static netGetInt(packet, offset)
+	foreign static netGetFloat(packet, offset)
+	foreign static netGetDouble(packet, offset)
+
+	// TODO
+	foreign static netSetBool(packet, offset, v)
+	foreign static netSetUInt(packet, offset, v)
+	foreign static netSetInt(packet, offset, v)
+	foreign static netSetFloat(packet, offset, v)
+	foreign static netSetDouble(packet, offset, v)
 }
