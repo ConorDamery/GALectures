@@ -76,7 +76,7 @@ enum struct GlTopology : u32
 enum struct NetEvent : u32 { CONNECT = 0, RECEIVE = 1, DISCONNECT = 2, TIMEOUT = 3 };
 enum struct NetPacketMode : u32 { RELIABLE = BIT(1), UNSEQUENCED = BIT(2), UNREALIABLE = BIT(4) };
 
-using NetRelayFn = void (*)(bool, u32, u32, u32, u32);
+using NetRelayFn = void (*)(bool, u32, u32, u32, u32, u32);
 
 // Script
 using ScriptVM = struct WrenVM;
@@ -118,7 +118,7 @@ private:
 	static void Render();
 	static void Netcode();
 
-	static void NetRelay(bool server, u32 event, u32 peer, u32 channel, u32 packet);
+	static void NetRelay(bool server, u32 client, u32 event, u32 peer, u32 channel, u32 packet);
 
 public:
 	static int Run(const AppConfig& config);

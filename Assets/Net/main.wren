@@ -37,14 +37,16 @@ class NetClient {
 }
 
 class Player {
-	construct new(id, x, y) {
-		_id = id
-		_x = x
-		_y = y
-	}
+	construct new(pid, client) {
+		_pid = pid
+		_client = client
 
-	id { _id }
-	local { App.netIsClient(_id) }
+		_x = 0
+		_y = 0
+	}
+	
+	pid { _pid }
+	isLocal { App.netIsClient(_client) }
 
 	x { _x }
 	y { _y }
@@ -52,7 +54,7 @@ class Player {
 	y=(v) { _y = v }
 
 	update(dt) {
-		if (!local) {
+		if (!isLocal) {
 			return
 		}
 
@@ -75,10 +77,10 @@ class Player {
 
 		var relay = App.netCreatePacket("NETPKT", 16)
 		App.netSetUInt(relay, 0, NetClient.playerUpdate)
-		App.netSetUInt(relay, 4, id)
+		App.netSetUInt(relay, 4, pid)
 		App.netSetFloat(relay, 8, x)
 		App.netSetFloat(relay, 12, y)
-		App.netSend(id, relay, App.netPktReliable)
+		App.netSend(_client, relay, App.netPktReliable)
 	}
 
 	render() {
@@ -95,25 +97,29 @@ class Player {
 
 		if (server) {
 			if (eid == NetClient.playerUpdate) {
-				var pid = App.netGetUInt(packet, 4)
-				var px = App.netGetFloat(packet, 8)
-				var py = App.netGetFloat(packet, 12)
+				var cpid = App.netGetUInt(packet, 4)
+				var cpx = App.netGetFloat(packet, 8)
+				var cpy = App.netGetFloat(packet, 12)
 
 				var relay = App.netCreatePacket("NETPKT", 16)
 				App.netSetUInt(relay, 0, NetServer.playerUpdate)
-				App.netSetUInt(relay, 4, pid)
-				App.netSetFloat(relay, 8, px)
-				App.netSetFloat(relay, 12, py)
+				App.netSetUInt(relay, 4, cpid)
+				App.netSetFloat(relay, 8, cpx)
+				App.netSetFloat(relay, 12, cpy)
 				App.netBroadcast(relay, App.netPktReliable)
+
+				System.print("Player update server")
 			}
 		
 		} else {
 			if (eid == NetServer.playerUpdate) {
-				var pid = App.netGetUInt(packet, 4)
-				if (pid == id) {
+				var cpid = App.netGetUInt(packet, 4)
+				if (pid == cpid) {
 					x = App.netGetFloat(packet, 8)
 					y = App.netGetFloat(packet, 12)
 				}
+
+				System.print("Player update client")
 			}
 		}
 	}
@@ -176,33 +182,75 @@ class State {
 		}
 	}
 
-	netcode(server, event, peer, channel, packet) {
-		if (event == App.netEvConnect) {
-			if (!server) {
+	netcode(server, client, event, peer, channel, packet) {
+		if (server) {
+			if (event == App.netEvReceive) {
+				var eid = App.netGetUInt(packet, 0)
+
+				// Relay player joining, we broadcast the list of all players
+				if (eid == NetClient.playerJoin) {
+					var pid = App.netGetUInt(packet, 4)
+
+					// When we are a server we still need to add a player
+					// (it will already be there if in server/client mode)
+					if (!_players.containsKey(pid)) {
+						_players[pid] = Player.new(pid, -1)
+					}
+
+					var size = 8 + _players.count * 4
+					var relay = App.netCreatePacket("NETPKT", size)
+					App.netSetUInt(relay, 0, NetServer.playerJoin)
+					App.netSetUInt(relay, 4, _players.count)
+					var offset = 8
+					for (i in _players) {
+						App.netSetUInt(relay, offset, i.value.pid)
+						offset = offset + 4
+					}
+					App.netBroadcast(relay, App.netPktReliable)
+
+					System.print("Player %(pid) joined, broadcasting lobby.")
+				}
+			}
+
+		} else {
+			// Our client has connected, join player with unique ID
+			if (event == App.netEvConnect) {
+				var pid = App.netMakeUuid()
+				_players[pid] = Player.new(pid, client)
+
 				var relay = App.netCreatePacket("NETPKT", 8)
 				App.netSetUInt(relay, 0, NetClient.playerJoin)
-				App.netSetUInt(relay, 4, App.)
-				App.netSend(relay, App.netPktReliable)
+				App.netSetUInt(relay, 4, pid)
+				App.netSend(client, relay, App.netPktReliable)
+
+				System.print("Client connected, request player %(pid) join. %(client)")
+			}
+			
+			if (event == App.netEvReceive) {
+				var eid = App.netGetUInt(packet, 0)
+
+				// Server sent player list, update local players
+				if (eid == NetServer.playerJoin) {
+					var count = App.netGetUInt(packet, 4)
+					var offset = 8
+					for (i in 0...count) {
+						var pid = App.netGetUInt(packet, offset)
+						if (!_players.containsKey(pid)) {
+							_players[pid] = Player.new(pid, -1)
+							System.print("Remote player %(pid) joined.")
+						}
+						offset = offset + 4
+					}
+
+					System.print("Updated lobby, count %(count).")
+				}
 			}
 		}
-		
+
+		// Other non management events can be handled by the player logic
 		if (event == App.netEvReceive) {
-			var eid = App.netGetUInt(packet, 0)
-
-			if (eid == NetServer.playerJoin) {
-				var pid = App.netGetUInt(packet, 4)
-				var x = App.netGetFloat(packet, 8)
-				var y = App.netGetFloat(packet, 12)
-
-				if (!_players.containsKey(pid)) {
-					_players[pid] = Player.new(pid, x, y)
-					System.print("Player added from client %(peer)")
-				}
-
-			} else {
-				for (i in _players) {
-					i.value.netcode(server, packet)
-				}
+			for (i in _players) {
+				i.value.netcode(server, packet)
 			}
 		}
 	}
@@ -212,5 +260,5 @@ class Main {
 	static init() { __state = State.new() }
 	static update(dt) { __state.update(dt) }
 	static render() { __state.render() }
-	static netcode(server, event, peer, channel, packet) { __state.netcode(server, event, peer, channel, packet) }
+	static netcode(server, client, event, peer, channel, packet) { __state.netcode(server, client, event, peer, channel, packet) }
 }

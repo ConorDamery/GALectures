@@ -1720,17 +1720,18 @@ void App::Render()
 	glfwSwapBuffers(g_app.window);
 }
 
-void App::NetRelay(bool server, u32 event, u32 peer, u32 channel, u32 packet)
+void App::NetRelay(bool server, u32 client, u32 event, u32 peer, u32 channel, u32 packet)
 {
 	if (!g_app.error && !g_app.paused)
 	{
-		wrenEnsureSlots(g_app.vm, 5);
+		wrenEnsureSlots(g_app.vm, 6);
 		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
-		wrenSetSlotBool(g_app.vm, 1, server);
-		wrenSetSlotDouble(g_app.vm, 2, event);
-		wrenSetSlotDouble(g_app.vm, 3, peer);
-		wrenSetSlotDouble(g_app.vm, 4, channel);
-		wrenSetSlotDouble(g_app.vm, 5, packet);
+		WrenSetSlotBool(g_app.vm, 1, server);
+		WrenSetSlotUInt(g_app.vm, 2, client);
+		WrenSetSlotUInt(g_app.vm, 3, event);
+		WrenSetSlotUInt(g_app.vm, 4, peer);
+		WrenSetSlotUInt(g_app.vm, 5, channel);
+		WrenSetSlotUInt(g_app.vm, 6, packet);
 		wrenCall(g_app.vm, g_app.netcodeMethod);
 	}
 }
@@ -2379,7 +2380,7 @@ void App::Reload()
 		g_app.initMethod = wrenMakeCallHandle(g_app.vm, "init()");
 		g_app.updateMethod = wrenMakeCallHandle(g_app.vm, "update(_)");
 		g_app.renderMethod = wrenMakeCallHandle(g_app.vm, "render()");
-		g_app.netcodeMethod = wrenMakeCallHandle(g_app.vm, "netcode(_,_,_,_,_)");
+		g_app.netcodeMethod = wrenMakeCallHandle(g_app.vm, "netcode(_,_,_,_,_,_)");
 
 		wrenEnsureSlots(g_app.vm, 1);
 		wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);

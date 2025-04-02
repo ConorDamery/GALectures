@@ -80,7 +80,7 @@ static NetPacket net_receive_packet(ENetPacket* packet)
     return received;
 }
 
-static void net_connect(const ENetEvent& e, bool server)
+static void net_connect(const ENetEvent& e, bool server, u32 client)
 {
     if (server)
     {
@@ -92,25 +92,25 @@ static void net_connect(const ENetEvent& e, bool server)
         LOGD("Client connected!");
     }
 
-    g_state.relayFn(server, (u32)NetEvent::CONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g_state.relayFn(server, client, (u32)NetEvent::CONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
 }
 
-static void net_receive(const ENetEvent& e, bool server)
+static void net_receive(const ENetEvent& e, bool server, u32 client)
 {
     auto received = net_receive_packet(e.packet);
 
     if (received.data != nullptr)
     {
         g_state.packets.emplace_back(received);
-        g_state.relayFn(server, (u32)NetEvent::RECEIVE, (u32)e.peer->incomingPeerID, e.channelID, (u32)(g_state.packets.size() - 1));
+        g_state.relayFn(server, client, (u32)NetEvent::RECEIVE, (u32)e.peer->incomingPeerID, e.channelID, (u32)(g_state.packets.size() - 1));
     }
 
     enet_packet_destroy(e.packet);
 }
 
-static void net_disconnect(const ENetEvent& e, bool server)
+static void net_disconnect(const ENetEvent& e, bool server, u32 client)
 {
-    g_state.relayFn(server, (u32)NetEvent::DISCONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g_state.relayFn(server, client, (u32)NetEvent::DISCONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
 
     if (server)
     {
@@ -124,9 +124,9 @@ static void net_disconnect(const ENetEvent& e, bool server)
     }
 }
 
-static void net_timeout(const ENetEvent& e, bool server)
+static void net_timeout(const ENetEvent& e, bool server, u32 client)
 {
-    g_state.relayFn(server, (u32)NetEvent::TIMEOUT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g_state.relayFn(server, client, (u32)NetEvent::TIMEOUT, (u32)e.peer->incomingPeerID, e.channelID, -1);
 
     if (server)
     {
@@ -137,7 +137,7 @@ static void net_timeout(const ENetEvent& e, bool server)
         LOGD("Client disconnected.");
     }
 
-    net_disconnect(e, server);
+    net_disconnect(e, server, client);
 }
 
 bool App::NetInitialize(NetRelayFn relayFn)
@@ -273,7 +273,12 @@ u32 App::NetCreatePacket(const char* id, u32 size)
 
 void App::NetBroadcast(u32 packet, u32 mode)
 {
-    if (!NetIsServer()) return; // Only servers can broadcast
+    // Only servers can broadcast
+    if (!NetIsServer())
+    {
+        LOGW("Attempting to broadcast packet without running server!");
+        return;
+    }
 
     for (auto peer : g_state.peers)
     {
@@ -285,7 +290,12 @@ void App::NetBroadcast(u32 packet, u32 mode)
 
 void App::NetSend(u32 client, u32 packet, u32 mode)
 {
-    if (!NetIsClient(client)) return; // Ensure we have a valid connection
+    // Ensure we have a valid connection
+    if (!NetIsClient(client))
+    {
+        LOGW("Attempting to send packet with invalid client id: %d", client);
+        return;
+    }
 
     // Send to the peer
     const auto& c = g_state.clients[client];
@@ -303,24 +313,25 @@ void App::NetPollEvents()
             switch (e.type)
             {
             case ENET_EVENT_TYPE_CONNECT:
-                net_connect(e, true);
+                net_connect(e, true, -1);
                 break;
 
             case ENET_EVENT_TYPE_RECEIVE:
-                net_receive(e, true);
+                net_receive(e, true, -1);
                 break;
 
             case ENET_EVENT_TYPE_DISCONNECT:
-                net_disconnect(e, true);
+                net_disconnect(e, true, -1);
                 break;
 
             case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
-                net_timeout(e, true);
+                net_timeout(e, true, -1);
                 break;
             }
         }
     }
 
+    u32 clientIdx = 0;
     for (const auto& client : g_state.clients)
     {
         ENetEvent e{};
@@ -329,22 +340,24 @@ void App::NetPollEvents()
             switch (e.type)
             {
             case ENET_EVENT_TYPE_CONNECT:
-                net_connect(e, false);
+                net_connect(e, false, clientIdx);
                 break;
 
             case ENET_EVENT_TYPE_RECEIVE:
-                net_receive(e, false);
+                net_receive(e, false, clientIdx);
                 break;
 
             case ENET_EVENT_TYPE_DISCONNECT:
-                net_disconnect(e, false);
+                net_disconnect(e, false, clientIdx);
                 break;
 
             case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
-                net_timeout(e, false);
+                net_timeout(e, false, clientIdx);
                 break;
             }
         }
+
+        clientIdx++;
     }
 
     // Free memory
