@@ -112,6 +112,7 @@ private:
 	static void NetShutdown();
 
 	static void Reload();
+	static void NetReload();
 
 	static void Update(f64 dt);
 	static void Render();
@@ -257,6 +258,7 @@ public:
 	static u32 NetConnectClient(const char* ip, u32 port, u32 peerCount, u32 channelLimit);
 	static void NetDisconnectClient(u32 client);
 
+	static u32 NetMakeUUID();
 	static bool NetIsServer();
 	static bool NetIsClient(u32 client);
 

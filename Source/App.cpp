@@ -1796,8 +1796,7 @@ void App::Reload()
 	g_app.textures.clear();
 
 	// Restart networks
-	NetStopServer();
-	NetStopClient();
+	NetReload();
 
 	// Reload wren vm
 	if (g_app.vm != nullptr)
@@ -2256,11 +2255,11 @@ void App::Reload()
 		});
 
 	// Net
-	WrenBindMethod("app", "App", true, "netStartServer()",
+	WrenBindMethod("app", "App", true, "netStartServer(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			NetStartServer();
+			WrenEnsureSlots(vm, 4);
+			NetStartServer(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3), WrenGetSlotUInt(vm, 4));
 		});
 
 	WrenBindMethod("app", "App", true, "netStopServer()",
@@ -2270,39 +2269,48 @@ void App::Reload()
 			NetStopServer();
 		});
 
-	WrenBindMethod("app", "App", true, "netStartClient()",
+	WrenBindMethod("app", "App", true, "netConnectClient(_,_,_,_)",
 		[](ScriptVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			NetStartClient();
+			WrenEnsureSlots(vm, 4);
+			u32 client = NetConnectClient(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3), WrenGetSlotUInt(vm, 4));
+			WrenSetSlotUInt(vm, 0, client);
 		});
 
-	WrenBindMethod("app", "App", true, "netStopClient()",
+	WrenBindMethod("app", "App", true, "netDisconnectClient(_)",
 		[](ScriptVM* vm)
 		{
 			WrenEnsureSlots(vm, 1);
-			NetStopClient();
+			NetDisconnectClient(WrenGetSlotUInt(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "netIsServer",
+	WrenBindMethod("app", "App", true, "netMakeUuid()",
 		[](ScriptVM* vm)
 		{
 			WrenEnsureSlots(vm, 1);
-			wrenSetSlotBool(vm, 0, NetIsServer());
+			WrenSetSlotUInt(vm, 0, NetMakeUUID());
 		});
 
-	WrenBindMethod("app", "App", true, "netIsClient",
+	WrenBindMethod("app", "App", true, "netIsServer()",
 		[](ScriptVM* vm)
 		{
 			WrenEnsureSlots(vm, 1);
-			wrenSetSlotBool(vm, 0, NetIsClient());
+			WrenSetSlotBool(vm, 0, NetIsServer());
 		});
 
-	WrenBindMethod("app", "App", true, "netCreatePacket(_)",
+	WrenBindMethod("app", "App", true, "netIsClient(_)",
 		[](ScriptVM* vm)
 		{
 			WrenEnsureSlots(vm, 1);
-			WrenSetSlotUInt(vm, 0, NetCreatePacket(WrenGetSlotUInt(vm, 1)));
+			wrenSetSlotBool(vm, 0, NetIsClient(WrenGetSlotUInt(vm, 1)));
+		});
+
+	WrenBindMethod("app", "App", true, "netCreatePacket(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			auto packet = NetCreatePacket(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2));
+			WrenSetSlotUInt(vm, 0, packet);
 		});
 
 	WrenBindMethod("app", "App", true, "netBroadcast(_,_)",
@@ -2312,11 +2320,11 @@ void App::Reload()
 			NetBroadcast(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
 		});
 
-	WrenBindMethod("app", "App", true, "netSend(_,_)",
+	WrenBindMethod("app", "App", true, "netSend(_,_,_)",
 		[](ScriptVM* vm)
 		{
-			WrenEnsureSlots(vm, 2);
-			NetSend(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+			WrenEnsureSlots(vm, 3);
+			NetSend(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3));
 		});
 
 #define SCRIPT_NET_GET(Type)																					\

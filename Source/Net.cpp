@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <thread>
+#include <random>
 #include <chrono>
 #include <vector>
 
@@ -153,16 +154,17 @@ bool App::NetInitialize(NetRelayFn relayFn)
 
 void App::NetShutdown()
 {
-    for (const auto& client : g_state.clients)
-    {
-        //if (client.local)
-        //    NetDisconnectClient(client.peer->id);
-    }
+    NetReload();
+    enet_deinitialize();
+}
+
+void App::NetReload()
+{
+    for (u32 i = 0; i < g_state.clients.size(); i++)
+        NetDisconnectClient(i);
 
     if (NetIsServer())
         NetStopServer();
-
-    enet_deinitialize();
 }
 
 void App::NetStartServer(const char* ip, u32 port, u32 peerCount, u32 channelLimit)
@@ -239,6 +241,15 @@ void App::NetDisconnectClient(u32 client)
     c.peer = nullptr;
 }
 
+u32 App::NetMakeUUID()
+{
+    auto timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    u64 uuid64 = timestamp ^ rng();
+    return static_cast<u32>(uuid64) ^ static_cast<u32>(uuid64 >> 32);
+}
+
 bool App::NetIsServer() { return g_state.server != nullptr; }
 
 bool App::NetIsClient(u32 client)
@@ -252,7 +263,8 @@ bool App::NetIsClient(u32 client)
 u32 App::NetCreatePacket(const char* id, u32 size)
 {
     NetPacket packet{};
-    strncpy(packet.header, "NETPKT", sizeof(packet.header) - 1);
+    auto id_len = strnlen(id, sizeof(packet.header)); // Get actual length up to 8 chars
+    memcpy(packet.header, id, id_len); // Copy only the actual data
     packet.size = size;
     packet.data = new char[size];
     g_state.packets.emplace_back(std::move(packet));

@@ -505,31 +505,34 @@ class App {
 	static netPktUnreliable { 8 }
 
 	// TODO
-	foreign static netStartServer()
+	foreign static netStartServer(ip, port, peerCount, channelLimit)
 	
 	// TODO
 	foreign static netStopServer()
 	
 	// TODO
-	foreign static netStartClient()
+	foreign static netConnectClient(ip, port, peerCount, channelLimit)
 	
 	// TODO
-	foreign static netStopClient()
+	foreign static netDisconnectClient(client)
 
 	// TODO
-	foreign static netIsServer
+	foreign static netMakeUuid()
 
 	// TODO
-	foreign static netIsClient
+	foreign static netIsServer()
 
 	// TODO
-	foreign static netCreatePacket(size)
+	foreign static netIsClient(client)
+
+	// TODO
+	foreign static netCreatePacket(id, size)
 	
 	// TODO
 	foreign static netBroadcast(packet, mode)
 
 	// TODO
-	foreign static netSend(packet, mode)
+	foreign static netSend(client, packet, mode)
 
 	// TODO
 	foreign static netGetBool(packet, offset)

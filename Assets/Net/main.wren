@@ -26,16 +26,25 @@ class Util {
 	}
 }
 
+class NetServer {
+	static playerJoin { 100 }
+	static playerUpdate { 200 }
+}
+
+class NetClient {
+	static playerJoin { 101 }
+	static playerUpdate { 201 }
+}
+
 class Player {
-	construct new(id, local, x, y) {
+	construct new(id, x, y) {
 		_id = id
-		_local = local
 		_x = x
 		_y = y
 	}
 
 	id { _id }
-	local { _local }
+	local { App.netIsClient(_id) }
 
 	x { _x }
 	y { _y }
@@ -43,6 +52,10 @@ class Player {
 	y=(v) { _y = v }
 
 	update(dt) {
+		if (!local) {
+			return
+		}
+
 		var dx = 0
 		var dy = 0
 		if (App.winKey(App.winKeyW)) {
@@ -60,12 +73,12 @@ class Player {
 		x = x + dx * dt
 		y = y + dy * dt
 
-		var relay = App.netCreatePacket(16)
-		App.netSetUInt(relay, 0, 101)
+		var relay = App.netCreatePacket("NETPKT", 16)
+		App.netSetUInt(relay, 0, NetClient.playerUpdate)
 		App.netSetUInt(relay, 4, id)
 		App.netSetFloat(relay, 8, x)
 		App.netSetFloat(relay, 12, y)
-		App.netSend(relay, App.netPktReliable)
+		App.netSend(id, relay, App.netPktReliable)
 	}
 
 	render() {
@@ -74,20 +87,20 @@ class Player {
 		App.glVertex(x - 0.1, y + 0.1, 0.1, 0xFF00FF00)
 		App.glVertex(x + 0.1, y - 0.1, 0.1, 0xFF00FF00)
 		App.glVertex(x + 0.1, y + 0.1, 0.1, 0xFF00FF00)
-		App.glEnd(App.glTriangles)
+		App.glEnd(App.glTriangleStrip)
 	}
 
 	netcode(server, packet) {
 		var eid = App.netGetUInt(packet, 0)
 
 		if (server) {
-			if (eid == 101) {
+			if (eid == NetClient.playerUpdate) {
 				var pid = App.netGetUInt(packet, 4)
 				var px = App.netGetFloat(packet, 8)
 				var py = App.netGetFloat(packet, 12)
 
-				var relay = App.netCreatePacket(16)
-				App.netSetUInt(relay, 0, 102)
+				var relay = App.netCreatePacket("NETPKT", 16)
+				App.netSetUInt(relay, 0, NetServer.playerUpdate)
 				App.netSetUInt(relay, 4, pid)
 				App.netSetFloat(relay, 8, px)
 				App.netSetFloat(relay, 12, py)
@@ -95,7 +108,7 @@ class Player {
 			}
 		
 		} else {
-			if (eid == 102) {
+			if (eid == NetServer.playerUpdate) {
 				var pid = App.netGetUInt(packet, 4)
 				if (pid == id) {
 					x = App.netGetFloat(packet, 8)
@@ -124,9 +137,7 @@ class State {
 
 	update(dt) {
 		for (i in _players) {
-			if (i.value.local) {
-				i.value.update(dt)
-			}
+			i.value.update(dt)
 		}
 	}
 
@@ -135,20 +146,20 @@ class State {
 			_camScale = App.guiFloat("Cam Scale", _camScale, 1, 10)
 
 			if (App.guiButton("Start Server")) {
-				App.netStartServer()
+				App.netStartServer("any", 7777, 32, 2)
 			}
 
 			if (App.guiButton("Stop Server")) {
 				App.netStopServer()
 			}
 
-			if (App.guiButton("Start Client")) {
-				App.netStartClient()
+			if (App.guiButton("Connect Client")) {
+				var client = App.netConnectClient("127.0.0.1", 7777, 1, 2)
 			}
 
-			if (App.guiButton("Stop Client")) {
-				App.netStopClient()
-			}
+			//if (App.guiButton("Stop Client")) {
+			//	App.netStopClient()
+			//}
 		}
 		App.guiEndChild()
 
@@ -167,34 +178,26 @@ class State {
 
 	netcode(server, event, peer, channel, packet) {
 		if (event == App.netEvConnect) {
-			if (server) {
-				var pid = peer
-				var x = 0.0
-				var y = 0.0
-
-				var relay = App.netCreatePacket(16)
-				App.netSetUInt(relay, 0, 100)
-				App.netSetUInt(relay, 4, pid)
-				App.netSetFloat(relay, 8, x)
-				App.netSetFloat(relay, 12, y)
-				App.netBroadcast(relay, App.netPktReliable)
-
-				_players[pid] = Player.new(pid, true, x, y)
-				System.print("Player added from server %(pid)")
-
-			} else {
-				System.print("Player added from client local %(peer)")
+			if (!server) {
+				var relay = App.netCreatePacket("NETPKT", 8)
+				App.netSetUInt(relay, 0, NetClient.playerJoin)
+				App.netSetUInt(relay, 4, App.)
+				App.netSend(relay, App.netPktReliable)
 			}
-
-		} else if (event == App.netEvReceive) {
+		}
+		
+		if (event == App.netEvReceive) {
 			var eid = App.netGetUInt(packet, 0)
 
-			if (eid == 100 && !App.netIsServer) {
+			if (eid == NetServer.playerJoin) {
 				var pid = App.netGetUInt(packet, 4)
 				var x = App.netGetFloat(packet, 8)
 				var y = App.netGetFloat(packet, 12)
-				_players[pid] = Player.new(pid, true, x, y)
-				System.print("Player added from client %(pid)")
+
+				if (!_players.containsKey(pid)) {
+					_players[pid] = Player.new(pid, x, y)
+					System.print("Player added from client %(peer)")
+				}
 
 			} else {
 				for (i in _players) {
