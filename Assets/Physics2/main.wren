@@ -25,7 +25,7 @@ class Util {
 
 class State {
 	construct new() {
-		_shader = App.glCreateShader("Assets/Common/vertex2.glsl")
+		_shader = App.glLoadShader("Assets/Common/vertex2.glsl")
 
 		_camScale = 2
 		_camX = 0

@@ -11,6 +11,11 @@ Assets/App/app.wren
 Assets/App/imgui_style.json
 Assets/App/klein.glsl
 Assets/App/klein.wren
+Assets/Common/Audio/48000-stereo.ogg
+Assets/Common/Models/BadBasisU.gltf
+Assets/Common/Models/Box.glb
+Assets/Common/Models/TriangleWithoutIndices.gltf
+Assets/Common/Models/WaterBottle.gltf
 Assets/Common/pga2.glsl
 Assets/Common/pga2.wren
 Assets/Common/pga3.glsl

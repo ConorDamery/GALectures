@@ -11,7 +11,7 @@
 
 struct NetPacket
 {
-    char header[8]{ "" };
+    u32 id{ 0 };
     u32 size{ 0 };
     char* data{ nullptr };
 };
@@ -38,12 +38,15 @@ static State g_state{};
 
 static ENetPacket* net_create_packet(const NetPacket& packet, NetPacketMode mode)
 {
-    int totalSize = sizeof(packet.header) + sizeof(packet.size) + packet.size;
+    int totalSize = sizeof(packet.id) + sizeof(packet.size) + packet.size;
     char* buffer = new char[totalSize];
 
-    memcpy(buffer, packet.header, sizeof(packet.header));
-    memcpy(buffer + sizeof(packet.header), &packet.size, sizeof(int));
-    memcpy(buffer + sizeof(packet.header) + sizeof(int), packet.data, packet.size);
+    u32 offset = 0;
+    memcpy(buffer, &packet.id, sizeof(packet.id));
+    offset += sizeof(packet.id);
+    memcpy(buffer + offset, &packet.size, sizeof(packet.size));
+    offset += sizeof(packet.size);
+    memcpy(buffer + offset, packet.data, packet.size);
 
     enet_uint32 flags = (enet_uint32)mode;
     ENetPacket* enetPacket = enet_packet_create(buffer, totalSize, flags);
@@ -56,16 +59,20 @@ static NetPacket net_receive_packet(ENetPacket* packet)
 {
     NetPacket received{};
 
-    // Ensure packet is large enough to contain `header` and `size`
-    if (packet->dataLength >= sizeof(NetPacket::header) + sizeof(u32))
+    // Ensure packet is large enough to contain `id` and `size`
+    const std::size_t headerSize = sizeof(NetPacket::id) + sizeof(NetPacket::size);
+    if (packet->dataLength >= headerSize)
     {
-        memcpy(received.header, packet->data, sizeof(received.header));
-        memcpy(&received.size, (char*)packet->data + sizeof(received.header), sizeof(u32));
+        u32 offset = 0;
+        memcpy(&received.id, packet->data, sizeof(received.id));
+        offset += sizeof(received.id);
+        memcpy(&received.size, (char*)packet->data + offset, sizeof(received.size));
+        offset += sizeof(received.size);
 
-        if (received.size > 0 && packet->dataLength >= sizeof(received.header) + sizeof(u32) + received.size)
+        if (received.size > 0 && packet->dataLength >= headerSize + received.size)
         {
             received.data = new char[received.size];
-            memcpy(received.data, (char*)packet->data + sizeof(received.header) + sizeof(u32), received.size);
+            memcpy(received.data, (char*)packet->data + offset, received.size);
         }
         else
         {
@@ -138,6 +145,26 @@ static void net_timeout(const ENetEvent& e, bool server, u32 client)
     }
 
     net_disconnect(e, server, client);
+}
+
+static bool net_validate_packet(u32 packet)
+{
+    if (packet >= g_state.packets.size())
+    {
+        LOGW("Attempting to access invalid packet!");
+        return false;
+    }
+    return true;
+}
+
+static bool net_guard_packet(u32 packet_size, u32 offset, u32 size)
+{
+    if (offset + size > packet_size)
+    {
+        LOGW("Attempting to access past the packet boundary!");
+        return false;
+    }
+    return true;
 }
 
 bool App::NetInitialize(NetRelayFn relayFn)
@@ -260,19 +287,28 @@ bool App::NetIsClient(u32 client)
     return c.client != nullptr && c.peer != nullptr;
 }
 
-u32 App::NetCreatePacket(const char* id, u32 size)
+u32 App::NetCreatePacket(u32 id, u32 size)
 {
     NetPacket packet{};
-    auto id_len = strnlen(id, sizeof(packet.header)); // Get actual length up to 8 chars
-    memcpy(packet.header, id, id_len); // Copy only the actual data
+    memcpy(&packet.id, &id, sizeof(packet.id)); // Copy only the actual data
     packet.size = size;
     packet.data = new char[size];
     g_state.packets.emplace_back(std::move(packet));
     return (u32)(g_state.packets.size() - 1);
 }
 
+u32 App::NetPacketId(u32 packet)
+{
+    if (!net_validate_packet(packet))
+        return -1;
+    return g_state.packets[packet].id;
+}
+
 void App::NetBroadcast(u32 packet, u32 mode)
 {
+    if (!net_validate_packet(packet))
+        return;
+
     // Only servers can broadcast
     if (!NetIsServer())
     {
@@ -290,6 +326,9 @@ void App::NetBroadcast(u32 packet, u32 mode)
 
 void App::NetSend(u32 client, u32 packet, u32 mode)
 {
+    if (!net_validate_packet(packet))
+        return;
+
     // Ensure we have a valid connection
     if (!NetIsClient(client))
     {
@@ -368,24 +407,24 @@ void App::NetPollEvents()
 
 bool App::NetGetBool(u32 packet, u32 offset)
 {
-    auto& p = g_state.packets[packet];
-    if (offset + 1 > p.size)
-    {
-        LOGW("Attempting to read past the packet boundary!");
+    if (!net_validate_packet(packet))
         return false;
-    }
+    
+    auto& p = g_state.packets[packet];
+    if (!net_guard_packet(p.size, offset, 1))
+        return false;
 
     return p.data[offset] != 0;
 }
 
 u32 App::NetGetUInt(u32 packet, u32 offset)
 {
-    auto& p = g_state.packets[packet];
-    if (offset + sizeof(u32) > p.size)
-    {
-        LOGW("Attempting to read past the packet boundary!");
+    if (!net_validate_packet(packet))
         return 0;
-    }
+
+    auto& p = g_state.packets[packet];
+    if (!net_guard_packet(p.size, offset, sizeof(u32)))
+        return 0;
 
     u32 value;
     std::memcpy(&value, p.data + offset, sizeof(u32));
@@ -394,12 +433,12 @@ u32 App::NetGetUInt(u32 packet, u32 offset)
 
 i32 App::NetGetInt(u32 packet, u32 offset)
 {
-    auto& p = g_state.packets[packet];
-    if (offset + sizeof(i32) > p.size)
-    {
-        LOGW("Attempting to read past the packet boundary!");
+    if (!net_validate_packet(packet))
         return 0;
-    }
+
+    auto& p = g_state.packets[packet];
+    if (!net_guard_packet(p.size, offset, sizeof(i32)))
+        return 0;
 
     i32 value;
     std::memcpy(&value, p.data + offset, sizeof(i32));
@@ -408,12 +447,12 @@ i32 App::NetGetInt(u32 packet, u32 offset)
 
 f32 App::NetGetFloat(u32 packet, u32 offset)
 {
+    if (!net_validate_packet(packet))
+        return 0;
+
     auto& p = g_state.packets[packet];
-    if (offset + sizeof(f32) > p.size)
-    {
-        LOGW("Attempting to read past the packet boundary!");
-        return 0.0f;
-    }
+    if (!net_guard_packet(p.size, offset, sizeof(f32)))
+        return 0;
 
     f32 value;
     std::memcpy(&value, p.data + offset, sizeof(f32));
@@ -422,74 +461,119 @@ f32 App::NetGetFloat(u32 packet, u32 offset)
 
 f64 App::NetGetDouble(u32 packet, u32 offset)
 {
+    if (!net_validate_packet(packet))
+        return 0;
+
     auto& p = g_state.packets[packet];
-    if (offset + sizeof(f64) > p.size)
-    {
-        LOGW("Attempting to read past the packet boundary!");
-        return 0.0;
-    }
+    if (!net_guard_packet(p.size, offset, sizeof(f64)))
+        return 0;
 
     f64 value;
     std::memcpy(&value, p.data + offset, sizeof(f64));
     return value;
 }
 
+const char* App::NetGetString(u32 packet, u32 offset)
+{
+    if (!net_validate_packet(packet))
+        return "";
+
+    auto& p = g_state.packets[packet];
+    if (!net_guard_packet(p.size, offset, p.size - offset))
+        return "";
+
+    char* str = reinterpret_cast<char*>(p.data + offset);
+    std::size_t maxLen = (std::size_t)p.size - offset;
+
+    const char* end = static_cast<const char*>(std::memchr(str, '\0', maxLen));
+    if (end == nullptr)
+    {
+        LOGW("String read attempt without null termination!");
+        return "";
+    }
+
+    return str;
+}
+
 void App::NetSetBool(u32 packet, u32 offset, bool v)
 {
-    auto& p = g_state.packets[packet];
-    if (offset + 1 > p.size)
-    {
-        LOGW("Attempting to write past the packet boundary!");
+    if (!net_validate_packet(packet))
         return;
-    }
+
+    auto& p = g_state.packets[packet];
+    if (!net_guard_packet(p.size, offset, 1))
+        return;
 
     p.data[offset] = v ? 1 : 0;
 }
 
 void App::NetSetUInt(u32 packet, u32 offset, u32 v)
 {
-    auto& p = g_state.packets[packet];
-    if (offset + sizeof(u32) > p.size)
-    {
-        LOGW("Attempting to write past the packet boundary!");
+    if (!net_validate_packet(packet))
         return;
-    }
+
+    auto& p = g_state.packets[packet];
+    if (!net_guard_packet(p.size, offset, sizeof(u32)))
+        return;
 
     std::memcpy(p.data + offset, &v, sizeof(u32));
 }
 
 void App::NetSetInt(u32 packet, u32 offset, i32 v)
 {
-    auto& p = g_state.packets[packet];
-    if (offset + sizeof(i32) > p.size)
-    {
-        LOGW("Attempting to write past the packet boundary!");
+    if (!net_validate_packet(packet))
         return;
-    }
+
+    auto& p = g_state.packets[packet];
+    if (!net_guard_packet(p.size, offset, sizeof(i32)))
+        return;
 
     std::memcpy(p.data + offset, &v, sizeof(i32));
 }
 
 void App::NetSetFloat(u32 packet, u32 offset, f32 v)
 {
-    auto& p = g_state.packets[packet];
-    if (offset + sizeof(f32) > p.size)
-    {
-        LOGW("Attempting to write past the packet boundary!");
+    if (!net_validate_packet(packet))
         return;
-    }
+
+    auto& p = g_state.packets[packet];
+    if (!net_guard_packet(p.size, offset, sizeof(f32)))
+        return;
 
     std::memcpy(p.data + offset, &v, sizeof(f32));
 }
 
 void App::NetSetDouble(u32 packet, u32 offset, f64 v)
 {
+    if (!net_validate_packet(packet))
+        return;
+
     auto& p = g_state.packets[packet];
-    if (offset + sizeof(f64) > p.size)
+    if (!net_guard_packet(p.size, offset, sizeof(f64)))
+        return;
+
+    std::memcpy(p.data + offset, &v, sizeof(f64));
+}
+
+void App::NetSetString(u32 packet, u32 offset, const char* v)
+{
+    if (!net_validate_packet(packet))
+        return;
+
+    if (v == nullptr)
     {
-        LOGW("Attempting to write past the packet boundary!");
+        LOGW("Attempting to write a null string to packet!");
         return;
     }
 
-    std::memcpy(p.data + offset, &v, sizeof(f64));
+    auto& p = g_state.packets[packet];
+
+    // Search for null terminator within packet bounds
+    const char* end = (const char*)std::memchr(v, '\0', p.size - static_cast<std::size_t>(offset) - 1);
+    u32 length = end ? (end - v) : (p.size - static_cast<std::size_t>(offset) - 1); // Truncate if too long
+
+    if (!net_guard_packet(p.size, offset, length))
+        return;
+
+    std::memcpy(p.data + offset, v, length);
 }

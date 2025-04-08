@@ -1,10 +1,5 @@
 #include <App.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
-#include <glad/glad.h>
-
 #include <GLFW/glfw3.h>
 
 #include <imgui.h>
@@ -14,8 +9,8 @@
 #include <backends/imgui_impl_opengl3.h>
 
 extern "C" {
-#include "wren.h"
-#include "wren_vm.h"
+#include <wren.h>
+#include <wren_vm.h>
 }
 
 #include <iostream>
@@ -51,20 +46,6 @@ struct LogData
 	std::size_t count{ 0 };
 };
 
-struct Image
-{
-	i32 w{ 0 }, h{ 0 }, c{ 0 };
-	u8* data{ nullptr };
-};
-
-struct Vertex
-{
-	f32 pos[4] = { 0, 0, 0, 0 }; // Used for main position data
-	u32 col[2] = { 0, 0 }; // Used for nomalized uint values (typical for color)
-	u32 idx[2] = { 0, 0 }; // Used for unnormalized uint values (typical for indexing)
-	f32 v[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; // Extra floats for anything else
-};
-
 struct AppData
 {
 	// App
@@ -89,16 +70,6 @@ struct AppData
 	WindowMode winMode{ WindowMode::WINDOWED };
 	int winX{ 0 }, winY{ 0 };
 	int winWidth{ 0 }, winHeight{ 0 };
-
-	// Graphics
-	GLuint shader{ 0 };
-	GLuint vao{ 0 };
-	GLuint vbo{ 0 };
-	std::vector<GLuint> shaders{};
-	std::vector<Image> images{};
-	std::vector<GLuint> textures{};
-	const char* uniformName{ nullptr };
-	std::vector<Vertex> vertices{};
 
 	// Gui
 	f32 fontSize{ 1.0f };
@@ -170,16 +141,20 @@ static void file_parse_lines(const std::string& fileContent, std::vector<PathInf
 	}
 }
 
-static std::string file_load(const char* filepath)
+const char* App::FilePath(const char* filepath)
 {
 #if _DEBUG
-	std::string pathStr = PROJECT_PATH;
-	pathStr += filepath;
-	const char* path = pathStr.c_str();
+	thread_local std::string pathStr{};
+	pathStr = PROJECT_PATH + std::string(filepath);
+	return pathStr.c_str();
 #else
-	const char* path = filepath;
+	return filepath;
 #endif
+}
 
+std::string App::FileLoad(const char* filepath)
+{
+	const char* path = FilePath(filepath);
 	std::ifstream file(path);
 	if (!file.is_open())
 	{
@@ -194,16 +169,9 @@ static std::string file_load(const char* filepath)
 	return buffer.str();
 }
 
-static void file_save(const char* filepath, const std::string& src)
+void App::FileSave(const char* filepath, const std::string& src)
 {
-#if _DEBUG
-	std::string pathStr = PROJECT_PATH;
-	pathStr += filepath;
-	const char* path = pathStr.c_str();
-#else
-	const char* path = filepath;
-#endif
-
+	const char* path = FilePath(filepath);
 	std::ofstream file(path);
 	if (!file.is_open())
 	{
@@ -284,22 +252,16 @@ static bool glfw_initialize(const AppConfig& config)
 
 	// Set icon
 	GLFWimage icon;
-	i32 icoWidth, icoHeight, icoChannels;
-
-#if _DEBUG
-	unsigned char* icoPixels = stbi_load(PROJECT_PATH"Assets/App/GASandbox.png", &icoWidth, &icoHeight, &icoChannels, 4);
-#else
-	unsigned char* icoPixels = stbi_load("Assets/App/GASandbox.png", &icoWidth, &icoHeight, &icoChannels, 4);
-#endif
-
-	if (icoPixels)
+	u32 img = App::GlLoadImage("Assets/App/GASandbox.png", false);
+	
+	if (img)
 	{
-		icon.width = icoWidth;
-		icon.height = icoHeight;
-		icon.pixels = icoPixels;
+		icon.width = App::GlImageWidth(img);
+		icon.height = App::GlImageHeight(img);
+		icon.pixels = App::GlImageData(img);
 
 		glfwSetWindowIcon(g_app.window, 1, &icon);
-		stbi_image_free(icoPixels);
+		App::GlDestroyImage(img);
 	}
 	else
 	{
@@ -313,185 +275,6 @@ static void glfw_shutdown()
 {
 	glfwDestroyWindow(g_app.window);
 	glfwTerminate();
-}
-
-#if _DEBUG
-static const char* opengl_source(GLenum source)
-{
-	switch (source)
-	{
-	case GL_DEBUG_SOURCE_API:               return "API";
-	case GL_DEBUG_SOURCE_WINDOW_SYSTEM:     return "Window System";
-	case GL_DEBUG_SOURCE_SHADER_COMPILER:   return "Shader Compiler";
-	case GL_DEBUG_SOURCE_THIRD_PARTY:       return "Third Party";
-	case GL_DEBUG_SOURCE_APPLICATION:       return "Application";
-	case GL_DEBUG_SOURCE_OTHER:             return "Other";
-	}
-
-	return "Unknown";
-}
-
-static const char* opengl_type(GLenum type)
-{
-	switch (type)
-	{
-	case GL_DEBUG_TYPE_ERROR:               return "Error";
-	case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: return "Deprecated Behaviour";
-	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  return "Undefined Behaviour";
-	case GL_DEBUG_TYPE_PORTABILITY:         return "Portability";
-	case GL_DEBUG_TYPE_PERFORMANCE:         return "Performance";
-	case GL_DEBUG_TYPE_MARKER:              return "Marker";
-	case GL_DEBUG_TYPE_PUSH_GROUP:          return "Push Group";
-	case GL_DEBUG_TYPE_POP_GROUP:           return "Pop Group";
-	case GL_DEBUG_TYPE_OTHER:               return "Other";
-	}
-
-	return "Unknown";
-}
-
-static const char* opengl_severity(GLenum severity)
-{
-	switch (severity)
-	{
-	case GL_DEBUG_SEVERITY_HIGH:            return "High";
-	case GL_DEBUG_SEVERITY_MEDIUM:          return "Medium";
-	case GL_DEBUG_SEVERITY_LOW:             return "Low";
-	case GL_DEBUG_SEVERITY_NOTIFICATION:    return "Notification";
-	}
-
-	return "Unknown";
-}
-
-static void APIENTRY opengl_debug_callback(GLenum source, GLenum type, u32 id, GLenum severity, GLsizei length, const char* message, const void* userParam)
-{
-	// Ignore non-significant error/warning codes
-	if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
-		return;
-
-	if (type == GL_DEBUG_TYPE_ERROR)
-		LOGE("GL %s - %s (%s) [%d]: %s", opengl_source(source), opengl_type(type), opengl_severity(severity), id, message);
-	else if (type == GL_DEBUG_TYPE_OTHER)
-		LOGI("GL %s - %s (%s) [%d]: %s", opengl_source(source), opengl_type(type), opengl_severity(severity), id, message);
-	else
-		LOGW("GL %s - %s (%s) [%d]: %s", opengl_source(source), opengl_type(type), opengl_severity(severity), id, message);
-}
-#endif
-
-static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
-{
-	// Compile vertex shader
-	GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vshader, 1, &vsrc, NULL);
-	glCompileShader(vshader);
-
-	i32 success = 0;
-	char log[1024];
-	glGetShaderiv(vshader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		glGetShaderInfoLog(vshader, 1024, NULL, log);
-		LOGE("Failed to compile vertex shader: %s", log);
-	}
-
-	// Compile fragment shader
-	GLuint fshader(glCreateShader(GL_FRAGMENT_SHADER));
-	glShaderSource(fshader, 1, &fsrc, NULL);
-	glCompileShader(fshader);
-
-	glGetShaderiv(fshader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		glGetShaderInfoLog(fshader, 1024, NULL, log);
-		LOGE("Failed to compile fragment shader: %s", log);
-	}
-
-	// Link vertex and fragment shader together
-	GLuint program = glCreateProgram();
-	glAttachShader(program, vshader);
-	glAttachShader(program, fshader);
-	glLinkProgram(program);
-
-	glGetProgramiv(program, GL_LINK_STATUS, &success);
-	if (!success)
-	{
-		glGetProgramInfoLog(program, 1024, NULL, log);
-		LOGE("Failed to link shader program: %s", log);
-	}
-
-	glValidateProgram(program);
-	glGetProgramiv(program, GL_VALIDATE_STATUS, &success);
-	if (!success)
-	{
-		glGetProgramInfoLog(program, 1024, NULL, log);
-		LOGE("Shader validation error: %s", log);
-	}
-
-	// Delete shaders objects
-	glDeleteShader(vshader);
-	glDeleteShader(fshader);
-
-	g_app.shaders.emplace_back(program);
-	return program;
-}
-
-static bool opengl_initialize(const AppConfig& config)
-{
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-	{
-		LOGE("Failed to initialize GLAD!");
-		return false;
-	}
-
-#if _DEBUG
-	i32 flags;
-	glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
-	if (flags & GL_CONTEXT_FLAG_DEBUG_BIT)
-	{
-		// Initialize debug output
-		glEnable(GL_DEBUG_OUTPUT);
-		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-		glDebugMessageCallback(opengl_debug_callback, nullptr);
-		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-	}
-	else
-	{
-		LOGW("Failed to initialize OpenGL debug output.");
-	}
-#endif
-
-	glGenVertexArrays(1, &g_app.vao);
-	glGenBuffers(1, &g_app.vbo);
-
-	glBindVertexArray(g_app.vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
-
-	const GLsizei stride = 64;
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, stride, (GLvoid*)0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, (GLvoid*)(16));
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, (GLvoid*)(20));
-	glEnableVertexAttribArray(3);
-	glVertexAttribIPointer(3, 4, GL_UNSIGNED_BYTE, stride, (GLvoid*)(24));
-	glEnableVertexAttribArray(4);
-	glVertexAttribIPointer(4, 4, GL_UNSIGNED_BYTE, stride, (GLvoid*)(28));
-	glEnableVertexAttribArray(5);
-	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(32));
-	glEnableVertexAttribArray(6);
-	glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(48));
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	return true;
-}
-
-static void opengl_shutdown()
-{
-	glDeleteProgram(g_app.shader);
-	glDeleteBuffers(1, &g_app.vbo);
-	glDeleteVertexArrays(1, &g_app.vao);
 }
 
 static bool imgui_initialize(const AppConfig& config)
@@ -515,11 +298,8 @@ static bool imgui_initialize(const AppConfig& config)
 	}
 
 	ImGui::StyleColorsDark();
-#ifdef _DEBUG
-	io.Fonts->AddFontFromFileTTF(PROJECT_PATH"Assets/App/Fonts/UbuntuMono-Regular.ttf", 20);
-#else
-	io.Fonts->AddFontFromFileTTF("Assets/App/Fonts/UbuntuMono-Regular.ttf", 20);
-#endif
+
+	io.Fonts->AddFontFromFileTTF(PATH("Assets/App/Fonts/UbuntuMono-Regular.ttf"), 20);
 
 	io.IniFilename = "imgui.ini";
 	return true;
@@ -719,6 +499,7 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 	if (it != g_app.logsHash.end())
 	{
 		g_app.logs[it->second].count++;
+		std::swap(g_app.logs[it->second], g_app.logs.back());
 		return;
 	}
 	g_app.logsHash.insert(std::make_pair(hash, g_app.logs.size()));
@@ -788,6 +569,11 @@ bool App::IsHeadless()
 }
 
 // Window
+void* App::WinGetProcAddress(const char* procname)
+{
+	return glfwGetProcAddress(procname);
+}
+
 void App::WinMode(i32 mode)
 {
 	auto winMode = (WindowMode)mode;
@@ -901,370 +687,6 @@ void App::WinClose()
 	glfwSetWindowShouldClose(g_app.window, GLFW_TRUE);
 }
 
-// Graphics
-static std::string shader_process_includes(const std::string& source)
-{
-	std::stringstream processed;
-	std::istringstream input(source);
-	std::string line;
-	static std::string includePath;
-
-	while (std::getline(input, line))
-	{
-		// Check for #include "filename"
-		if (line.rfind("#include", 0) == 0)
-		{
-			size_t start = line.find('"');
-			size_t end = line.rfind('"');
-			if (start != std::string::npos && end != std::string::npos && start < end)
-			{
-				size_t len = end - start - 1;
-
-				// Ensure buffer is large enough
-				includePath.resize(len);
-				std::memcpy(&includePath[0], line.c_str() + start + 1, len);
-				includePath[len] = '\0'; // Null-terminate manually
-
-				std::string includedSource = file_load(includePath.c_str());
-				processed << shader_process_includes(includedSource) << "\n";
-				continue; // Skip writing the #include line itself
-			}
-		}
-		processed << line << "\n";
-	}
-	return processed.str();
-}
-
-u32 App::GlCreateShader(const char* filepath)
-{
-	auto src = shader_process_includes(file_load(filepath));
-	auto vsrc = "#version 330 core\n#define VERT\n" + src;
-	auto fsrc = "#version 330 core\n#define FRAG\n" + src;
-	return opengl_load_shader(vsrc.c_str(), fsrc.c_str());
-}
-
-void App::GlDestroyShader(u32 shader)
-{
-	glDeleteProgram(shader);
-}
-
-void App::GlSetShader(u32 shader)
-{
-	g_app.shader = shader;
-	glUseProgram(g_app.shader);
-}
-
-u32 App::GlCreateImage(const char* filepath, bool flipY)
-{
-#if _DEBUG
-	std::string pathStr = PROJECT_PATH;
-	pathStr += filepath;
-	const char* path = pathStr.c_str();
-#else
-	const char* path = filepath;
-#endif
-
-	Image img{};
-	stbi_set_flip_vertically_on_load(flipY);
-	img.data = stbi_load(path, &img.w, &img.h, &img.c, 0);
-	if (!img.data)
-	{
-		LOGW("Failed to load image: %s", path);
-		//return 0;
-	}
-
-	g_app.images.emplace_back(img);
-	return (u32)(g_app.images.size() - 1);
-}
-
-void App::GlDestroyImage(u32 image)
-{
-	auto& img = g_app.images[image];
-	stbi_image_free(img.data);
-	img = Image{};
-}
-
-i32 App::GlImageWidth(u32 image)
-{
-	return g_app.images[image].w;
-}
-
-i32 App::GlImageHeight(u32 image)
-{
-	return g_app.images[image].h;
-}
-
-i32 App::GlImageChannels(u32 image)
-{
-	return g_app.images[image].c;
-}
-
-static GLenum opengl_internal_format(TextureFormat fmt)
-{
-	switch (fmt)
-	{
-	case TextureFormat::R8:    return GL_R8;
-	case TextureFormat::RG8:   return GL_RG8;
-	case TextureFormat::RGB8:  return GL_RGB8;
-	case TextureFormat::RGBA8: return GL_RGBA8;
-	default:                   return GL_RGBA8;
-	}
-}
-
-GLenum opengl_format(TextureFormat fmt)
-{
-	switch (fmt)
-	{
-	case TextureFormat::R8:    return GL_RED;
-	case TextureFormat::RG8:   return GL_RG;
-	case TextureFormat::RGB8:  return GL_RGB;
-	case TextureFormat::RGBA8: return GL_RGBA;
-	default:                   return GL_RGBA;
-	}
-}
-
-GLenum opengl_type(TextureFormat fmt)
-{
-	return GL_UNSIGNED_BYTE;
-}
-
-GLenum opengl_filter(TextureFilter filter, bool useMipmaps)
-{
-	switch (filter)
-	{
-	case TextureFilter::NEAREST:	return useMipmaps ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST;
-	case TextureFilter::LINEAR:		return useMipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
-	default:						return GL_LINEAR;
-	}
-}
-
-GLenum opengl_wrap(TextureWrap wrap)
-{
-	return wrap == TextureWrap::REPEAT ? GL_REPEAT : GL_CLAMP_TO_EDGE;
-}
-
-u32 App::GlCreateTexture(
-	u32 image, TextureFormat format,
-	TextureFilter minFilter, TextureFilter magFilter,
-	TextureWrap wrapS, TextureWrap wrapT,
-	bool genMipmaps)
-{
-	auto& img = g_app.images[image];
-	if (!img.data || img.w <= 0 || img.h <= 0)
-		// Handle error: invalid image
-		return 0;
-
-	GLenum glInternalFormat = opengl_internal_format(format);
-	GLenum glFormat = opengl_format(format);
-	GLenum glType = opengl_type(format);
-
-	u32 texture = 0;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-
-	// Set texture parameters: filtering and wrapping
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, opengl_filter(minFilter, genMipmaps));
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, opengl_filter(magFilter, false));
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, opengl_wrap(wrapS));
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, opengl_wrap(wrapT));
-
-	// Upload the texture data
-	glTexImage2D(GL_TEXTURE_2D, 0, glInternalFormat, img.w, img.h, 0, glFormat, glType, img.data);
-
-	if (genMipmaps)
-	{
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-
-	// Unbind the texture
-	glBindTexture(GL_TEXTURE_2D, 0);
-	return texture;
-}
-
-void App::GlDestroyTexture(u32 texture)
-{
-	if (texture != 0)
-		glDeleteTextures(1, &texture);
-}
-
-void App::GlBegin(bool alpha, bool ztest, f32 pointSize, f32 lineWidth)
-{
-	if (alpha)
-	{
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glBlendEquation(GL_FUNC_ADD);
-	}
-	else
-	{
-		glDisable(GL_BLEND);
-	}
-
-	if (ztest)
-		glEnable(GL_DEPTH_TEST);
-	else
-		glDisable(GL_DEPTH_TEST);
-
-	glPointSize(pointSize);
-	glLineWidth(lineWidth);
-
-	g_app.vertices.clear();
-}
-
-void App::GlEnd(u32 mode)
-{
-	glBindVertexArray(g_app.vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_app.vbo);
-
-	glBufferData(GL_ARRAY_BUFFER, g_app.vertices.size() * sizeof(Vertex), g_app.vertices.data(), GL_DYNAMIC_DRAW);
-	
-	for (u32 bit = 1; bit <= (u32)GlTopology::TRIANGLE_FAN; bit <<= 1)
-	{
-		if (mode & bit)
-		{
-			u32 i = 0, b = bit;
-			while (b > 1 && ++i) b >>= 1;
-			glDrawArrays(GL_POINTS + i, 0, (GLsizei)g_app.vertices.size());
-		}
-	}
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-}
-
-void App::GlViewport(u32 x, u32 y, u32 w, u32 h)
-{
-	glViewport(x, y, w, h);
-}
-
-void App::GlClear(f32 r, f32 g, f32 b, f32 a, f32 d, f32 s, u32 flags)
-{
-	glClearColor(r, g, b, a);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-}
-
-void App::GlUniform(const char* name)
-{
-	g_app.uniformName = name;
-}
-
-void App::GlTex2D(u32 i, u32 texture)
-{
-	glActiveTexture(GL_TEXTURE0 + i);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glUniform1i(glGetUniformLocation(g_app.shader, g_app.uniformName), i);
-}
-
-void App::GlFloat(f32 x)
-{
-	glUniform1f(glGetUniformLocation(g_app.shader, g_app.uniformName), x);
-}
-
-void App::GlVec2F(f32 x, f32 y)
-{
-	glUniform2f(glGetUniformLocation(g_app.shader, g_app.uniformName), x, y);
-}
-
-void App::GlVec3F(f32 x, f32 y, f32 z)
-{
-	glUniform3f(glGetUniformLocation(g_app.shader, g_app.uniformName), x, y, z);
-}
-
-void App::GlVec4F(f32 x, f32 y, f32 z, f32 w)
-{
-	glUniform4f(glGetUniformLocation(g_app.shader, g_app.uniformName), x, y, z, w);
-}
-
-void App::GlMat2x2F(
-	f32 m00, f32 m01,
-	f32 m10, f32 m11)
-{
-	const GLfloat v[4] = { m00, m01, m10, m11 };
-	glUniformMatrix2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat2x3F(
-	f32 m00, f32 m01, f32 m02,
-	f32 m10, f32 m11, f32 m12)
-{
-	const GLfloat v[6] = { m00, m01, m02, m10, m11, m12 };
-	glUniformMatrix2x3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat2x4F(
-	f32 m00, f32 m01, f32 m02, f32 m03,
-	f32 m10, f32 m11, f32 m12, f32 m13)
-{
-	const GLfloat v[8] = { m00, m01, m02, m03, m10, m11, m12, m13 };
-	glUniformMatrix2x4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat3x2F(
-	f32 m00, f32 m01,
-	f32 m10, f32 m11,
-	f32 m20, f32 m21)
-{
-	const GLfloat v[6] = { m00, m01, m10, m11, m20, m21 };
-	glUniformMatrix3x2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat3x3F(
-	f32 m00, f32 m01, f32 m02,
-	f32 m10, f32 m11, f32 m12,
-	f32 m20, f32 m21, f32 m22)
-{
-	const GLfloat v[9] = { m00, m01, m02, m10, m11, m12, m20, m21, m22 };
-	glUniformMatrix3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat3x4F(
-	f32 m00, f32 m01, f32 m02, f32 m03,
-	f32 m10, f32 m11, f32 m12, f32 m13,
-	f32 m20, f32 m21, f32 m22, f32 m23)
-{
-	const GLfloat v[12] = { m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23 };
-	glUniformMatrix3x4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat4x2F(
-	f32 m00, f32 m01,
-	f32 m10, f32 m11,
-	f32 m20, f32 m21,
-	f32 m30, f32 m31)
-{
-	const GLfloat v[8] = { m00, m01, m10, m11, m20, m21 };
-	glUniformMatrix4x2fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat4x3F(
-	f32 m00, f32 m01, f32 m02,
-	f32 m10, f32 m11, f32 m12,
-	f32 m20, f32 m21, f32 m22,
-	f32 m30, f32 m31, f32 m32)
-{
-	const GLfloat v[12] = { m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32 };
-	glUniformMatrix4x3fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlMat4x4F(
-	f32 m00, f32 m01, f32 m02, f32 m03,
-	f32 m10, f32 m11, f32 m12, f32 m13,
-	f32 m20, f32 m21, f32 m22, f32 m23,
-	f32 m30, f32 m31, f32 m32, f32 m33)
-{
-	const GLfloat v[16] = { m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33 };
-	glUniformMatrix4fv(glGetUniformLocation(g_app.shader, g_app.uniformName), 1, GL_FALSE, v);
-}
-
-void App::GlVertex(
-	f32 x, f32 y, f32 z, f32 w,
-	u32 c0, u32 c1, u32 i0, u32 i1,
-	f32 v0, f32 v1, f32 v2, f32 v3,
-	f32 v4, f32 v5, f32 v6, f32 v7)
-{
-	g_app.vertices.emplace_back(Vertex{ { x, y, z, w }, { c0, c1 }, { i0, i1 }, { v0, v1, v2, v3, v4, v5, v6, v7 } });
-}
-
 // Gui
 void App::GuiPushItemWidth(f32 w)
 {
@@ -1349,7 +771,7 @@ void App::GuiEndChild()
 // Script
 void App::WrenParseFile(const char* moduleName, const char* filepath)
 {
-	auto src = file_load(filepath);
+	auto src = FileLoad(filepath);
 	WrenParseSource(moduleName, src.c_str());
 }
 
@@ -1473,20 +895,23 @@ bool App::Initialize(const AppConfig& config)
 		if (!glfw_initialize(config))
 			return false;
 
-		if (!opengl_initialize(config))
+		if (!GlInitialize(config))
 			return false;
 
 		if (!imgui_initialize(config))
 			return false;
 	}
 
+	if (!SfxInitialize())
+		return false;
+
 	if (!NetInitialize(NetRelay))
 		return false;
 
-	std::string indexSrc = file_load("Assets/index.txt");
+	std::string indexSrc = FileLoad("Assets/index.txt");
 	file_parse_lines(indexSrc, g_app.index);
 
-	std::string manifestSrc = file_load("Assets/manifest.txt");
+	std::string manifestSrc = FileLoad("Assets/manifest.txt");
 	file_parse_lines(manifestSrc, g_app.manifest);
 
 	g_app.headless = config.headless;
@@ -1499,11 +924,12 @@ void App::Shutdown()
 	wren_shutdown();
 
 	NetShutdown();
+	SfxShutdown();
 	
 	if (!g_app.headless)
 	{
 		imgui_shutdown();
-		opengl_shutdown();
+		GlShutdown();
 		glfw_shutdown();
 	}
 }
@@ -1536,9 +962,8 @@ void App::Update(f64 dt)
 
 void App::Render()
 {
-	glViewport(0, 0, WinWidth(), WinHeight());
-	glClearColor(0, 0, 0, 1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	GlViewport(0, 0, WinWidth(), WinHeight());
+	GlClear(0, 0, 0, 1, 0, 1, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	ImGui_ImplGlfw_NewFrame();
 	ImGui_ImplOpenGL3_NewFrame();
@@ -1783,20 +1208,9 @@ void App::Reload()
 
 	LOGD("App reloading ...");
 
-	// Clear resources
-	for (const auto shader : g_app.shaders)
-		GlDestroyShader(shader);
-	g_app.shaders.clear();
-
-	for (const auto& image : g_app.images)
-		if (image.data) stbi_image_free(image.data);
-	g_app.images.clear();
-
-	for (const auto texture : g_app.textures)
-		GlDestroyTexture(texture);
-	g_app.textures.clear();
-
-	// Restart networks
+	// Reload subsystems
+	GlReload();
+	SfxReload();
 	NetReload();
 
 	// Reload wren vm
@@ -1907,6 +1321,14 @@ void App::Reload()
 	// Graphics
 #define SCRIPT_ARGS_ARR(l, s, n, p, t) p l[n]; for (u8 i = 0; i < n; ++i) l[i] = WrenGetSlot##t##(vm, s + i + 1);
 
+	WrenBindMethod("app", "App", true, "glLoadShader(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto shader = GlLoadShader(WrenGetSlotString(vm, 1));
+			WrenSetSlotUInt(vm, 0, shader);
+		});
+
 	WrenBindMethod("app", "App", true, "glCreateShader(_)",
 		[](ScriptVM* vm)
 		{
@@ -1923,13 +1345,21 @@ void App::Reload()
 			GlDestroyShader(shader);
 		});
 
-	WrenBindMethod("app", "App", true, "glCreateImage(_,_)",
+	WrenBindMethod("app", "App", true, "glLoadImage(_,_)",
 		[](ScriptVM* vm)
 		{
 			WrenEnsureSlots(vm, 2);
-			auto image = GlCreateImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
+			auto image = GlLoadImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
 			WrenSetSlotUInt(vm, 0, image);
 		});
+
+	//WrenBindMethod("app", "App", true, "glCreateImage(_,_)",
+	//	[](ScriptVM* vm)
+	//	{
+	//		WrenEnsureSlots(vm, 2);
+	//		auto image = GlCreateImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
+	//		WrenSetSlotUInt(vm, 0, image);
+	//	});
 
 	WrenBindMethod("app", "App", true, "glDestroyImage(_)",
 		[](ScriptVM* vm)
@@ -1961,6 +1391,22 @@ void App::Reload()
 			WrenEnsureSlots(vm, 1);
 			auto image = WrenGetSlotUInt(vm, 1);
 			WrenSetSlotInt(vm, 0, GlImageChannels(image));
+		});
+
+	WrenBindMethod("app", "App", true, "glLoadModel(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto model = GlLoadModel(WrenGetSlotString(vm, 1));
+			WrenSetSlotUInt(vm, 0, model);
+		});
+
+	WrenBindMethod("app", "App", true, "glDestroyModel(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto model = WrenGetSlotUInt(vm, 1);
+			GlDestroyModel(model);
 		});
 
 	WrenBindMethod("app", "App", true, "glCreateTexture(_,_,_,_,_,_,_)",
@@ -2255,6 +1701,58 @@ void App::Reload()
 			GuiEndChild();
 		});
 
+	// Audio
+	WrenBindMethod("app", "App", true, "sfxLoadAudio(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			u32 audio = SfxLoadAudio(WrenGetSlotString(vm, 1));
+			WrenSetSlotUInt(vm, 0, audio);
+		});
+
+	WrenBindMethod("app", "App", true, "sfxDestroyAudio(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			SfxDestroyAudio(WrenGetSlotUInt(vm, 1));
+		});
+
+	WrenBindMethod("app", "App", true, "sfxCreateChannel(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			u32 channel = SfxCreateChannel(WrenGetSlotFloat(vm, 1));
+			WrenSetSlotUInt(vm, 0, channel);
+		});
+
+	WrenBindMethod("app", "App", true, "sfxDestroyChannel(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			SfxDestroyChannel(WrenGetSlotUInt(vm, 1));
+		});
+
+	WrenBindMethod("app", "App", true, "sfxSetChannelVolume(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			SfxSetChannelVolume(WrenGetSlotUInt(vm, 1), WrenGetSlotFloat(vm, 2));
+		});
+
+	WrenBindMethod("app", "App", true, "sfxPlay(_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 3);
+			SfxPlay(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotBool(vm, 3));
+		});
+
+	WrenBindMethod("app", "App", true, "sfxStop(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			SfxStop(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+		});
+
 	// Net
 	WrenBindMethod("app", "App", true, "netStartServer(_,_,_,_)",
 		[](ScriptVM* vm)
@@ -2310,8 +1808,16 @@ void App::Reload()
 		[](ScriptVM* vm)
 		{
 			WrenEnsureSlots(vm, 2);
-			auto packet = NetCreatePacket(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2));
+			auto packet = NetCreatePacket(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
 			WrenSetSlotUInt(vm, 0, packet);
+		});
+
+	WrenBindMethod("app", "App", true, "netPacketId(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto id = NetPacketId(WrenGetSlotUInt(vm, 1));
+			WrenSetSlotUInt(vm, 0, id);
 		});
 
 	WrenBindMethod("app", "App", true, "netBroadcast(_,_)",
@@ -2342,6 +1848,13 @@ void App::Reload()
 	SCRIPT_NET_GET(Float);
 	SCRIPT_NET_GET(Double);
 
+	WrenBindMethod("app", "App", true, "netGetString(_,_)", 
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			wrenSetSlotString(vm, 0, NetGetString(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2)));
+		});
+
 #define SCRIPT_NET_SET(Type)																					\
 	WrenBindMethod("app", "App", true, "netSet"#Type"(_,_,_)",											\
 	[](ScriptVM* vm)																					\
@@ -2355,6 +1868,13 @@ void App::Reload()
 	SCRIPT_NET_SET(Int);
 	SCRIPT_NET_SET(Float);
 	SCRIPT_NET_SET(Double);
+
+	WrenBindMethod("app", "App", true, "netSetString(_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 3);
+			NetSetString(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotString(vm, 3));
+		});
 
 	for (const auto& path : g_app.manifest)
 	{

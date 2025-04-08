@@ -1,6 +1,13 @@
 # STB lib
-add_library(stb INTERFACE)
+add_library(stb STATIC "stb/stb_vorbis.c")
 target_include_directories (stb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/stb)
+
+# CGLTF lib
+add_library(cgltf INTERFACE)
+target_include_directories (cgltf INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/cgltf)
+
+# Miniaudio lib
+add_subdirectory(miniaudio)
 
 # Klein lib
 add_subdirectory(klein)

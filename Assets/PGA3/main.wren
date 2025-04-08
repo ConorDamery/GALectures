@@ -4,7 +4,7 @@ import "pga3" for Direction, Point, Line, Rotor, Translator, Motor, PGA
 
 class State {
 	construct new() {
-		_shader = App.glCreateShader("Assets/Common/vertex3.glsl")
+		_shader = App.glLoadShader("Assets/Common/vertex3.glsl")
 		_showOrigin = true
 		_showGrid = true
 		_lookSpeed = 0.1

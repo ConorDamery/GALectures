@@ -265,11 +265,14 @@ class App {
     // Graphics
     // ==============================
 
-    // Creates a shader from a file path.
+    // Loads a shader from a file path.
     //
     // @param path (string) The file path to the shader.
     // @return (u32) The shader handle.
-    foreign static glCreateShader(path)
+    foreign static glLoadShader(path)
+
+	// TODO
+	foreign static glCreateShader(source)
 
     // Destroys a previously created shader.
     //
@@ -282,7 +285,7 @@ class App {
     foreign static glSetShader(shader)
 
 	// TODO
-	foreign static glCreateImage(path, flipY)
+	foreign static glLoadImage(path, flipY)
 
 	// TODO
 	foreign static glDestroyImage(image)
@@ -295,6 +298,12 @@ class App {
 
 	// TODO
 	foreign static glImageChannels(image)
+
+	// TODO
+	foreign static glLoadModel(path)
+
+	// TODO
+	foreign static glDestroyModel(model)
 
 	// Texture Format Constants
 
@@ -488,6 +497,31 @@ class App {
 	foreign static guiEndChild()
 
 	// ==============================
+    // Audio
+    // ==============================
+
+	// TODO
+	foreign static sfxLoadAudio(filepath)
+	
+	// TODO
+	foreign static sfxDestroyAudio(audio)
+
+	// TODO
+	foreign static sfxCreateChannel(volume)
+	
+	// TODO
+	foreign static sfxDestroyChannel(channel)
+	
+	// TODO
+	foreign static sfxSetChannelVolume(channel, volume)
+	
+	// TODO
+	foreign static sfxPlay(audio, channel, loop)
+	
+	// TODO
+	foreign static sfxStop(audio, channel)
+
+	// ==============================
     // Network
     // ==============================
 
@@ -529,6 +563,9 @@ class App {
 	foreign static netCreatePacket(id, size)
 	
 	// TODO
+	foreign static netPacketId(packet)
+
+	// TODO
 	foreign static netBroadcast(packet, mode)
 
 	// TODO
@@ -540,6 +577,7 @@ class App {
 	foreign static netGetInt(packet, offset)
 	foreign static netGetFloat(packet, offset)
 	foreign static netGetDouble(packet, offset)
+	foreign static netGetString(packet, offset)
 
 	// TODO
 	foreign static netSetBool(packet, offset, v)
@@ -547,4 +585,5 @@ class App {
 	foreign static netSetInt(packet, offset, v)
 	foreign static netSetFloat(packet, offset, v)
 	foreign static netSetDouble(packet, offset, v)
+	foreign static netSetString(packet, offset, v)
 }

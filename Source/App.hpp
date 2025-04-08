@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstdlib>
+#include <string>
 
 // Macros
 #define XSTR(x) #x
@@ -13,6 +14,12 @@
 #define VERSION_MAJOR 0
 
 #define VERSION_STR STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "." STR(VERSION_DEV)
+
+#ifdef _DEBUG
+#define PATH(x) PROJECT_PATH x
+#else
+#define PATH(x) x
+#endif
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define BIT(n) (1u << (n - 1))
@@ -108,11 +115,19 @@ private:
 	static bool Initialize(const AppConfig& config);
 	static void Shutdown();
 
+	static bool GlInitialize(const AppConfig& config);
+	static void GlShutdown();
+
 	static bool NetInitialize(NetRelayFn relayFn);
 	static void NetShutdown();
 
+	static bool SfxInitialize();
+	static void SfxShutdown();
+
 	static void Reload();
+	static void GlReload();
 	static void NetReload();
+	static void SfxReload();
 
 	static void Update(f64 dt);
 	static void Render();
@@ -131,7 +146,13 @@ public:
 	static void Wait(u32 ms);
 	static bool IsHeadless();
 
+	static const char* FilePath(const char* filepath);
+	static std::string FileLoad(const char* filepath);
+	static void FileSave(const char* filepath, const std::string& src);
+
 	// Window
+	static void* WinGetProcAddress(const char* procname);
+
 	static void WinMode(i32 mode);
 	static void WinCursor(i32 cursor);
 
@@ -150,15 +171,24 @@ public:
 	static void WinClose();
 
 	// Graphics
-	static u32 GlCreateShader(const char* filepath);
+	static u32 GlLoadShader(const char* filepath);
+	static u32 GlCreateShader(const char* source);
 	static void GlDestroyShader(u32 shader);
 	static void GlSetShader(u32 shader);
 
-	static u32 GlCreateImage(const char* filepath, bool flipY);
+	static u32 GlLoadImage(const char* filepath, bool flipY);
+	static u32 GlCreateImage(i32 w, i32 h, i32 c, u8* data);
 	static void GlDestroyImage(u32 image);
 	static i32 GlImageWidth(u32 image);
 	static i32 GlImageHeight(u32 image);
 	static i32 GlImageChannels(u32 image);
+	static u8* GlImageData(u32 image);
+
+	static u32 GlLoadModel(const char* filepath);
+	static void GlDestroyModel(u32 model);
+	//static i32 GlImageWidth(u32 image);
+	//static i32 GlImageHeight(u32 image);
+	//static i32 GlImageChannels(u32 image);
 
 	static u32 GlCreateTexture(
 		u32 image, TextureFormat format,
@@ -251,6 +281,17 @@ public:
 	static bool GuiBeginChild(const char* label, f32 w, f32 h);
 	static void GuiEndChild();
 
+	// Audio
+	static u32 SfxLoadAudio(const char* filepath);
+	static void SfxDestroyAudio(u32 audio);
+
+	static u32 SfxCreateChannel(f32 volume);
+	static void SfxDestroyChannel(u32 channel);
+	static void SfxSetChannelVolume(u32 channel, f32 volume);
+	
+	static void SfxPlay(u32 audio, u32 channel, bool loop);
+	static void SfxStop(u32 audio, u32 channel);
+
 	// Net
 	static void NetStartServer(const char* ip, u32 port, u32 peerCount, u32 channelLimit);
 	static void NetStopServer();
@@ -262,7 +303,8 @@ public:
 	static bool NetIsServer();
 	static bool NetIsClient(u32 client);
 
-	static u32 NetCreatePacket(const char* id, u32 size);
+	static u32 NetCreatePacket(u32 id, u32 size);
+	static u32 NetPacketId(u32 packet);
 
 	static void NetBroadcast(u32 packet, u32 mode);
 	static void NetSend(u32 client, u32 packet, u32 mode);
@@ -274,12 +316,14 @@ public:
 	static i32 NetGetInt(u32 packet, u32 offset);
 	static f32 NetGetFloat(u32 packet, u32 offset);
 	static f64 NetGetDouble(u32 packet, u32 offset);
+	static const char* NetGetString(u32 packet, u32 offset);
 
 	static void NetSetBool(u32 packet, u32 offset, bool v);
 	static void NetSetUInt(u32 packet, u32 offset, u32 v);
 	static void NetSetInt(u32 packet, u32 offset, i32 v);
 	static void NetSetFloat(u32 packet, u32 offset, f32 v);
 	static void NetSetDouble(u32 packet, u32 offset, f64 v);
+	static void NetSetString(u32 packet, u32 offset, const char* v);
 
 	// Script
 	static void WrenParseFile(const char* moduleName, const char* filepath);

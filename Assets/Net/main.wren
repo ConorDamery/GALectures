@@ -75,11 +75,10 @@ class Player {
 		x = x + dx * dt
 		y = y + dy * dt
 
-		var relay = App.netCreatePacket("NETPKT", 16)
-		App.netSetUInt(relay, 0, NetClient.playerUpdate)
-		App.netSetUInt(relay, 4, pid)
-		App.netSetFloat(relay, 8, x)
-		App.netSetFloat(relay, 12, y)
+		var relay = App.netCreatePacket(NetClient.playerUpdate, 12)
+		App.netSetUInt(relay, 0, pid)
+		App.netSetFloat(relay, 4, x)
+		App.netSetFloat(relay, 8, y)
 		App.netSend(_client, relay, App.netPktReliable)
 	}
 
@@ -93,33 +92,28 @@ class Player {
 	}
 
 	netcode(server, packet) {
-		var eid = App.netGetUInt(packet, 0)
+		var eid = App.netPacketId(packet)
 
 		if (server) {
 			if (eid == NetClient.playerUpdate) {
-				var cpid = App.netGetUInt(packet, 4)
-				var cpx = App.netGetFloat(packet, 8)
-				var cpy = App.netGetFloat(packet, 12)
+				var cpid = App.netGetUInt(packet, 0)
+				var cpx = App.netGetFloat(packet, 4)
+				var cpy = App.netGetFloat(packet, 8)
 
-				var relay = App.netCreatePacket("NETPKT", 16)
-				App.netSetUInt(relay, 0, NetServer.playerUpdate)
-				App.netSetUInt(relay, 4, cpid)
-				App.netSetFloat(relay, 8, cpx)
-				App.netSetFloat(relay, 12, cpy)
+				var relay = App.netCreatePacket(NetServer.playerUpdate, 12)
+				App.netSetUInt(relay, 0, cpid)
+				App.netSetFloat(relay, 4, cpx)
+				App.netSetFloat(relay, 8, cpy)
 				App.netBroadcast(relay, App.netPktReliable)
-
-				System.print("Player update server")
 			}
 		
 		} else {
 			if (eid == NetServer.playerUpdate) {
-				var cpid = App.netGetUInt(packet, 4)
-				if (pid == cpid) {
-					x = App.netGetFloat(packet, 8)
-					y = App.netGetFloat(packet, 12)
+				var cpid = App.netGetUInt(packet, 0)
+				if (!isLocal && pid == cpid) {
+					x = App.netGetFloat(packet, 4)
+					y = App.netGetFloat(packet, 8)
 				}
-
-				System.print("Player update client")
 			}
 		}
 	}
@@ -128,7 +122,15 @@ class Player {
 class State {
 	construct new() {
 		if (!App.isHeadless) {
-			_shader = App.glCreateShader("Assets/Common/vertex2.glsl")
+			_shader = App.glLoadShader("Assets/Common/vertex2.glsl")
+
+			var model = App.glLoadModel("Assets/Common/Models/Box.glb")
+
+			var audio = App.sfxLoadAudio("Assets/Common/Audio/48000-stereo.ogg")
+			var channel = App.sfxCreateChannel(1)
+
+			System.print("Audio: %(audio), Channel: %(channel)")
+			App.sfxPlay(audio, channel, false)
 		
 		} else {
 			App.netStartServer()
@@ -151,12 +153,14 @@ class State {
 		if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
 			_camScale = App.guiFloat("Cam Scale", _camScale, 1, 10)
 
-			if (App.guiButton("Start Server")) {
-				App.netStartServer("any", 7777, 32, 2)
-			}
-
-			if (App.guiButton("Stop Server")) {
-				App.netStopServer()
+			if (!App.netIsServer()) {
+				if (App.guiButton("Start Server")) {
+					App.netStartServer("any", 7777, 32, 2)
+				}
+			} else {
+				if (App.guiButton("Stop Server")) {
+					App.netStopServer()
+				}
 			}
 
 			if (App.guiButton("Connect Client")) {
@@ -185,11 +189,11 @@ class State {
 	netcode(server, client, event, peer, channel, packet) {
 		if (server) {
 			if (event == App.netEvReceive) {
-				var eid = App.netGetUInt(packet, 0)
+				var eid = App.netPacketId(packet)
 
 				// Relay player joining, we broadcast the list of all players
 				if (eid == NetClient.playerJoin) {
-					var pid = App.netGetUInt(packet, 4)
+					var pid = App.netGetUInt(packet, 0)
 
 					// When we are a server we still need to add a player
 					// (it will already be there if in server/client mode)
@@ -197,11 +201,10 @@ class State {
 						_players[pid] = Player.new(pid, -1)
 					}
 
-					var size = 8 + _players.count * 4
-					var relay = App.netCreatePacket("NETPKT", size)
-					App.netSetUInt(relay, 0, NetServer.playerJoin)
-					App.netSetUInt(relay, 4, _players.count)
-					var offset = 8
+					var size = 4 + _players.count * 4
+					var relay = App.netCreatePacket(NetServer.playerJoin, size)
+					App.netSetUInt(relay, 0, _players.count)
+					var offset = 4
 					for (i in _players) {
 						App.netSetUInt(relay, offset, i.value.pid)
 						offset = offset + 4
@@ -218,21 +221,20 @@ class State {
 				var pid = App.netMakeUuid()
 				_players[pid] = Player.new(pid, client)
 
-				var relay = App.netCreatePacket("NETPKT", 8)
-				App.netSetUInt(relay, 0, NetClient.playerJoin)
-				App.netSetUInt(relay, 4, pid)
+				var relay = App.netCreatePacket(NetClient.playerJoin, 4)
+				App.netSetUInt(relay, 0, pid)
 				App.netSend(client, relay, App.netPktReliable)
 
 				System.print("Client connected, request player %(pid) join. %(client)")
 			}
 			
 			if (event == App.netEvReceive) {
-				var eid = App.netGetUInt(packet, 0)
+				var eid = App.netPacketId(packet)
 
 				// Server sent player list, update local players
 				if (eid == NetServer.playerJoin) {
-					var count = App.netGetUInt(packet, 4)
-					var offset = 8
+					var count = App.netGetUInt(packet, 0)
+					var offset = 4
 					for (i in 0...count) {
 						var pid = App.netGetUInt(packet, offset)
 						if (!_players.containsKey(pid)) {

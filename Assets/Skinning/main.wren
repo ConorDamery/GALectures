@@ -80,10 +80,10 @@ class Handle {
 
 class State {
 	construct new() {
-		_shader = App.glCreateShader("Assets/Common/vertex2.glsl")
+		_shader = App.glLoadShader("Assets/Common/vertex2.glsl")
 
-		_vshader = App.glCreateShader("Assets/Skinning/skinning.glsl")
-		var img = App.glCreateImage("Assets/App/GASandbox.png", true)
+		_vshader = App.glLoadShader("Assets/Skinning/skinning.glsl")
+		var img = App.glLoadImage("Assets/App/GASandbox.png", true)
 		_texture = App.glCreateTexture(
 			img, App.glTexFmtRGBA8,
 			App.glTexFltLinear, App.glTexFltLinear,
