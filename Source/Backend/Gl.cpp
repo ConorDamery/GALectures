@@ -11,24 +11,60 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <unordered_map>
 
-struct Image
+struct GlImage
 {
 	i32 w{ 0 }, h{ 0 }, c{ 0 };
 	u8* data{ nullptr };
 };
 
-struct Model
+struct GlAnim
 {
-	cgltf_data* data{ nullptr };
+	std::string name{};
+	u64 translations{ 0 };
+	u64 rotations{ 0 };
+	u64 scales{ 0 };
 };
 
-struct Vertex
+enum struct GlMeshAttr : u32
 {
-	f32 pos[4] = { 0, 0, 0, 0 }; // Used for main position data
-	u32 col[2] = { 0, 0 }; // Used for nomalized uint values (typical for color)
-	u32 idx[2] = { 0, 0 }; // Used for unnormalized uint values (typical for indexing)
-	f32 v[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; // Extra floats for anything else
+	POSITION,
+	NORMAL,
+	TEXCOORD,
+	TANGENT,
+	COLOR,
+	COUNT
+};
+
+struct GlMesh
+{
+	u64 attributes[(u32)GlMeshAttr::COUNT]{ 0 };
+	u64 indices{ 0 };
+};
+
+struct GlNode
+{
+	std::string name{};
+	u64 children{ 0 };
+	u32 mesh{ 0 };
+	u32 anim{ 0 };
+	u32 transform{ 0 };
+};
+
+struct GlVertex
+{
+	// Used for main position data
+	f32 pos[4] = { 0, 0, 0, 0 };
+
+	// Used for nomalized uint values (typical for color)
+	u32 col[2] = { 0, 0 };
+
+	// Used for unnormalized uint values (typical for indexing)
+	u32 idx[2] = { 0, 0 };
+
+	// Extra floats for anything else
+	f32 v[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 };
 
 struct GlData
@@ -36,15 +72,39 @@ struct GlData
 	GLuint shader{ 0 };
 	GLuint vao{ 0 };
 	GLuint vbo{ 0 };
-	std::vector<GLuint> shaders{};
-	std::vector<Image> images{};
-	std::vector<Model> models{};
-	std::vector<GLuint> textures{};
+
 	const char* uniformName{ nullptr };
-	std::vector<Vertex> vertices{};
+
+	std::vector<GLuint> shaders{};
+	std::vector<GlImage> images{};
+	std::vector<f32> g_modelData{}; // Float buffer for all model data
+	std::vector<GlMesh> g_meshes{};
+	std::vector<GlAnim> g_anims{};
+	std::vector<GlNode> g_nodes{};
+	std::vector<u32> g_models{};
+	std::vector<GLuint> textures{};
+	std::vector<GlVertex> vertices{};
 };
 
 static GlData g_data{};
+
+static u32 gl_extract_index(u64 encoded) { return (u32)(encoded >> 32); }
+static u32 gl_extract_count(u64 encoded) { return (u32)(encoded & 0xFFFFFFFF); }
+static u64 gl_encode_range(u32 index, u32 count) { return ((u64)index << 32) | count; }
+
+template <typename T>
+T& gl_get(std::vector<T>& vec, u32 handle)
+{
+	assert(handle > 0 && handle <= vec.size()); // Debug safety
+	return vec[handle - 1];
+}
+
+template <typename T>
+const T& gl_get(const std::vector<T>& vec, u32 handle)
+{
+	assert(handle > 0 && handle <= vec.size());
+	return vec[handle - 1];
+}
 
 #if _DEBUG
 static const char* opengl_source(GLenum source)
@@ -302,7 +362,7 @@ void App::GlSetShader(u32 shader)
 	glUseProgram(g_data.shader);
 }
 
-static Image* gl_get_image(u32 image)
+static GlImage* gl_get_image(u32 image)
 {
 	if (image == 0 || image > g_data.images.size())
 	{
@@ -317,7 +377,7 @@ u32 App::GlLoadImage(const char* filepath, bool flipY)
 {
 	const char* path = FilePath(filepath);
 
-	Image img{};
+	GlImage img{};
 	stbi_set_flip_vertically_on_load(flipY);
 	img.data = stbi_load(path, &img.w, &img.h, &img.c, 0);
 	if (!img.data)
@@ -332,7 +392,7 @@ u32 App::GlLoadImage(const char* filepath, bool flipY)
 
 u32 App::GlCreateImage(i32 w, i32 h, i32 c, u8* data)
 {
-	Image img{ w, h, c, data };
+	GlImage img{ w, h, c, data };
 
 	g_data.images.emplace_back(img);
 	return (u32)(g_data.images.size());
@@ -343,7 +403,7 @@ void App::GlDestroyImage(u32 image)
 	auto img = gl_get_image(image);
 	if (img == nullptr) return;
 	stbi_image_free(img->data);
-	*img = Image{};
+	*img = GlImage{};
 }
 
 i32 App::GlImageWidth(u32 image)
@@ -411,76 +471,100 @@ static cgltf_data* gltf_load(const char* filepath)
 	return data;
 }
 
-static void gltf_print_hierarchy(const cgltf_node* node, int depth = 0)
+static void gltf_extract_mesh_data(const cgltf_mesh& mesh)
 {
-	static std::string g_tabs;
+	GlMesh glMesh;
 
-	g_tabs.clear();
-	for (int i = 0; i < depth; ++i) g_tabs += "\t";
-	LOGD("%sNode: %s", g_tabs.c_str(), node->name ? node->name : "Unnamed");
-
-	for (cgltf_size i = 0; i < node->children_count; ++i)
-	{
-		gltf_print_hierarchy(node->children[i], depth + 1);
-	}
-}
-
-static void gltf_print_scenegraph(const cgltf_data* data)
-{
-	if (!data || !data->scene) return;
-	LOGD("Scene: %s", data->scene->name ? data->scene->name : "Default");
-	for (cgltf_size i = 0; i < data->scene->nodes_count; ++i)
-	{
-		gltf_print_hierarchy(data->scene->nodes[i]);
-	}
-}
-
-static void gltf_print_animations(const cgltf_data* data)
-{
-	LOGD("Animations: %s", data->animations_count);
-	for (cgltf_size i = 0; i < data->animations_count; ++i)
-	{
-		const cgltf_animation& anim = data->animations[i];
-		LOGD("  Animation %d: %s", i, anim.name ? anim.name : "Unnamed");
-
-		for (cgltf_size j = 0; j < anim.channels_count; ++j)
-		{
-			const cgltf_animation_channel& channel = anim.channels[j];
-			const char* path = "Unknown";
-			switch (channel.target_path) {
-			case cgltf_animation_path_type_translation: path = "translation"; break;
-			case cgltf_animation_path_type_rotation: path = "rotation"; break;
-			case cgltf_animation_path_type_scale: path = "scale"; break;
-			case cgltf_animation_path_type_weights: path = "weights"; break;
-			default: break;
-			}
-			LOGD("    Channel to node: %s, path: %s", channel.target_node && channel.target_node->name ? channel.target_node->name : "Unnamed", path);
-		}
-	}
-}
-
-static void gltf_print_meshdata(const cgltf_mesh& mesh)
-{
-	LOGD("  Mesh: %s, primitives: %d", mesh.name ? mesh.name : "Unnamed", mesh.primitives_count);
 	for (cgltf_size i = 0; i < mesh.primitives_count; ++i)
 	{
 		const cgltf_primitive& prim = mesh.primitives[i];
-		LOGD("    Primitive %d: attributes: %d, indices: %d", i, prim.attributes_count, prim.indices ? prim.indices->count : 0);
+
+		// Extracting attributes
+		for (cgltf_size j = 0; j < prim.attributes_count; ++j)
+		{
+			const cgltf_attribute& attribute = prim.attributes[j];
+			u64& attributeHandle = glMesh.attributes[(u32)attribute.type];
+
+			// Allocate space in global model data and link the attribute buffer
+			if (attributeHandle == 0) {
+				attributeHandle = gl_encode_range(g_data.g_modelData.size(), attribute.data->count);
+				// Add attribute data to the global buffer here (e.g., position, normal, etc.)
+				for (cgltf_size k = 0; k < attribute.data->count; ++k) {
+					const cgltf_accessor& accessor = *attribute.data;
+					// Convert data based on type and store in g_data.g_modelData
+					// Example: copying float data for POSITION
+					if (accessor.type == cgltf_type_vec3) {
+						const float* position = (const float*)accessor.buffer_view->buffer->data + accessor.offset;
+						g_data.g_modelData.insert(g_data.g_modelData.end(), position, position + 3);
+					}
+				}
+			}
+		}
+
+		// Extracting indices
+		if (prim.indices)
+		{
+			u64& indicesHandle = glMesh.indices;
+			if (indicesHandle == 0) {
+				indicesHandle = gl_encode_range(g_data.g_modelData.size(), prim.indices->count);
+				// Allocate space in the global model data buffer for indices and copy them
+				const u32* indices = (const u32*)prim.indices->buffer_view->buffer->data + prim.indices->offset;
+				g_data.g_modelData.insert(g_data.g_modelData.end(), indices, indices + prim.indices->count);
+			}
+		}
+	}
+
+	g_data.g_meshes.push_back(glMesh);
+}
+
+static void gltf_extract_node_data(const cgltf_node& node, u64& childrenRange)
+{
+	GlNode glNode;
+
+	glNode.name = node.name ? node.name : "Unnamed";
+
+	// Extracting mesh and animation references
+	//if (node.mesh)
+	//	glNode.mesh = g_data.g_meshes.size() + 1;  // Store mesh handle
+	//if (node.animation)
+	//	glNode.anim = g_data.g_anims.size() + 1; // Store animation handle
+
+	// Extracting children (stored as a range of indices)
+	u32 childStart = g_data.g_nodes.size();
+	for (cgltf_size i = 0; i < node.children_count; ++i)
+	{
+		gltf_extract_node_data(*node.children[i], childrenRange);
+	}
+	u32 childEnd = g_data.g_nodes.size();
+	glNode.children = gl_encode_range(childStart, childEnd - childStart);
+
+	g_data.g_nodes.push_back(glNode);
+}
+
+static void gltf_extract_animation_data(const cgltf_animation& animation)
+{
+	GlAnim glAnim;
+	glAnim.name = animation.name ? animation.name : "Unnamed";
+
+	for (cgltf_size i = 0; i < animation.channels_count; ++i)
+	{
+		const cgltf_animation_channel& channel = animation.channels[i];
+		switch (channel.target_path) {
+		case cgltf_animation_path_type_translation:
+			// Store translation data (timestamp + vec3 translation)
+			break;
+		case cgltf_animation_path_type_rotation:
+			// Store rotation data (timestamp + quat rotation)
+			break;
+		case cgltf_animation_path_type_scale:
+			// Store scale data (timestamp + vec3 scale)
+			break;
+		default:
+			break;
 	}
 }
 
-static void gltf_print_info(const cgltf_data* data)
-{
-	if (!data) return;
-
-	LOGD("Number of meshes: %d", data->meshes_count);
-	for (cgltf_size i = 0; i < data->meshes_count; ++i)
-	{
-		gltf_print_meshdata(data->meshes[i]);
-	}
-
-	gltf_print_scenegraph(data);
-	gltf_print_animations(data);
+	g_data.g_anims.push_back(glAnim);
 }
 
 u32 App::GlLoadModel(const char* filepath)
@@ -496,22 +580,42 @@ u32 App::GlLoadModel(const char* filepath)
 	auto data = gltf_load(path);
 	if (data == nullptr)
 	{
-		LOGW("Failed to load model!");
-		return -1;
+		throw std::exception("Failed to load model!");
+		return 0;
 	}
-	Model model{ data };
 
-	gltf_print_info(model.data);
+	// Extract meshes
+	for (cgltf_size i = 0; i < data->meshes_count; ++i)
+	{
+		gltf_extract_mesh_data(data->meshes[i]);
+	}
 
-	g_data.models.emplace_back(model);
-	return (u32)(g_data.models.size() - 1);
+	// Extract animations
+	for (cgltf_size i = 0; i < data->animations_count; ++i)
+	{
+		gltf_extract_animation_data(data->animations[i]);
+	}
+
+	// Extract nodes (scenegraph)
+	u64 childrenRange = 0;
+	for (cgltf_size i = 0; i < data->scene->nodes_count; ++i)
+	{
+		gltf_extract_node_data(*data->scene->nodes[i], childrenRange);
+	}
+
+	// Store the model handle (root node)
+	g_data.g_models.push_back(g_data.g_nodes.size());
+
+	gltf_free(data); // Done with glTF data
+
+	return (u32)g_data.g_models.size(); // Return the model handle
 }
 
 void App::GlDestroyModel(u32 model)
 {
-	auto& mdl = g_data.models[model];
-	gltf_free(mdl.data);
-	mdl = Model{};
+	// This will not free the global data, just mark the model as destroyed if necessary
+	// Currently, we just reset the root node (but children and other data are still intact)
+	g_data.g_models[model] = 0;  // Reset root node handle to 0 (indicating 'destroyed' state)
 }
 
 static GLenum opengl_internal_format(TextureFormat fmt)
@@ -565,9 +669,12 @@ u32 App::GlCreateTexture(
 	bool genMipmaps)
 {
 	auto* img = gl_get_image(image);
-	if (img != nullptr && (!img->data || img->w <= 0 || img->h <= 0))
+	if (img == nullptr)
+		return 0;
+
+	if (!img->data || img->w <= 0 || img->h <= 0)
 	{
-		// Handle error: invalid image
+		LOGW("Attempted to create texture from invalid image data.");
 		return 0;
 	}
 
@@ -633,7 +740,7 @@ void App::GlEnd(u32 mode)
 	glBindVertexArray(g_data.vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_data.vbo);
 
-	glBufferData(GL_ARRAY_BUFFER, g_data.vertices.size() * sizeof(Vertex), g_data.vertices.data(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, g_data.vertices.size() * sizeof(GlVertex), g_data.vertices.data(), GL_DYNAMIC_DRAW);
 
 	for (u32 bit = 1; bit <= (u32)GlTopology::TRIANGLE_FAN; bit <<= 1)
 	{
@@ -649,50 +756,74 @@ void App::GlEnd(u32 mode)
 	glBindVertexArray(0);
 }
 
-void App::GlViewport(u32 x, u32 y, u32 w, u32 h)
+void App::GlViewport(i32 x, i32 y, u32 w, u32 h)
 {
 	glViewport(x, y, w, h);
 }
 
-void App::GlClear(f32 r, f32 g, f32 b, f32 a, f32 d, f32 s, u32 flags)
+void App::GlScissor(i32 x, i32 y, u32 w, u32 h)
 {
-	glClearColor(r, g, b, a);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	glScissor(x, y, w, h);
 }
 
-void App::GlUniform(const char* name)
+void App::GlClear(f32 r, f32 g, f32 b, f32 a, f64 d, i32 s, u32 flags)
+{
+	GLbitfield clear = 0;
+
+	if ((flags & (u32)GlClearFlags::COLOR) != 0)
+	{
+		clear |= GL_COLOR_BUFFER_BIT;
+		glClearColor(r, g, b, a);
+	}
+
+	if ((flags & (u32)GlClearFlags::DEPTH) != 0)
+	{
+		clear |= GL_DEPTH_BUFFER_BIT;
+		glClearDepth(d);
+	}
+
+	if ((flags & (u32)GlClearFlags::STENCIL) != 0)
+	{
+		clear |= GL_STENCIL_BUFFER_BIT;
+		glClearStencil(s);
+	}
+
+	glClear(clear);
+}
+
+void App::GlSetUniform(const char* name)
 {
 	g_data.uniformName = name;
 }
 
-void App::GlTex2D(u32 i, u32 texture)
+void App::GlSetTex2D(u32 i, u32 texture)
 {
 	glActiveTexture(GL_TEXTURE0 + i);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glUniform1i(glGetUniformLocation(g_data.shader, g_data.uniformName), i);
 }
 
-void App::GlFloat(f32 x)
+void App::GlSetFloat(f32 x)
 {
 	glUniform1f(glGetUniformLocation(g_data.shader, g_data.uniformName), x);
 }
 
-void App::GlVec2F(f32 x, f32 y)
+void App::GlSetVec2F(f32 x, f32 y)
 {
 	glUniform2f(glGetUniformLocation(g_data.shader, g_data.uniformName), x, y);
 }
 
-void App::GlVec3F(f32 x, f32 y, f32 z)
+void App::GlSetVec3F(f32 x, f32 y, f32 z)
 {
 	glUniform3f(glGetUniformLocation(g_data.shader, g_data.uniformName), x, y, z);
 }
 
-void App::GlVec4F(f32 x, f32 y, f32 z, f32 w)
+void App::GlSetVec4F(f32 x, f32 y, f32 z, f32 w)
 {
 	glUniform4f(glGetUniformLocation(g_data.shader, g_data.uniformName), x, y, z, w);
 }
 
-void App::GlMat2x2F(
+void App::GlSetMat2x2F(
 	f32 m00, f32 m01,
 	f32 m10, f32 m11)
 {
@@ -700,7 +831,7 @@ void App::GlMat2x2F(
 	glUniformMatrix2fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat2x3F(
+void App::GlSetMat2x3F(
 	f32 m00, f32 m01, f32 m02,
 	f32 m10, f32 m11, f32 m12)
 {
@@ -708,7 +839,7 @@ void App::GlMat2x3F(
 	glUniformMatrix2x3fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat2x4F(
+void App::GlSetMat2x4F(
 	f32 m00, f32 m01, f32 m02, f32 m03,
 	f32 m10, f32 m11, f32 m12, f32 m13)
 {
@@ -716,7 +847,7 @@ void App::GlMat2x4F(
 	glUniformMatrix2x4fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat3x2F(
+void App::GlSetMat3x2F(
 	f32 m00, f32 m01,
 	f32 m10, f32 m11,
 	f32 m20, f32 m21)
@@ -725,7 +856,7 @@ void App::GlMat3x2F(
 	glUniformMatrix3x2fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat3x3F(
+void App::GlSetMat3x3F(
 	f32 m00, f32 m01, f32 m02,
 	f32 m10, f32 m11, f32 m12,
 	f32 m20, f32 m21, f32 m22)
@@ -734,7 +865,7 @@ void App::GlMat3x3F(
 	glUniformMatrix3fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat3x4F(
+void App::GlSetMat3x4F(
 	f32 m00, f32 m01, f32 m02, f32 m03,
 	f32 m10, f32 m11, f32 m12, f32 m13,
 	f32 m20, f32 m21, f32 m22, f32 m23)
@@ -743,7 +874,7 @@ void App::GlMat3x4F(
 	glUniformMatrix3x4fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat4x2F(
+void App::GlSetMat4x2F(
 	f32 m00, f32 m01,
 	f32 m10, f32 m11,
 	f32 m20, f32 m21,
@@ -753,7 +884,7 @@ void App::GlMat4x2F(
 	glUniformMatrix4x2fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat4x3F(
+void App::GlSetMat4x3F(
 	f32 m00, f32 m01, f32 m02,
 	f32 m10, f32 m11, f32 m12,
 	f32 m20, f32 m21, f32 m22,
@@ -763,7 +894,7 @@ void App::GlMat4x3F(
 	glUniformMatrix4x3fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlMat4x4F(
+void App::GlSetMat4x4F(
 	f32 m00, f32 m01, f32 m02, f32 m03,
 	f32 m10, f32 m11, f32 m12, f32 m13,
 	f32 m20, f32 m21, f32 m22, f32 m23,
@@ -773,11 +904,11 @@ void App::GlMat4x4F(
 	glUniformMatrix4fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
 }
 
-void App::GlVertex(
+void App::GlAddVertex(
 	f32 x, f32 y, f32 z, f32 w,
 	u32 c0, u32 c1, u32 i0, u32 i1,
 	f32 v0, f32 v1, f32 v2, f32 v3,
 	f32 v4, f32 v5, f32 v6, f32 v7)
 {
-	g_data.vertices.emplace_back(Vertex{ { x, y, z, w }, { c0, c1 }, { i0, i1 }, { v0, v1, v2, v3, v4, v5, v6, v7 } });
+	g_data.vertices.emplace_back(GlVertex{ { x, y, z, w }, { c0, c1 }, { i0, i1 }, { v0, v1, v2, v3, v4, v5, v6, v7 } });
 }

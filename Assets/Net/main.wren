@@ -11,16 +11,16 @@ class Util {
     	for (y in 0..resolution) {
 			var yPos = y * ystep
             var c = (yPos - height / 2) == 0 ? App.glRed : color
-			App.glVertex(-width / 2, yPos - height / 2, depth, c)
-			App.glVertex(width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(-width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(width / 2, yPos - height / 2, depth, c)
 		}
 
 		var xstep = width / resolution
 		for (x in 0..resolution) {
 			var xPos = x * xstep
             var c = (xPos - width / 2) == 0 ? App.glGreen : color
-			App.glVertex(xPos - width / 2, -height / 2, depth, c)
-			App.glVertex(xPos - width / 2, height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, -height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, height / 2, depth, c)
 		}
 		App.glEnd(App.glLines)
 	}
@@ -84,10 +84,10 @@ class Player {
 
 	render() {
 		App.glBegin(true, true, 1, 1)
-		App.glVertex(x - 0.1, y - 0.1, 0.1, 0xFF00FF00)
-		App.glVertex(x - 0.1, y + 0.1, 0.1, 0xFF00FF00)
-		App.glVertex(x + 0.1, y - 0.1, 0.1, 0xFF00FF00)
-		App.glVertex(x + 0.1, y + 0.1, 0.1, 0xFF00FF00)
+		App.glAddVertex(x - 0.1, y - 0.1, 0.1, 0xFF00FF00)
+		App.glAddVertex(x - 0.1, y + 0.1, 0.1, 0xFF00FF00)
+		App.glAddVertex(x + 0.1, y - 0.1, 0.1, 0xFF00FF00)
+		App.glAddVertex(x + 0.1, y + 0.1, 0.1, 0xFF00FF00)
 		App.glEnd(App.glTriangleStrip)
 	}
 
@@ -126,11 +126,11 @@ class State {
 
 			var model = App.glLoadModel("Assets/Common/Models/Box.glb")
 
-			var audio = App.sfxLoadAudio("Assets/Common/Audio/48000-stereo.ogg")
-			var channel = App.sfxCreateChannel(1)
+			//var audio = App.sfxLoadAudio("Assets/Common/Audio/48000-stereo.ogg")
+			//var channel = App.sfxCreateChannel(1)
 
-			System.print("Audio: %(audio), Channel: %(channel)")
-			App.sfxPlay(audio, channel, false)
+			//System.print("Audio: %(audio), Channel: %(channel)")
+			//App.sfxPlay(audio, channel, false)
 		
 		} else {
 			App.netStartServer()
@@ -173,11 +173,11 @@ class State {
 		}
 		App.guiEndChild()
 
-		App.glClear(0.1, 0.1, 0.1, 1, 0, 0, 0)
+		App.glClear(0.1, 0.1, 0.1, 1, 1, 0, App.glClearAll)
 		App.glSetShader(_shader)
 
-		App.glUniform("Proj")
-		App.glVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
+		App.glSetUniform("Proj")
+		App.glSetVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
 
         Util.glDrawGrid(10, 10, 0.5, 10, App.glGray)
 

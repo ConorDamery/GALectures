@@ -265,6 +265,40 @@ class App {
     // Graphics
     // ==============================
 
+	// Color Constants
+
+	static glRed{ 0xFF0000FF }
+	static glGreen{ 0xFF00FF00 }
+	static glBlue{ 0xFFFF0000 }
+	static glGray{ 0xFF505050 }
+
+	// Sets the viewport dimensions.
+    //
+    // @param x (i32) The X position.
+    // @param y (i32) The Y position.
+    // @param w (u32) The width.
+    // @param h (u32) The height.
+    foreign static glViewport(x, y, w, h)
+
+	// TODO
+	foreign static glScissor(x, y, w, h)
+
+	static glColor { 1 }
+	static glDepth { 2 }
+	static glStencil { 4 }
+	static glClearAll { glColor | glDepth | glStencil }
+
+    // Clears the screen with a specified color.
+    //
+    // @param r (f32) Red component (0 to 1).
+    // @param g (f32) Green component (0 to 1).
+    // @param b (f32) Blue component (0 to 1).
+    // @param a (f32) Alpha component (0 to 1).
+    // @param d (f64) Depth buffer clear value.
+    // @param s (i32) Stencil buffer clear value.
+    // @param flags (u32) Bitmask specifying which buffers to clear.
+    foreign static glClear(r, g, b, a, d, s, flags)
+
     // Loads a shader from a file path.
     //
     // @param path (string) The file path to the shader.
@@ -336,80 +370,7 @@ class App {
     // @param lineWidth (f32) The width of lines.
     foreign static glBegin(alpha, ztest, pointSize, lineWidth)
 
-    // Ends drawing and submits the primitives.
-    //
-    // @param mode (u32) The primitive type (e.g., `glTriangles`).
-    foreign static glEnd(mode)
-
-    // Sets the viewport dimensions.
-    //
-    // @param x (u32) The X position.
-    // @param y (u32) The Y position.
-    // @param w (u32) The width.
-    // @param h (u32) The height.
-    foreign static glViewport(x, y, w, h)
-
-    // Clears the screen with a specified color.
-    //
-    // @param r (f32) Red component (0 to 1).
-    // @param g (f32) Green component (0 to 1).
-    // @param b (f32) Blue component (0 to 1).
-    // @param a (f32) Alpha component (0 to 1).
-    // @param d (f32) Depth buffer clear value.
-    // @param s (f32) Stencil buffer clear value.
-    // @param flags (u32) Bitmask specifying which buffers to clear.
-    foreign static glClear(r, g, b, a, d, s, flags)
-
-    // Specifies the name of the uniform variable to be set.
-    // This must be called before setting any uniform value.
-    //
-    // @param name (string) The name of the uniform variable in the shader.
-	foreign static glUniform(name)
-
-    // Shader Uniforms
-	// Requires calling `glUniform(name)` first.
-	
-	foreign static glTex2D(i, texture)
-	foreign static glFloat(x)
-	foreign static glVec2f(x, y)
-	foreign static glVec3f(x, y, z)
-	foreign static glVec4f(x, y, z, w)
-	foreign static glMat2x2f(m00, m01, m10, m11)
-	foreign static glMat2x3f(m00, m01, m02, m10, m11, m12)
-	foreign static glMat2x4f(m00, m01, m02, m03, m10, m11, m12, m13)
-	foreign static glMat3x2f(m00, m01, m10, m11, m20, m21)
-	foreign static glMat3x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22)
-	foreign static glMat3x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23)
-	foreign static glMat4x2f(m00, m01, m10, m11, m20, m21, m30, m31)
-	foreign static glMat4x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
-	foreign static glMat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
-
-    // Specifies a vertex position and color (utility from having to fill the entire vertex format).
-    //
-    // @param x (f32) X position.
-    // @param y (f32) Y position.
-    // @param z (f32) Z position.
-    // @param c (u32) Color encoded as RGBA.
-    static glVertex(x, y, z, c) {
-		glVertex(x, y, z, 1, c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-	}
-
-	// TODO
-	static glVertex(x, y, z, c, u, v) {
-		glVertex(x, y, z, 1, c, 0, 0, 0, u, v, 0, 0, 0, 0, 0, 0)
-	}
-
-	// TODO
-	foreign static glVertex(x, y, z, w, c0, c1, i0, i1, v0, v1, v2, v3, v4, v5, v6, v7)
-
-    // Color Constants
-
-	static glRed{ 0xFF0000FF }
-	static glGreen{ 0xFF00FF00 }
-	static glBlue{ 0xFFFF0000 }
-	static glGray{ 0xFF505050 }
-
-    // Primitive Constants
+	// Primitive Constants
 
 	static glPoints { 1 }
 	static glLines { 2 }
@@ -418,6 +379,53 @@ class App {
     static glTriangles { 16 }
     static glTriangleStrip { 32 }
     static glTriangleFan { 64 }
+
+    // Ends drawing and submits the primitives.
+    //
+    // @param mode (u32) The primitive type (e.g., `glTriangles`).
+    foreign static glEnd(mode)
+
+    // Specifies the name of the uniform variable to be set.
+    // This must be called before setting any uniform value.
+    //
+    // @param name (string) The name of the uniform variable in the shader.
+	foreign static glSetUniform(name)
+
+    // Shader Uniforms
+	// Requires calling `glUniform(name)` first.
+	
+	foreign static glSetTex2D(i, texture)
+	foreign static glSetFloat(x)
+	foreign static glSetVec2f(x, y)
+	foreign static glSetVec3f(x, y, z)
+	foreign static glSetVec4f(x, y, z, w)
+	foreign static glSetMat2x2f(m00, m01, m10, m11)
+	foreign static glSetMat2x3f(m00, m01, m02, m10, m11, m12)
+	foreign static glSetMat2x4f(m00, m01, m02, m03, m10, m11, m12, m13)
+	foreign static glSetMat3x2f(m00, m01, m10, m11, m20, m21)
+	foreign static glSetMat3x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22)
+	foreign static glSetMat3x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23)
+	foreign static glSetMat4x2f(m00, m01, m10, m11, m20, m21, m30, m31)
+	foreign static glSetMat4x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
+	foreign static glSetMat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
+
+    // Specifies a vertex position and color (utility from having to fill the entire vertex format).
+    //
+    // @param x (f32) X position.
+    // @param y (f32) Y position.
+    // @param z (f32) Z position.
+    // @param c (u32) Color encoded as RGBA.
+    static glAddVertex(x, y, z, c) {
+		glAddVertex(x, y, z, 1, c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	}
+
+	// TODO
+	static glAddVertex(x, y, z, c, u, v) {
+		glAddVertex(x, y, z, 1, c, 0, 0, 0, u, v, 0, 0, 0, 0, 0, 0)
+	}
+
+	// TODO
+	foreign static glAddVertex(x, y, z, w, c0, c1, i0, i1, v0, v1, v2, v3, v4, v5, v6, v7)
 
     // ==============================
     // GUI

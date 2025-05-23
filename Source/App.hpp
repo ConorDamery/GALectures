@@ -62,6 +62,14 @@ enum struct WindowCursor : i32
 };
 
 // Graphics
+enum struct GlClearFlags : u32
+{
+	COLOR = BIT(1),
+	DEPTH = BIT(2),
+	STENCIL = BIT(3),
+	ALL = COLOR | DEPTH | STENCIL
+};
+
 enum struct TextureFormat : u32 { R8 = 0, RG8 = 1, RGB8 = 2, RGBA8 = 3 };
 
 enum struct TextureFilter : u32 { NEAREST = 0, LINEAR = 1 };
@@ -171,6 +179,10 @@ public:
 	static void WinClose();
 
 	// Graphics
+	static void GlViewport(i32 x, i32 y, u32 w, u32 h);
+	static void GlScissor(i32 x, i32 y, u32 w, u32 h);
+	static void GlClear(f32 r, f32 g, f32 b, f32 a, f64 d, i32 s, u32 flags);
+
 	static u32 GlLoadShader(const char* filepath);
 	static u32 GlCreateShader(const char* source);
 	static void GlDestroyShader(u32 shader);
@@ -200,65 +212,62 @@ public:
 	static void GlBegin(bool alpha, bool ztest, f32 pointSize, f32 lineWidth);
 	static void GlEnd(u32 mode);
 
-	static void GlViewport(u32 x, u32 y, u32 w, u32 h);
-	static void GlClear(f32 r, f32 g, f32 b, f32 a, f32 d, f32 s, u32 flags);
+	static void GlSetUniform(const char* name);
 
-	static void GlUniform(const char* name);
+	static void GlSetTex2D(u32 i, u32 texture);
 
-	static void GlTex2D(u32 i, u32 texture);
+	static void GlSetFloat(f32 x);
 
-	static void GlFloat(f32 x);
+	static void GlSetVec2F(f32 x, f32 y);
+	static void GlSetVec3F(f32 x, f32 y, f32 z);
+	static void GlSetVec4F(f32 x, f32 y, f32 z, f32 w);
 
-	static void GlVec2F(f32 x, f32 y);
-	static void GlVec3F(f32 x, f32 y, f32 z);
-	static void GlVec4F(f32 x, f32 y, f32 z, f32 w);
-
-	static void GlMat2x2F(
+	static void GlSetMat2x2F(
 		f32 m00, f32 m01,
 		f32 m10, f32 m11);
 
-	static void GlMat2x3F(
+	static void GlSetMat2x3F(
 		f32 m00, f32 m01, f32 m02,
 		f32 m10, f32 m11, f32 m12);
 
-	static void GlMat2x4F(
+	static void GlSetMat2x4F(
 		f32 m00, f32 m01, f32 m02, f32 m03,
 		f32 m10, f32 m11, f32 m12, f32 m13);
 
-	static void GlMat3x2F(
+	static void GlSetMat3x2F(
 		f32 m00, f32 m01,
 		f32 m10, f32 m11,
 		f32 m20, f32 m21);
 
-	static void GlMat3x3F(
+	static void GlSetMat3x3F(
 		f32 m00, f32 m01, f32 m02,
 		f32 m10, f32 m11, f32 m12,
 		f32 m20, f32 m21, f32 m22);
 
-	static void GlMat3x4F(
+	static void GlSetMat3x4F(
 		f32 m00, f32 m01, f32 m02, f32 m03,
 		f32 m10, f32 m11, f32 m12, f32 m13,
 		f32 m20, f32 m21, f32 m22, f32 m23);
 
-	static void GlMat4x2F(
+	static void GlSetMat4x2F(
 		f32 m00, f32 m01,
 		f32 m10, f32 m11,
 		f32 m20, f32 m21,
 		f32 m30, f32 m31);
 
-	static void GlMat4x3F(
+	static void GlSetMat4x3F(
 		f32 m00, f32 m01, f32 m02,
 		f32 m10, f32 m11, f32 m12,
 		f32 m20, f32 m21, f32 m22,
 		f32 m30, f32 m31, f32 m32);
 
-	static void GlMat4x4F(
+	static void GlSetMat4x4F(
 		f32 m00, f32 m01, f32 m02, f32 m03,
 		f32 m10, f32 m11, f32 m12, f32 m13,
 		f32 m20, f32 m21, f32 m22, f32 m23,
 		f32 m30, f32 m31, f32 m32, f32 m33);
 
-	static void GlVertex(
+	static void GlAddVertex(
 		f32 x, f32 y, f32 z, f32 w,
 		u32 c0, u32 c1, u32 i0, u32 i1,
 		f32 v0, f32 v1, f32 v2, f32 v3,
