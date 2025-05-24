@@ -1,3 +1,6 @@
+// Wren implementation of Erin Catto's
+// https://github.com/erincatto/box2d-lite
+
 import "app" for App
 import "random" for Random
 
@@ -15,6 +18,8 @@ class Vec2 {
 	y { _y }
 	x=(v) { _x = v }
 	y=(v) { _y = v }
+
+	copy { Vec2.new(x, y) }
 
 	set(x, y) {
 		_x = x
@@ -63,6 +68,8 @@ class Mat22 {
 	col2 { _col2 }
 	col1=(v) { _col1 = v }
 	col2=(v) { _col2 = v }
+
+	copy { Mat22.new(col1, col2) }
 
 	* (b) {
 		if (b is Vec2) {
@@ -114,7 +121,9 @@ class FeaturePair {
 	outEdge2 { (_value >> 24) & 0xFF }
 	outEdge2=(v) { _value = (_value & ~0xFF000000) | ((v & 0xFF) << 0) }
 
-	flip() {
+	copy { FeaturePair.new(value) }
+
+	flip {
 		var tmp = inEdge1
 		inEdge1 = inEdge2
 		inEdge2 = tmp
@@ -166,6 +175,23 @@ class Contact {
 	massTangent=(v) { _massTangent = v }
 	bias=(v) { _bias = v }
 	feature=(v) { _feature = v }
+
+	copy {
+		var c = Contact.new()
+		c.position = position
+		c.normal = normal
+		c.r1 = r1
+		c.r2 = r2
+		c.separation = separation
+		c.pn = pn
+		c.pt = pt
+		c.pnb = pnb
+		c.massNormal = massNormal
+		c.massTangent = massTangent
+		c.bias = bias
+		c.feature = feature
+		return c
+	}
 }
 
 class Body {
@@ -249,14 +275,15 @@ class Body {
 			// Draw quad
 			App.glBegin(true, true, 1, 1)
 			var r = Mat22.new(rotation)
-			var p1 = position + r * Vec2.new(-width.x, -width.y)
-			var p2 = position + r * Vec2.new(-width.x,  width.y)
-			var p3 = position + r * Vec2.new( width.x,  width.y)
-			var p4 = position + r * Vec2.new( width.x, -width.y)
-			App.glVertex(p1.x, p1.y, 0, color)
-			App.glVertex(p2.x, p2.y, 0, color)
-			App.glVertex(p3.x, p3.y, 0, color)
-			App.glVertex(p4.x, p4.y, 0, color)
+			var hw = width * 0.5
+			var p1 = position + r * Vec2.new(-hw.x, -hw.y)
+			var p2 = position + r * Vec2.new(-hw.x,  hw.y)
+			var p3 = position + r * Vec2.new( hw.x,  hw.y)
+			var p4 = position + r * Vec2.new( hw.x, -hw.y)
+			App.glAddVertex(p1.x, p1.y, 0, color)
+			App.glAddVertex(p2.x, p2.y, 0, color)
+			App.glAddVertex(p3.x, p3.y, 0, color)
+			App.glAddVertex(p4.x, p4.y, 0, color)
 			App.glEnd(App.glLineLoop)
 		}
 	}
@@ -390,21 +417,39 @@ class Arbiter {
 
 	key { (b1.id << 16) | (b2.id & 0xFFFF) }
 
-	update(contacts) {
-		var mergedContacts = [null, null]
+	update(newContacts) {
+		var mergedContacts = []
 
-		for (cNew in contacts.count) {
+		for (i in 0...newContacts.count) {
+			var cNew = newContacts[i]
 			var k = -1
-			for (cOld in contacts) {
+			for (j in 0...contacts.count) {
+				var cOld = contacts[j]
 				if (cNew.feature.value == cOld.feature.value) {
-					k = cOld
+					k = j
+					break
 				}
 			}
 
 			if (k > -1) {
-				var cOld = k
+				var cOld = contacts[k]
+				var c = cNew.copy
+				if (World.warmStarting) {
+					c.pn = cOld.Pn
+					c.pt = cOld.Pt
+					c.pnb = cOld.Pnb
+				} else {
+					c.pn = 0
+					c.pt = 0
+					c.pnb = 0
+				}
+				mergedContacts.add(c)
+			} else {
+				mergedContacts.add(newContacts[i].copy)
 			}
 		}
+
+		_contacts = mergedContacts
 	}
 
 	preStep(inv_dt) {
@@ -466,7 +511,7 @@ class Arbiter {
 			}
 
 			// Apply contact impulse
-			var Pn = dPn * c.normal
+			var Pn = c.normal * dPn
 
 			b1.velocity = b1.velocity - Pn * b1.invMass
 			b1.angularVelocity = b1.angularVelocity - Vec2.cross(c.r1, Pn) * b1.invI
@@ -495,7 +540,7 @@ class Arbiter {
 			}
 
 			// Apply contact impulse
-			var Pt = dPt * tangent
+			var Pt = tangent * dPt
 
 			b1.velocity = b1.velocity - Pt * b1.invMass
 			b1.angularVelocity = b1.angularVelocity - Vec2.cross(c.r1, Pt) * b1.invI
@@ -508,27 +553,23 @@ class Arbiter {
 	glDraw(color) {
 		App.glBegin(true, true, 10, 1)
 		for (c in _contacts) {
-			App.glVertex(c.position.x, c.position.y, 0, color)
+			App.glAddVertex(c.position.x, c.position.y, 0, color)
 		}
 		App.glEnd(App.glPoints)
 	}
 }
 
 class World {
-    construct new(gravity, it) {
+    construct new(gravity) {
 		_gravity = gravity
-		_it = it
 
         _bodies = []
 		_joints = []
-		_arbiters = []
+		_arbiters = {}
     }
 
 	gravity { _gravity }
-	it { _it }
-
 	gravity=(v) { _gravity = v }
-	it=(v) { _it = v }
 
 	static init() {
 		Body.init()
@@ -575,11 +616,10 @@ class World {
 				var key = newArb.key
 
 				if (newArb.contacts.count > 0) {
-					var arb = _arbiters[key]
-					if (arb == null) {
-						arbiters[key] = newArb
+					if (_arbiters.containsKey(key)) {
+						_arbiters[key].update(newArb.contacts)
 					} else {
-						arb.update(newArb.contacts)
+						_arbiters[key] = newArb
 					}
 				} else {
 					_arbiters.remove(key)
@@ -588,11 +628,8 @@ class World {
 		}
 	}
 
-	step(dt) {
-		var inv_dt = 0
-		if (dt > 0) {
-			inv_dt = 1 / dt
-		}
+	step(dt, it) {
+		var inv_dt = dt > 0 ? 1 / dt : 0
 
 		// Determine overlapping bodies and update contact points.
 		broadphase()
@@ -642,7 +679,7 @@ class World {
             body.glDraw(0xFFFFFFFF)
         }
 		for (alb in _arbiters) {
-            alb.glDraw(0xFFFFFFFF)
+            alb.value.glDraw(0xFFFFFFFF)
         }
     }
 }
@@ -696,7 +733,7 @@ class Collision {
 		if (distance0 * distance1 < 0.0) {
 			// Find intersection point of edge and plane
 			var interp = distance0 / (distance0 - distance1)
-			vOut[numOut].v = vIn[0].v + interp * (vIn[1].v - vIn[0].v)
+			vOut[numOut].v = vIn[0].v + (vIn[1].v - vIn[0].v) * interp
 			if (distance0 > 0.0) {
 				vOut[numOut].fp = vIn[0].fp
 				vOut[numOut].fp.inEdge1 = clipEdge
@@ -917,8 +954,7 @@ class Collision {
 				if (axis == Axis.FACE_B_X || axis == Axis.FACE_B_Y) {
 					c.feature.flip
 				}
-			} else {
-				System.print("As")
+				contacts.add(c)
 			}
 		}
 

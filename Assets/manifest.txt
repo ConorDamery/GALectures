@@ -29,6 +29,7 @@ Assets/Net/main.wren
 Assets/PGA2/main.wren
 Assets/PGA3/main.wren
 Assets/Physics2/main.wren
+Assets/Physics2/physics2.wren
 Assets/Skinning/main.wren
 Assets/Skinning/skinning.glsl
 Assets/index.txt

@@ -298,6 +298,12 @@ static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
 	glDeleteShader(vshader);
 	glDeleteShader(fshader);
 
+	if (!success)
+	{
+		glDeleteProgram(program);
+		return 0;
+	}
+
 	g_data.shaders.emplace_back(program);
 	return program;
 }
@@ -340,7 +346,10 @@ u32 App::GlLoadShader(const char* filepath)
 	auto src = shader_process_includes(FileLoad(filepath));
 	auto vsrc = "#version 330 core\n#define VERT\n" + src;
 	auto fsrc = "#version 330 core\n#define FRAG\n" + src;
-	return opengl_load_shader(vsrc.c_str(), fsrc.c_str());
+	auto shader = opengl_load_shader(vsrc.c_str(), fsrc.c_str());
+	if (shader == 0)
+		LOGW("Failed to load shader from file: %s", filepath);
+	return shader;
 }
 
 u32 App::GlCreateShader(const char* source)
@@ -348,7 +357,10 @@ u32 App::GlCreateShader(const char* source)
 	auto src = shader_process_includes(source);
 	auto vsrc = "#version 330 core\n#define VERT\n" + src;
 	auto fsrc = "#version 330 core\n#define FRAG\n" + src;
-	return opengl_load_shader(vsrc.c_str(), fsrc.c_str());
+	auto shader = opengl_load_shader(vsrc.c_str(), fsrc.c_str());
+	if (shader == 0)
+		LOGW("Failed to create shader from source.");
+	return shader;
 }
 
 void App::GlDestroyShader(u32 shader)
