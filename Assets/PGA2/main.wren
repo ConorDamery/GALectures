@@ -1,5 +1,5 @@
 import "app" for App
-import "pga2" for Line2, Point2, Motor2
+import "pga2" for Line2, Point2, Motor2, MVec2
 
 class Util {
 	static winMouseX { (App.winWidth / App.winHeight) * ((2 * App.winMouseX / App.winWidth) - 1) }
@@ -11,16 +11,16 @@ class Util {
     	for (y in 0..resolution) {
 			var yPos = y * ystep
             var c = (yPos - height / 2) == 0 ? App.glRed : color
-			App.glVertex(-width / 2, yPos - height / 2, depth, c)
-			App.glVertex(width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(-width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(width / 2, yPos - height / 2, depth, c)
 		}
 
 		var xstep = width / resolution
 		for (x in 0..resolution) {
 			var xPos = x * xstep
             var c = (xPos - width / 2) == 0 ? App.glGreen : color
-			App.glVertex(xPos - width / 2, -height / 2, depth, c)
-			App.glVertex(xPos - width / 2, height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, -height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, height / 2, depth, c)
 		}
 		App.glEnd(App.glLines)
 	}
@@ -93,25 +93,36 @@ class State {
 		App.glClear(0.1, 0.1, 0.1, 1, 0, 0, 0)
 		App.glSetShader(_shader)
 
-		App.glUniform("Proj")
-		App.glVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
+		App.glSetUniform("Proj")
+		App.glSetVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
 
         Util.glDrawGrid(10, 10, 0.5, 10, App.glGray)
 
-		var a = Point2.new(_a.x, _a.y)
-		var b = Point2.new(_b.x, _b.y)
-		var c = Point2.new(_c.x, _c.y)
+		var a = Point2.new(_a.x, _a.y, 1)
+		var b = Point2.new(_b.x, _b.y, 1)
+		var c = Point2.new(_c.x, _c.y, 1)
 
 		App.glBegin(true, true, 1, 1)
-		App.glVertex(a.x, a.y, 0.1, 0x0F00FF00)
-		App.glVertex(b.x, b.y, 0.1, 0x0F00FF00)
-		App.glVertex(c.x, c.y, 0.1, 0x0F00FF00)
+		App.glAddVertex(a.x, a.y, 0.1, 0x5F00FF00)
+		App.glAddVertex(b.x, b.y, 0.1, 0x5F00FF00)
+		App.glAddVertex(c.x, c.y, 0.1, 0x5F00FF00)
 		App.glEnd(App.glTriangles)
 
 		var l = Line2.new(-0.5, 1, 1)
 
 		var m = c & a
-		var d = l ^ m
+		var d = (l ^ m).normalized
+
+		//var d = m ^ Line2.new(1, 0, 0)
+		//var p = Point2.new(0, 0, 1).proj(m)
+		//var mp = (p + d).normalized
+
+		a.guiInspect("a")
+		c.guiInspect("c")
+		m.guiInspect("m")
+		d.guiInspect("d")
+		//p.guiInspect("p")
+		//mp.guiInspect("mp")
 
 		a.glDraw(0xFF00FF00)
 		b.glDraw(0xFF00FF00)

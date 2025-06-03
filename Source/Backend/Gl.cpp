@@ -1,6 +1,7 @@
 #include <App.hpp>
 
 #include <glad/glad.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -243,6 +244,314 @@ void App::GlReload()
 	for (const auto texture : g_data.textures)
 		GlDestroyTexture(texture);
 	g_data.textures.clear();
+
+	// Graphics API
+#define SCRIPT_ARGS_ARR(l, s, n, p, t) p l[n]; for (u8 i = 0; i < n; ++i) l[i] = WrenGetSlot##t##(vm, s + i + 1);
+
+	WrenBindMethod("app", "App", true, "glViewport(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 4);
+			SCRIPT_ARGS_ARR(vi, 0, 2, i32, Int);
+			SCRIPT_ARGS_ARR(vu, 3, 2, u32, UInt);
+			GlViewport(vi[0], vi[1], vu[0], vu[1]);
+		});
+
+	WrenBindMethod("app", "App", true, "glScissor(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 4);
+			SCRIPT_ARGS_ARR(vi, 0, 2, i32, Int);
+			SCRIPT_ARGS_ARR(vu, 3, 2, u32, UInt);
+			GlScissor(vi[0], vi[1], vu[0], vu[1]);
+		});
+
+	WrenBindMethod("app", "App", true, "glClear(_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 7);
+			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
+			GlClear(v[0], v[1], v[2], v[3], WrenGetSlotDouble(vm, 7), WrenGetSlotInt(vm, 7), WrenGetSlotUInt(vm, 7));
+		});
+
+	WrenBindMethod("app", "App", true, "glLoadShader(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto shader = GlLoadShader(WrenGetSlotString(vm, 1));
+			WrenSetSlotUInt(vm, 0, shader);
+		});
+
+	WrenBindMethod("app", "App", true, "glCreateShader(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto shader = GlCreateShader(WrenGetSlotString(vm, 1));
+			WrenSetSlotUInt(vm, 0, shader);
+		});
+
+	WrenBindMethod("app", "App", true, "glDestroyShader(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto shader = WrenGetSlotUInt(vm, 1);
+			GlDestroyShader(shader);
+		});
+
+	WrenBindMethod("app", "App", true, "glLoadImage(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			auto image = GlLoadImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
+			WrenSetSlotUInt(vm, 0, image);
+		});
+
+	//WrenBindMethod("app", "App", true, "glCreateImage(_,_)",
+	//	[](ScriptVM* vm)
+	//	{
+	//		WrenEnsureSlots(vm, 2);
+	//		auto image = GlCreateImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
+	//		WrenSetSlotUInt(vm, 0, image);
+	//	});
+
+	WrenBindMethod("app", "App", true, "glDestroyImage(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto image = WrenGetSlotUInt(vm, 1);
+			GlDestroyImage(image);
+		});
+
+	WrenBindMethod("app", "App", true, "glImageWidth(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto image = WrenGetSlotUInt(vm, 1);
+			WrenSetSlotInt(vm, 0, GlImageWidth(image));
+		});
+
+	WrenBindMethod("app", "App", true, "glImageHeight(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto image = WrenGetSlotUInt(vm, 1);
+			WrenSetSlotInt(vm, 0, GlImageHeight(image));
+		});
+
+	WrenBindMethod("app", "App", true, "glImageChannels(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto image = WrenGetSlotUInt(vm, 1);
+			WrenSetSlotInt(vm, 0, GlImageChannels(image));
+		});
+
+	WrenBindMethod("app", "App", true, "glLoadModel(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto model = GlLoadModel(WrenGetSlotString(vm, 1));
+			WrenSetSlotUInt(vm, 0, model);
+		});
+
+	WrenBindMethod("app", "App", true, "glDestroyModel(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto model = WrenGetSlotUInt(vm, 1);
+			GlDestroyModel(model);
+		});
+
+	WrenBindMethod("app", "App", true, "glCreateTexture(_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 7);
+			SCRIPT_ARGS_ARR(v, 0, 6, u32, UInt);
+			auto texture = GlCreateTexture(v[0], (TextureFormat)v[1], (TextureFilter)v[2], (TextureFilter)v[3], (TextureWrap)v[4], (TextureWrap)v[5], WrenGetSlotBool(vm, 7));
+			WrenSetSlotUInt(vm, 0, texture);
+		});
+
+	WrenBindMethod("app", "App", true, "glDestroyTexture(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto texture = WrenGetSlotUInt(vm, 1);
+			GlDestroyTexture(texture);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetShader(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			auto shader = WrenGetSlotUInt(vm, 1);
+			GlSetShader(shader);
+		});
+
+	WrenBindMethod("app", "App", true, "glBegin(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 3);
+			GlBegin(WrenGetSlotBool(vm, 1), WrenGetSlotBool(vm, 2), WrenGetSlotFloat(vm, 3), WrenGetSlotFloat(vm, 4));
+		});
+
+	WrenBindMethod("app", "App", true, "glEnd(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			GlEnd(WrenGetSlotUInt(vm, 1));
+		});
+
+	WrenBindMethod("app", "App", true, "glSetUniform(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			const char* value = WrenGetSlotString(vm, 1);
+			GlSetUniform(value);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetTex2D(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			GlSetTex2D(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+		});
+
+	WrenBindMethod("app", "App", true, "glSetFloat(_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 1);
+			f32 value = WrenGetSlotFloat(vm, 1);
+			GlSetFloat(value);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetVec2f(_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 2);
+			SCRIPT_ARGS_ARR(v, 0, 2, f32, Float);
+			GlSetVec2F(v[0], v[1]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetVec3f(_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 3);
+			SCRIPT_ARGS_ARR(v, 0, 3, f32, Float);
+			GlSetVec3F(v[0], v[1], v[2]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetVec4f(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 4);
+			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
+			GlSetVec4F(v[0], v[1], v[2], v[3]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat2x2f(_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 4);
+			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
+			GlSetMat2x2F(v[0], v[1], v[2], v[3]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat2x3f(_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 6);
+			SCRIPT_ARGS_ARR(v, 0, 6, f32, Float);
+			GlSetMat2x3F(v[0], v[1], v[2], v[3], v[4], v[5]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat2x4f(_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 8);
+			SCRIPT_ARGS_ARR(v, 0, 8, f32, Float);
+			GlSetMat2x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat3x2f(_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 6);
+			SCRIPT_ARGS_ARR(v, 0, 6, f32, Float);
+			GlSetMat3x2F(v[0], v[1], v[2], v[3], v[4], v[5]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat3x3f(_,_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 9);
+			SCRIPT_ARGS_ARR(v, 0, 9, f32, Float);
+			GlSetMat3x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat3x4f(_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 12);
+			SCRIPT_ARGS_ARR(v, 0, 12, f32, Float);
+			GlSetMat3x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat4x2f(_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 8);
+			SCRIPT_ARGS_ARR(v, 0, 8, f32, Float);
+			GlSetMat4x2F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat4x3f(_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 12);
+			SCRIPT_ARGS_ARR(v, 0, 12, f32, Float);
+			GlSetMat4x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
+		});
+
+	WrenBindMethod("app", "App", true, "glSetMat4x4f(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 16);
+			SCRIPT_ARGS_ARR(v, 0, 16, f32, Float);
+			GlSetMat4x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
+		});
+
+	WrenBindMethod("app", "App", true, "glAddVertex(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](ScriptVM* vm)
+		{
+			WrenEnsureSlots(vm, 5);
+			SCRIPT_ARGS_ARR(p, 0, 4, f32, Float);
+			SCRIPT_ARGS_ARR(c, 4, 4, u32, UInt);
+			SCRIPT_ARGS_ARR(v, 8, 8, f32, Float);
+			GlAddVertex(
+				p[0], p[1], p[2], p[3], c[0], c[1], c[2], c[3],
+				v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+		});
+}
+
+bool App::GuiGlInitialize()
+{
+	return ImGui_ImplOpenGL3_Init("#version 330 core\n");
+}
+
+void App::GuiGlShutdown()
+{
+	ImGui_ImplOpenGL3_Shutdown();
+}
+
+void App::GuiGlNewFrame()
+{
+	ImGui_ImplOpenGL3_NewFrame();
+}
+
+void App::GuiGlRender()
+{
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)

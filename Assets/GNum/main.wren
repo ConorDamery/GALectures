@@ -1,5 +1,5 @@
 import "app" for App
-import "complex" for Point, Complex
+import "gnum" for Point, Complex
 
 class Util {
     static glDrawGrid(width, height, depth, resolution, color) {
@@ -8,16 +8,16 @@ class Util {
     	for (y in 0..resolution) {
 			var yPos = y * ystep
             var c = (yPos - height / 2) == 0 ? App.glRed : color
-			App.glVertex(-width / 2, yPos - height / 2, depth, c)
-			App.glVertex(width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(-width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(width / 2, yPos - height / 2, depth, c)
 		}
 
 		var xstep = width / resolution
 		for (x in 0..resolution) {
 			var xPos = x * xstep
             var c = (xPos - width / 2) == 0 ? App.glGreen : color
-			App.glVertex(xPos - width / 2, -height / 2, depth, c)
-			App.glVertex(xPos - width / 2, height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, -height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, height / 2, depth, c)
 		}
 		App.glEnd(App.glLines)
 	}
@@ -65,8 +65,8 @@ class State {
 		App.glClear(0.1, 0.1, 0.1, 1, 0, 0, 0)
 		App.glSetShader(_shader)
 
-		App.glUniform("Proj")
-		App.glVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
+		App.glSetUniform("Proj")
+		App.glSetVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
 
         Util.glDrawGrid(20, 20, 0.5, 20, App.glGray)
 
@@ -83,7 +83,7 @@ class State {
 			for (i in -100..100) {
 				var z = Complex.new(_c.r, i * 0.1)
 				var x = z * _p
-				App.glVertex(x.x, x.y, 0, 0xA0FFFFFF)
+				App.glAddVertex(x.x, x.y, 0, 0xA0FFFFFF)
 			}
 			App.glEnd(App.glLines)
 			
@@ -95,7 +95,7 @@ class State {
 			for (i in -180..180) {
 				var z = Complex.new(_c.r, i * Num.pi / 180.0)
 				var x = z.exp * _p
-				App.glVertex(x.x, x.y, 0, 0xA0FFFFFF)
+				App.glAddVertex(x.x, x.y, 0, 0xA0FFFFFF)
 			}
 			App.glEnd(App.glLines)
 			
@@ -107,7 +107,7 @@ class State {
 			for (i in -100..100) {
 				var z = Complex.new(_c.r, i * 0.1)
 				var x = z * _p * ~z
-				App.glVertex(x.x, x.y, 0, 0xA0FFFFFF)
+				App.glAddVertex(x.x, x.y, 0, 0xA0FFFFFF)
 			}
 			App.glEnd(App.glLines)	
 		} else if (_mode == 3) {
@@ -118,7 +118,7 @@ class State {
 			for (i in -180..180) {
 				var z = Complex.new(_c.r, i * Num.pi / 180.0)
 				var x = z.exp * _p * ~z.exp
-				App.glVertex(x.x, x.y, 0, 0xA0FFFFFF)
+				App.glAddVertex(x.x, x.y, 0, 0xA0FFFFFF)
 			}
 			App.glEnd(App.glLines)	
 		}

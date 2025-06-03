@@ -53,15 +53,15 @@ class Plane {
 	// Exponentiation
 	// Logarithm
 
-	glUniform(name) {
-		App.glUniform(name)
-		App.glVec4f(e0, e1, e2, e3)
+	glSetUniform(name) {
+		App.glSetUniform(name)
+		App.glSetVec4f(e0, e1, e2, e3)
 	}
 
 	glDraw(color) {
 		App.glBegin(true, true, 2, 1)
-		App.glVertex(0, 0, 0, color)
-		App.glVertex(e032, e013, e021, color)
+		App.glAddVertex(0, 0, 0, color)
+		App.glAddVertex(e032, e013, e021, color)
 		App.glEnd(App.glLines)
 	}
 
@@ -168,15 +168,15 @@ class Line {
 
 	// Logarithm
 
-	glUniform(name) {
-		App.glUniform(name)
-		App.glMat2x3f(e23, e31, e12, e01, e02, e03)
+	glSetUniform(name) {
+		App.glSetUniform(name)
+		App.glSetMat2x3f(e23, e31, e12, e01, e02, e03)
 	}
 
 	glDraw(color) {
 		App.glBegin(true, true, 2, 1)
-		App.glVertex(-e23 + e01, -e31 + e02, -e12 + e03, color)
-    	App.glVertex(e23 + e01, e31 + e02, e12 + e03, color)
+		App.glAddVertex(-e23 + e01, -e31 + e02, -e12 + e03, color)
+    	App.glAddVertex(e23 + e01, e31 + e02, e12 + e03, color)
 		App.glEnd(App.glLines)
 	}
 
@@ -236,14 +236,14 @@ class Point {
 	// Exponentiation
 	// Logarithm
 
-	glUniform(name) {
-		App.glUniform(name)
-		App.glVec3f(e032, e013, e021)//e123
+	glSetUniform(name) {
+		App.glSetUniform(name)
+		App.glSetVec3f(e032, e013, e021)//e123
 	}
 
 	glDraw(color) {
 		App.glBegin(true, true, 10, 1)
-		App.glVertex(e032, e013, e021, color)
+		App.glAddVertex(e032, e013, e021, color)
 		App.glEnd(App.glPoints)
 	}
 
@@ -299,15 +299,15 @@ class Direction {
 	// Exponentiation
 	// Logarithm
 
-	glUniform(name) {
-		App.glUniform(name)
-		App.glVec3f(e032, e013, e021)
+	glSetUniform(name) {
+		App.glSetUniform(name)
+		App.glSetVec3f(e032, e013, e021)
 	}
 
 	glDraw(color) {
 		App.glBegin(true, true, 2, 1)
-		App.glVertex(0, 0, 0, color)
-		App.glVertex(e032, e013, e021, color)
+		App.glAddVertex(0, 0, 0, color)
+		App.glAddVertex(e032, e013, e021, color)
 		App.glEnd(App.glLines)
 	}
 
@@ -388,9 +388,9 @@ class Rotor {
 	// Logarithm
 	log { Line.new(0, 0, 0, 0, 0, 0) }
 
-	glUniform(name) {
-		App.glUniform(name)
-		App.glVec4f(s, e23, e31, e12)
+	glSetUniform(name) {
+		App.glSetUniform(name)
+		App.glSetVec4f(s, e23, e31, e12)
 	}
 
 	toString { "[%(s), %(e23), %(e31), %(e12)]" }
@@ -453,9 +453,9 @@ class Translator {
 	// Exponentiation
 	// Logarithm
 	
-	glUniform(name) {
-		App.glUniform(name)
-		App.glVec3f(e01, e02, e03)
+	glSetUniform(name) {
+		App.glSetUniform(name)
+		App.glSetVec3f(e01, e02, e03)
 	}
 
 	toString { "[%(e01), %(e02), %(e03), %(e0123)]" }
@@ -572,9 +572,9 @@ class Motor {
 	// Logarithm
 	log { PGA.log_m(this) }
 
-	glUniform(name) {
-		App.glUniform(name)
-		App.glMat2x4f(s, e23, e31, e12, e01, e02, e03, e0123)
+	glSetUniform(name) {
+		App.glSetUniform(name)
+		App.glSetMat2x4f(s, e23, e31, e12, e01, e02, e03, e0123)
 	}
 
 	toString { "[%(s), %(e23), %(e31), %(e12) | %(e01), %(e02), %(e03), %(e0123)]" }

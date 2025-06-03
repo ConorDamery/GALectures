@@ -90,10 +90,10 @@ class State {
 		App.glSetShader(_shader)
 
 		Util.glPerspective("Proj", 70.0, App.winWidth / App.winHeight, 0.1, 1000.0)
-		_view.glUniform("View")
+		_view.glSetUniform("View")
 
-		App.glUniform("Tint")
-		App.glVec4f(1, 1, 1, 1)
+		App.glSetUniform("Tint")
+		App.glSetVec4f(1, 1, 1, 1)
 
 		if (_showOrigin) {
 			Util.glDrawOrigin(0, 0, 0)
@@ -114,35 +114,35 @@ class State {
 		
 		/*if (!_slerp) {
 			App.glBegin(true, true, 1, 2)
-			App.glVertex(0, 0, 0, App.glGreen)
+			App.glAddVertex(0, 0, 0, App.glGreen)
 			//l = l.motor.normalized.line
 			var s = _deg / _seg.floor
 			for (i in 0..._seg.floor+1) {
 				var a = i * s
 				var r = l.exp_r(-0.5 * a * Num.pi / 180.0)
 				var rp = r >> p
-				App.glVertex(rp.x, rp.y, rp.z, App.glGreen)
+				App.glAddVertex(rp.x, rp.y, rp.z, App.glGreen)
 			}
 			App.glEnd(App.glLines)
 
-			App.glUniform("Tint")
-			App.glVec4f(1, 1, 1, 0.1)
+			App.glSetUniform("Tint")
+			App.glSetVec4f(1, 1, 1, 0.1)
 			App.glEnd(App.glTriangleFan)
 
 		} else {
 			App.glBegin(true, true, 1, 2)
-			App.glVertex(0, 0, 0, App.glGreen)
+			App.glAddVertex(0, 0, 0, App.glGreen)
 			var g = r.motor.log
 			for (i in 0..._seg.floor+1) {
 				var t = i / _seg.floor
 				var r = (g * t).exp
 				var rp = r >> p
-				App.glVertex(rp.x, rp.y, rp.z, App.glGreen)
+				App.glAddVertex(rp.x, rp.y, rp.z, App.glGreen)
 			}
 			App.glEnd(App.glLines)
 
-			App.glUniform("Tint")
-			App.glVec4f(1, 1, 1, 0.1)
+			App.glSetUniform("Tint")
+			App.glSetVec4f(1, 1, 1, 0.1)
 			App.glEnd(App.glTriangleFan)
 		}*/
 	}

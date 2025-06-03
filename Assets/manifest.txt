@@ -23,8 +23,10 @@ Assets/Common/pga3.wren
 Assets/Common/util.wren
 Assets/Common/vertex2.glsl
 Assets/Common/vertex3.glsl
-Assets/Complex/complex.wren
-Assets/Complex/main.wren
+Assets/GA/ga.wren
+Assets/GA/main.wren
+Assets/GNum/gnum.wren
+Assets/GNum/main.wren
 Assets/Net/main.wren
 Assets/PGA2/main.wren
 Assets/PGA3/main.wren

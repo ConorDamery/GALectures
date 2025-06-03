@@ -9,6 +9,8 @@
 #include <chrono>
 #include <vector>
 
+using NetRelayFn = void (*)(bool, u32, u32, u32, u32, u32);
+
 struct NetPacket
 {
     u32 id{ 0 };
@@ -167,7 +169,7 @@ static bool net_guard_packet(u32 packet_size, u32 offset, u32 size)
     return true;
 }
 
-bool App::NetInitialize(NetRelayFn relayFn)
+bool App::NetInitialize(const AppConfig& config)
 {
     if (enet_initialize() != 0)
     {
@@ -175,7 +177,7 @@ bool App::NetInitialize(NetRelayFn relayFn)
         return false;
     }
 
-    g_state.relayFn = relayFn;
+    g_state.relayFn = App::NetRelay;
     return true;
 }
 
@@ -192,6 +194,129 @@ void App::NetReload()
 
     if (NetIsServer())
         NetStopServer();
+
+    // Net API
+    WrenBindMethod("app", "App", true, "netStartServer(_,_,_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 4);
+            NetStartServer(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3), WrenGetSlotUInt(vm, 4));
+        });
+
+    WrenBindMethod("app", "App", true, "netStopServer()",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            NetStopServer();
+        });
+
+    WrenBindMethod("app", "App", true, "netConnectClient(_,_,_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 4);
+            u32 client = NetConnectClient(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3), WrenGetSlotUInt(vm, 4));
+            WrenSetSlotUInt(vm, 0, client);
+        });
+
+    WrenBindMethod("app", "App", true, "netDisconnectClient(_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            NetDisconnectClient(WrenGetSlotUInt(vm, 1));
+        });
+
+    WrenBindMethod("app", "App", true, "netMakeUuid()",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            WrenSetSlotUInt(vm, 0, NetMakeUUID());
+        });
+
+    WrenBindMethod("app", "App", true, "netIsServer()",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            WrenSetSlotBool(vm, 0, NetIsServer());
+        });
+
+    WrenBindMethod("app", "App", true, "netIsClient(_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            WrenSetSlotBool(vm, 0, NetIsClient(WrenGetSlotUInt(vm, 1)));
+        });
+
+    WrenBindMethod("app", "App", true, "netCreatePacket(_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 2);
+            auto packet = NetCreatePacket(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+            WrenSetSlotUInt(vm, 0, packet);
+        });
+
+    WrenBindMethod("app", "App", true, "netPacketId(_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            auto id = NetPacketId(WrenGetSlotUInt(vm, 1));
+            WrenSetSlotUInt(vm, 0, id);
+        });
+
+    WrenBindMethod("app", "App", true, "netBroadcast(_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 2);
+            NetBroadcast(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+        });
+
+    WrenBindMethod("app", "App", true, "netSend(_,_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 3);
+            NetSend(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3));
+        });
+
+#define SCRIPT_NET_GET(Type)																					\
+	WrenBindMethod("app", "App", true, "netGet"#Type"(_,_)",											\
+	[](ScriptVM* vm)																					\
+		{																								\
+			WrenEnsureSlots(vm, 2);																		\
+			WrenSetSlot##Type(vm, 0, NetGet##Type(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2)));		\
+		});
+
+    SCRIPT_NET_GET(Bool);
+    SCRIPT_NET_GET(UInt);
+    SCRIPT_NET_GET(Int);
+    SCRIPT_NET_GET(Float);
+    SCRIPT_NET_GET(Double);
+
+    WrenBindMethod("app", "App", true, "netGetString(_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 2);
+            WrenSetSlotString(vm, 0, NetGetString(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2)));
+        });
+
+#define SCRIPT_NET_SET(Type)																					\
+	WrenBindMethod("app", "App", true, "netSet"#Type"(_,_,_)",											\
+	[](ScriptVM* vm)																					\
+		{																								\
+			WrenEnsureSlots(vm, 3);																		\
+			NetSet##Type(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlot##Type(vm, 3));		\
+		});
+
+    SCRIPT_NET_SET(Bool);
+    SCRIPT_NET_SET(UInt);
+    SCRIPT_NET_SET(Int);
+    SCRIPT_NET_SET(Float);
+    SCRIPT_NET_SET(Double);
+
+    WrenBindMethod("app", "App", true, "netSetString(_,_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 3);
+            NetSetString(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotString(vm, 3));
+        });
 }
 
 void App::NetStartServer(const char* ip, u32 port, u32 peerCount, u32 channelLimit)

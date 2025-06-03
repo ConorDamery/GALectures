@@ -11,22 +11,22 @@ class Util {
     	for (y in 0..resolution) {
 			var yPos = y * ystep
             var c = (yPos - height / 2) == 0 ? App.glRed : color
-			App.glVertex(-width / 2, yPos - height / 2, depth, c)
-			App.glVertex(width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(-width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(width / 2, yPos - height / 2, depth, c)
 		}
 
 		var xstep = width / resolution
 		for (x in 0..resolution) {
 			var xPos = x * xstep
             var c = (xPos - width / 2) == 0 ? App.glGreen : color
-			App.glVertex(xPos - width / 2, -height / 2, depth, c)
-			App.glVertex(xPos - width / 2, height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, -height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, height / 2, depth, c)
 		}
 		App.glEnd(App.glLines)
 	}
 
-	static glVertex(x, y, z, c, u, v, bi, bw) {
-		App.glVertex(x, y, z, 0, c, bw, bi, 0, u, v, 0, 0, 0, 0, 0, 0)
+	static glAddVertex(x, y, z, c, u, v, bi, bw) {
+		App.glAddVertex(x, y, z, 0, c, bw, bi, 0, u, v, 0, 0, 0, 0, 0, 0)
 	}
 
 	static gl4B2UI(r, g, b, a) {
@@ -55,7 +55,7 @@ class Handle {
 	wm=(v) { _wm = v }
 
 	update(pm, s, dt) {
-		var mp = ~wm >> Point2.new(s * Util.winMouseX, s * Util.winMouseY)
+		var mp = ~wm >> Point2.new(s * Util.winMouseX, s * Util.winMouseY, 1)
 		_isOver = mp.x > -s*0.05 && mp.x < s*0.05 && mp.y > -s*0.05 && mp.y < s*0.05
 
 		if (__sel == null && _isOver &&
@@ -117,44 +117,44 @@ class State {
 		App.glClear(0.1, 0.1, 0.1, 1, 0, 0, 0)
 		App.glSetShader(_shader)
 
-		App.glUniform("Proj")
-		App.glVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
+		App.glSetUniform("Proj")
+		App.glSetVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
 
         Util.glDrawGrid(20, 20, 0.5, 20, App.glGray)
 
 		App.glBegin(true, true, 20, 2)
 		for (i in _handles) {
-			var p = i.wm >> Point2.new(0, 0)
-			App.glVertex(p.x, p.y, 0, i.isOver ? 0xFF00FFFF : 0xFFFFFFFF)
+			var p = i.wm >> Point2.new(0, 0, 1)
+			App.glAddVertex(p.x, p.y, 0, i.isOver ? 0xFF00FFFF : 0xFFFFFFFF)
 		}
 		App.glEnd(App.glPoints | App.glLineStrip)
 
 		// Skinning 2D demo
 		App.glSetShader(_vshader)
 
-		App.glUniform("Proj")
-		App.glVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
+		App.glSetUniform("Proj")
+		App.glSetVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
 
-		App.glUniform("Model")
-		App.glVec4f(1, 0, 0, 0)
+		App.glSetUniform("Model")
+		App.glSetVec4f(1, 0, 0, 0)
 
 		for (i in 0..._handles.count) {
-			_handles[i].wm.glUniform("Bones[%(i)]")
+			_handles[i].wm.glSetUniform("Bones[%(i)]")
 		}
 
-		App.glUniform("Tex")
-		App.glTex2D(0, _texture)
+		App.glSetUniform("Tex")
+		App.glSetTex2D(0, _texture)
 
 		App.glBegin(true, true, 10, 1)
 		for (i in 0..10) {
 			var bw = i / 10
-			Util.glVertex(-1, 0, 0, 0xFFFFFFFF, 0, bw, Util.gl4B2UI(0, 1, 2, 255), Util.gl4F2UI(1 - bw, bw, 0, 0))
-			Util.glVertex( 1, 0, 0, 0xFFFFFFFF, 1, bw, Util.gl4B2UI(0, 1, 2, 255), Util.gl4F2UI(1 - bw, bw, 0, 0))
+			Util.glAddVertex(-1, 0, 0, 0xFFFFFFFF, 0, bw, Util.gl4B2UI(0, 1, 2, 255), Util.gl4F2UI(1 - bw, bw, 0, 0))
+			Util.glAddVertex( 1, 0, 0, 0xFFFFFFFF, 1, bw, Util.gl4B2UI(0, 1, 2, 255), Util.gl4F2UI(1 - bw, bw, 0, 0))
 		}
 		for (i in 0..10) {
 			var bw = i / 10
-			Util.glVertex(-1, 0, 0, 0xFFFFFFFF, 0, bw, Util.gl4B2UI(0, 1, 2, 255), Util.gl4F2UI(0, 1 - bw, bw, 0))
-			Util.glVertex( 1, 0, 0, 0xFFFFFFFF, 1, bw, Util.gl4B2UI(0, 1, 2, 255), Util.gl4F2UI(0, 1 - bw, bw, 0))
+			Util.glAddVertex(-1, 0, 0, 0xFFFFFFFF, 0, bw, Util.gl4B2UI(0, 1, 2, 255), Util.gl4F2UI(0, 1 - bw, bw, 0))
+			Util.glAddVertex( 1, 0, 0, 0xFFFFFFFF, 1, bw, Util.gl4B2UI(0, 1, 2, 255), Util.gl4F2UI(0, 1 - bw, bw, 0))
 		}
 		App.glEnd(App.glTriangleStrip)
 	}

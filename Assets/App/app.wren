@@ -36,6 +36,9 @@ class App {
 	// TODO
 	foreign static winCursor(mode)
 
+	// TODO
+	foreign static winAlwaysOnTop(enabled)
+
     // The width of the application window in pixels.
     //
     // @return (i32) The window width.

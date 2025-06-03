@@ -1,12 +1,8 @@
 #include <App.hpp>
 
-#include <GLFW/glfw3.h>
-
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
 
 extern "C" {
 #include <wren.h>
@@ -65,16 +61,11 @@ struct AppData
 
 	bool headless{ false };
 
-	// Window
-	GLFWwindow* window{ nullptr };
-	WindowMode winMode{ WindowMode::WINDOWED };
-	int winX{ 0 }, winY{ 0 };
-	int winWidth{ 0 }, winHeight{ 0 };
-
 	// Gui
 	f32 fontSize{ 1.0f };
 	bool showImGuiDemo{ false };
 	bool showConsole{ false };
+	bool winAlwaysOnTop{ false };
 
 	// Script
 	WrenVM* vm{ nullptr };
@@ -181,135 +172,6 @@ void App::FileSave(const char* filepath, const std::string& src)
 
 	file << src;
 	file.close();
-}
-
-static void glfw_error_callback(int i, const char* c)
-{
-	LOGE("GLFW Error [%s]: ", c);
-}
-
-static bool glfw_initialize(const AppConfig& config)
-{
-	glfwSetErrorCallback(glfw_error_callback);
-	if (!glfwInit())
-	{
-		LOGE("Failed to initialize GLFW!");
-		return false;
-	}
-
-	g_app.winMode = config.windowMode;
-
-	GLFWmonitor* pMonitor = nullptr;
-	i32 width = config.width;
-	i32 height = config.height;
-
-#ifdef _DEBUG
-	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-#else
-	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, false);
-#endif
-
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_SAMPLES, config.msaa);
-
-	if (g_app.winMode == WindowMode::FULLSCREEN)
-	{
-		pMonitor = glfwGetPrimaryMonitor();
-		const GLFWvidmode* pMode = glfwGetVideoMode(pMonitor);
-		width = pMode->width;
-		height = pMode->height;
-
-		glfwWindowHint(GLFW_RED_BITS, pMode->redBits);
-		glfwWindowHint(GLFW_GREEN_BITS, pMode->greenBits);
-		glfwWindowHint(GLFW_BLUE_BITS, pMode->blueBits);
-		glfwWindowHint(GLFW_REFRESH_RATE, pMode->refreshRate);
-	}
-
-	g_app.window = glfwCreateWindow(width, height, config.title, pMonitor, NULL);
-	if (g_app.window == NULL)
-	{
-		LOGE("Failed to create GLFW window!");
-		return false;
-	}
-
-	glfwMakeContextCurrent(g_app.window);
-	glfwSwapInterval(1);
-
-	if (g_app.winMode == WindowMode::BORDERLESS)
-	{
-		GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
-		const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
-
-		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_FALSE);
-		glfwSetWindowPos(g_app.window, 0, 0);
-		glfwSetWindowSize(g_app.window, mode->width, mode->height);
-	}
-
-	glfwSetInputMode(g_app.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-
-	// Set icon
-	GLFWimage icon;
-	u32 img = App::GlLoadImage("Assets/App/GASandbox.png", false);
-	
-	if (img)
-	{
-		icon.width = App::GlImageWidth(img);
-		icon.height = App::GlImageHeight(img);
-		icon.pixels = App::GlImageData(img);
-
-		glfwSetWindowIcon(g_app.window, 1, &icon);
-		App::GlDestroyImage(img);
-	}
-	else
-	{
-		LOGE("Failed to load window icon!");
-	}
-
-	return true;
-}
-
-static void glfw_shutdown()
-{
-	glfwDestroyWindow(g_app.window);
-	glfwTerminate();
-}
-
-static bool imgui_initialize(const AppConfig& config)
-{
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-	if (!ImGui_ImplGlfw_InitForOpenGL(g_app.window, true))
-	{
-		LOGE("Failed to initialize ImGui GLFW!");
-		return false;
-	}
-
-	if (!ImGui_ImplOpenGL3_Init("#version 330 core\n"))
-	{
-		LOGE("Failed to initialize ImGui OpenGL!");
-		return false;
-	}
-
-	ImGui::StyleColorsDark();
-
-	io.Fonts->AddFontFromFileTTF(PATH("Assets/App/Fonts/UbuntuMono-Regular.ttf"), 20);
-
-	io.IniFilename = "imgui.ini";
-	return true;
-}
-
-static void imgui_shutdown()
-{
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
 }
 
 static size_t wren_class_hash(const char* moduleName, const char* className)
@@ -570,206 +432,6 @@ bool App::IsHeadless()
 	return g_app.headless;
 }
 
-// Window
-void* App::WinGetProcAddress(const char* procname)
-{
-	return glfwGetProcAddress(procname);
-}
-
-void App::WinMode(i32 mode)
-{
-	auto winMode = (WindowMode)mode;
-	if (winMode == g_app.winMode)
-		return;
-
-	GLFWmonitor* pMonitor = glfwGetPrimaryMonitor();
-	const GLFWvidmode* vidmode = glfwGetVideoMode(pMonitor);
-
-	g_app.winMode = winMode;
-	switch(g_app.winMode)
-	{
-	case WindowMode::FULLSCREEN:
-		glfwGetWindowPos(g_app.window, &g_app.winX, &g_app.winY);
-		glfwGetWindowSize(g_app.window, &g_app.winWidth, &g_app.winHeight);
-
-		glfwSetWindowMonitor(g_app.window, pMonitor, 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
-		break;
-
-	case WindowMode::BORDERLESS:
-		glfwGetWindowPos(g_app.window, &g_app.winX, &g_app.winY);
-		glfwGetWindowSize(g_app.window, &g_app.winWidth, &g_app.winHeight);
-
-		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_FALSE);
-		glfwSetWindowPos(g_app.window, 0, 0);
-		glfwSetWindowSize(g_app.window, vidmode->width, vidmode->height);
-		break;
-
-	case WindowMode::UNDECORATED:
-		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_FALSE);
-		break;
-
-	default:
-		glfwSetWindowMonitor(g_app.window, nullptr, g_app.winX, g_app.winY, g_app.winWidth, g_app.winHeight, 0);
-		glfwSetWindowAttrib(g_app.window, GLFW_DECORATED, GLFW_TRUE);
-	}
-}
-
-void App::WinCursor(i32 cursor)
-{
-	glfwSetInputMode(g_app.window, GLFW_CURSOR, cursor);
-}
-
-i32 App::WinWidth()
-{
-	i32 w, h;
-	glfwGetWindowSize(g_app.window, &w, &h);
-	return w;
-}
-
-i32 App::WinHeight()
-{
-	i32 w, h;
-	glfwGetWindowSize(g_app.window, &w, &h);
-	return h;
-}
-
-f64 App::WinMouseX()
-{
-	f64 x, y;
-	glfwGetCursorPos(g_app.window, &x, &y);
-	return x;
-}
-
-f64 App::WinMouseY()
-{
-	f64 x, y;
-	glfwGetCursorPos(g_app.window, &x, &y);
-	return y;
-}
-
-bool App::WinButton(i32 b)
-{
-	return glfwGetMouseButton(g_app.window, b) == GLFW_PRESS;
-}
-
-bool App::WinKey(i32 k)
-{
-	GLFW_KEY_W;
-	return glfwGetKey(g_app.window, k) == GLFW_PRESS;
-}
-
-i32 App::WinPadCount()
-{
-	i32 count = 0;
-	for (i32 i = 0; i < 16; ++i)
-	{
-		if (glfwJoystickPresent(GLFW_JOYSTICK_1 + i))
-			++count;
-	}
-	return count;
-}
-
-bool App::WinPadButton(i32 i, i32 b)
-{
-	GLFWgamepadstate state;
-	return glfwJoystickPresent(GLFW_JOYSTICK_1 + i) &&
-		glfwGetGamepadState(GLFW_JOYSTICK_1 + i, &state) &&
-		state.buttons[b] == GLFW_PRESS;
-}
-
-f32 App::WinPadAxis(i32 i, i32 a)
-{
-	GLFWgamepadstate state;
-	return glfwJoystickPresent(GLFW_JOYSTICK_1 + i) &&
-		glfwGetGamepadState(GLFW_JOYSTICK_1 + i, &state) ? state.axes[a] : 0.0f;
-}
-
-void App::WinClose()
-{
-	glfwSetWindowShouldClose(g_app.window, GLFW_TRUE);
-}
-
-// Gui
-void App::GuiPushItemWidth(f32 w)
-{
-	ImGui::PushItemWidth(w);
-}
-
-void App::GuiPopItemWidth()
-{
-	ImGui::PopItemWidth();
-}
-
-void App::GuiText(const char* text)
-{
-	ImGui::Text(text);
-}
-
-bool App::GuiBool(const char* label, bool v)
-{
-	ImGui::Checkbox(label, &v);
-	return v;
-}
-
-i32 App::GuiInt(const char* label, i32 i)
-{
-	ImGui::InputInt(label, &i);
-	return i;
-}
-
-i32 App::GuiInt(const char* label, i32 i, i32 min, i32 max)
-{
-	ImGui::SliderInt(label, &i, min, max);
-	return i;
-}
-
-f32 App::GuiFloat(const char* label, f32 v)
-{
-	ImGui::DragFloat(label, &v, 0.1f);
-	return v;
-}
-
-f32 App::GuiFloat(const char* label, f32 v, f32 min, f32 max)
-{
-	ImGui::SliderFloat(label, &v, min, max);
-	return v;
-}
-
-void App::GuiSeparator(const char* label)
-{
-	ImGui::SeparatorText(label);
-}
-
-bool App::GuiButton(const char* label)
-{
-	return ImGui::Button(label);
-}
-
-void App::GuiSameLine()
-{
-	ImGui::SameLine();
-}
-
-f32 App::GuiContentAvailWidth()
-{
-	return ImGui::GetContentRegionAvail().x;
-}
-
-f32 App::GuiContentAvailHeight()
-{
-	return ImGui::GetContentRegionAvail().y;
-}
-
-bool App::GuiBeginChild(const char* label, f32 w, f32 h)
-{
-	return ImGui::BeginChild(label, ImVec2(w, h));
-}
-
-void App::GuiEndChild()
-{
-	ImGui::EndChild();
-}
-
 // Script
 void App::WrenParseFile(const char* moduleName, const char* filepath)
 {
@@ -885,6 +547,11 @@ void App::WrenSetSlotDouble(ScriptVM* vm, i32 slot, f64 value)
 	wrenSetSlotDouble(vm, slot, (f64)value);
 }
 
+void App::WrenSetSlotString(ScriptVM* vm, i32 slot, const char* str)
+{
+	wrenSetSlotString(vm, slot, str);
+}
+
 void* App::WrenSetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t size)
 {
 	return wrenSetSlotNewForeign(vm, slot, classSlot, size);
@@ -894,20 +561,20 @@ bool App::Initialize(const AppConfig& config)
 {
 	if (!config.headless)
 	{
-		if (!glfw_initialize(config))
+		if (!WinInitialize(config))
 			return false;
 
 		if (!GlInitialize(config))
 			return false;
 
-		if (!imgui_initialize(config))
+		if (!GuiInitialize(config))
 			return false;
 	}
 
-	if (!SfxInitialize())
+	if (!SfxInitialize(config))
 		return false;
 
-	if (!NetInitialize(NetRelay))
+	if (!NetInitialize(config))
 		return false;
 
 	std::string indexSrc = FileLoad("Assets/index.txt");
@@ -930,9 +597,9 @@ void App::Shutdown()
 	
 	if (!g_app.headless)
 	{
-		imgui_shutdown();
+		GuiShutdown();
 		GlShutdown();
-		glfw_shutdown();
+		WinShutdown();
 	}
 }
 
@@ -941,7 +608,7 @@ void App::Update(f64 dt)
 	if (!g_app.error)
 		wrenCollectGarbage(g_app.vm);
 
-	glfwPollEvents();
+	WinPollEvents();
 
 	g_app.frames++;
 	g_app.time += dt;
@@ -978,10 +645,54 @@ void App::Render()
 	GlViewport(0, 0, WinWidth(), WinHeight());
 	GlClear(0, 0, 0, 1, 1, 0, (u32)GlClearFlags::ALL);
 
-	ImGui_ImplGlfw_NewFrame();
-	ImGui_ImplOpenGL3_NewFrame();
+	GuiWinNewFrame();
+	GuiGlNewFrame();
 	ImGui::NewFrame();
 
+	GuiRender();
+
+	ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetFrameHeight()));
+	ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+
+	ImGui::Begin("##Overlay", nullptr, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
+		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
+
+	ImGui::SetWindowFontScale(g_app.fontSize);
+	if (!g_app.error)
+	{
+		try
+		{
+			wrenEnsureSlots(g_app.vm, 1);
+			wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
+			wrenCall(g_app.vm, g_app.renderMethod);
+		}
+		catch (const std::exception& e)
+		{
+			LOGE("Script exception: %s", e.what());
+			wrenSetSlotString(g_app.vm, 0, e.what());
+			wrenAbortFiber(g_app.vm, 0);
+
+			g_app.error = true;
+		}
+	}
+	ImGui::SetWindowFontScale(1.0f);
+
+	ImGui::PopStyleVar(2);
+	ImGui::PopStyleColor();
+	ImGui::End();
+
+	GuiGlRender();
+
+	WinSwapBuffers();
+}
+
+void App::GuiRender()
+{
 	if (ImGui::BeginMainMenuBar())
 	{
 		if (ImGui::BeginMenu("Menu"))
@@ -1004,13 +715,16 @@ void App::Render()
 				ImGui::EndMenu();
 			}
 
-			if (ImGui::BeginMenu("Tools"))
+			if (ImGui::BeginMenu("Window"))
 			{
-				if (ImGui::MenuItem("ImGui Demo"))
-					g_app.showImGuiDemo = !g_app.showImGuiDemo;
-
 				if (ImGui::MenuItem("Console"))
 					g_app.showConsole = !g_app.showConsole;
+
+#ifdef _DEBUG
+				ImGui::Separator();
+				if (ImGui::MenuItem("ImGui Demo"))
+					g_app.showImGuiDemo = !g_app.showImGuiDemo;
+#endif
 
 				ImGui::EndMenu();
 			}
@@ -1019,6 +733,9 @@ void App::Render()
 			{
 				if (ImGui::BeginMenu("Window"))
 				{
+					if (ImGui::Checkbox("Always On Top", &g_app.winAlwaysOnTop))
+						WinAlwaysOnTop(g_app.winAlwaysOnTop);
+
 					if (ImGui::BeginMenu("Mode"))
 					{
 						if (ImGui::MenuItem("Windowed"))
@@ -1035,7 +752,7 @@ void App::Render()
 
 					ImGui::EndMenu();
 				}
-				
+
 				if (ImGui::BeginMenu("GUI"))
 				{
 					ImGui::SliderFloat("Font Size", &g_app.fontSize, 0.5f, 2.0f);
@@ -1085,7 +802,7 @@ void App::Render()
 			{
 				if (ImGui::Selectable("Clear"))
 					LogClear();
-				
+
 				if (ImGui::Selectable("Copy"))
 				{
 					static std::string clipboard;
@@ -1125,46 +842,6 @@ void App::Render()
 
 		ImGui::End();
 	}
-
-	ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetFrameHeight()));
-	ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight()));
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
-
-	ImGui::Begin("##Overlay", nullptr, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
-
-	ImGui::SetWindowFontScale(g_app.fontSize);
-	if (!g_app.error)
-	{
-		try
-		{
-			wrenEnsureSlots(g_app.vm, 1);
-			wrenSetSlotHandle(g_app.vm, 0, g_app.mainClass);
-			wrenCall(g_app.vm, g_app.renderMethod);
-		}
-		catch (const std::exception& e)
-		{
-			LOGE("Script exception: %s", e.what());
-			wrenSetSlotString(g_app.vm, 0, e.what());
-			wrenAbortFiber(g_app.vm, 0);
-
-			g_app.error = true;
-		}
-	}
-	ImGui::SetWindowFontScale(1.0f);
-
-	ImGui::PopStyleVar(2);
-	ImGui::PopStyleColor();
-	ImGui::End();
-
-	ImGui::Render();
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-	glfwSwapBuffers(g_app.window);
 }
 
 void App::NetRelay(bool server, u32 client, u32 event, u32 peer, u32 channel, u32 packet)
@@ -1208,8 +885,8 @@ int App::Run(const AppConfig& config)
 	}
 	LOGD("App initialized.");
 
-	f64 lastTime = glfwGetTime();
-	while (!glfwWindowShouldClose(g_app.window))
+	f64 lastTime = GetTime();
+	while (!WinShouldClose())
 	{
 		switch (g_app.frameOp)
 		{
@@ -1217,7 +894,7 @@ int App::Run(const AppConfig& config)
 		}
 		g_app.frameOp = FrameOp::NONE;
 
-		f64 currentTime = glfwGetTime();
+		f64 currentTime = GetTime();
 		f64 deltaTime = currentTime - lastTime;
 		lastTime = currentTime;
 
@@ -1241,17 +918,19 @@ void App::Reload()
 
 	LOGD("App reloading ...");
 
-	// Reload subsystems
-	GlReload();
-	SfxReload();
-	NetReload();
-
 	// Reload wren vm
 	if (g_app.vm != nullptr)
 		wren_shutdown();
 	wren_initialize();
 
-	// Application
+	// Reload subsystems
+	WinReload();
+	GlReload();
+	GuiReload();
+	SfxReload();
+	NetReload();
+
+	// Application API
 	WrenBindMethod("app", "App", true, "wait(_)",
 		[](ScriptVM* vm)
 		{
@@ -1266,659 +945,7 @@ void App::Reload()
 			WrenSetSlotBool(vm, 0, IsHeadless());
 		});
 
-	// Window
-	WrenBindMethod("app", "App", true, "winMode(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WinMode(WrenGetSlotInt(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "winCursor(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WinCursor(WrenGetSlotInt(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "winWidth",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 0);
-			WrenSetSlotInt(vm, 0, WinWidth());
-		});
-
-	WrenBindMethod("app", "App", true, "winHeight",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 0);
-			WrenSetSlotInt(vm, 0, WinHeight());
-		});
-
-	WrenBindMethod("app", "App", true, "winMouseX",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 0);
-			WrenSetSlotDouble(vm, 0, WinMouseX());
-		});
-
-	WrenBindMethod("app", "App", true, "winMouseY",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 0);
-			WrenSetSlotDouble(vm, 0, WinMouseY());
-		});
-
-	WrenBindMethod("app", "App", true, "winButton(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, WinButton(WrenGetSlotInt(vm, 1)));
-		});
-
-	WrenBindMethod("app", "App", true, "winKey(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, WinKey(WrenGetSlotInt(vm, 1)));
-		});
-
-	WrenBindMethod("app", "App", true, "winPadCount()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotInt(vm, 0, WinPadCount());
-		});
-
-	WrenBindMethod("app", "App", true, "winPadButton(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotBool(vm, 0, WinPadButton(WrenGetSlotInt(vm, 1), WrenGetSlotInt(vm, 2)));
-		});
-
-	WrenBindMethod("app", "App", true, "winPadAxis(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotFloat(vm, 0, WinPadAxis(WrenGetSlotInt(vm, 1), WrenGetSlotInt(vm, 2)));
-		});
-
-	WrenBindMethod("app", "App", true, "winClose()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 0);
-			WinClose();
-		});
-
-	// Graphics
-#define SCRIPT_ARGS_ARR(l, s, n, p, t) p l[n]; for (u8 i = 0; i < n; ++i) l[i] = WrenGetSlot##t##(vm, s + i + 1);
-
-	WrenBindMethod("app", "App", true, "glViewport(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			SCRIPT_ARGS_ARR(vi, 0, 2, i32, Int);
-			SCRIPT_ARGS_ARR(vu, 3, 2, u32, UInt);
-			GlViewport(vi[0], vi[1], vu[0], vu[1]);
-		});
-
-	WrenBindMethod("app", "App", true, "glScissor(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			SCRIPT_ARGS_ARR(vi, 0, 2, i32, Int);
-			SCRIPT_ARGS_ARR(vu, 3, 2, u32, UInt);
-			GlScissor(vi[0], vi[1], vu[0], vu[1]);
-		});
-
-	WrenBindMethod("app", "App", true, "glClear(_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 7);
-			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
-			GlClear(v[0], v[1], v[2], v[3], WrenGetSlotDouble(vm, 7), WrenGetSlotInt(vm, 7), WrenGetSlotUInt(vm, 7));
-		});
-
-	WrenBindMethod("app", "App", true, "glLoadShader(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto shader = GlLoadShader(WrenGetSlotString(vm, 1));
-			WrenSetSlotUInt(vm, 0, shader);
-		});
-
-	WrenBindMethod("app", "App", true, "glCreateShader(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto shader = GlCreateShader(WrenGetSlotString(vm, 1));
-			WrenSetSlotUInt(vm, 0, shader);
-		});
-
-	WrenBindMethod("app", "App", true, "glDestroyShader(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto shader = WrenGetSlotUInt(vm, 1);
-			GlDestroyShader(shader);
-		});
-
-	WrenBindMethod("app", "App", true, "glLoadImage(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			auto image = GlLoadImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
-			WrenSetSlotUInt(vm, 0, image);
-		});
-
-	//WrenBindMethod("app", "App", true, "glCreateImage(_,_)",
-	//	[](ScriptVM* vm)
-	//	{
-	//		WrenEnsureSlots(vm, 2);
-	//		auto image = GlCreateImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
-	//		WrenSetSlotUInt(vm, 0, image);
-	//	});
-
-	WrenBindMethod("app", "App", true, "glDestroyImage(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto image = WrenGetSlotUInt(vm, 1);
-			GlDestroyImage(image);
-		});
-
-	WrenBindMethod("app", "App", true, "glImageWidth(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto image = WrenGetSlotUInt(vm, 1);
-			WrenSetSlotInt(vm, 0, GlImageWidth(image));
-		});
-
-	WrenBindMethod("app", "App", true, "glImageHeight(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto image = WrenGetSlotUInt(vm, 1);
-			WrenSetSlotInt(vm, 0, GlImageHeight(image));
-		});
-
-	WrenBindMethod("app", "App", true, "glImageChannels(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto image = WrenGetSlotUInt(vm, 1);
-			WrenSetSlotInt(vm, 0, GlImageChannels(image));
-		});
-
-	WrenBindMethod("app", "App", true, "glLoadModel(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto model = GlLoadModel(WrenGetSlotString(vm, 1));
-			WrenSetSlotUInt(vm, 0, model);
-		});
-
-	WrenBindMethod("app", "App", true, "glDestroyModel(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto model = WrenGetSlotUInt(vm, 1);
-			GlDestroyModel(model);
-		});
-
-	WrenBindMethod("app", "App", true, "glCreateTexture(_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 7);
-			SCRIPT_ARGS_ARR(v, 0, 6, u32, UInt);
-			auto texture = GlCreateTexture(v[0], (TextureFormat)v[1], (TextureFilter)v[2], (TextureFilter)v[3], (TextureWrap)v[4], (TextureWrap)v[5], WrenGetSlotBool(vm, 7));
-			WrenSetSlotUInt(vm, 0, texture);
-		});
-
-	WrenBindMethod("app", "App", true, "glDestroyTexture(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto texture = WrenGetSlotUInt(vm, 1);
-			GlDestroyTexture(texture);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetShader(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto shader = WrenGetSlotUInt(vm, 1);
-			GlSetShader(shader);
-		});
-
-	WrenBindMethod("app", "App", true, "glBegin(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 3);
-			GlBegin(WrenGetSlotBool(vm, 1), WrenGetSlotBool(vm, 2), WrenGetSlotFloat(vm, 3), WrenGetSlotFloat(vm, 4));
-		});
-
-	WrenBindMethod("app", "App", true, "glEnd(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GlEnd(WrenGetSlotUInt(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "glSetUniform(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			const char* value = WrenGetSlotString(vm, 1);
-			GlSetUniform(value);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetTex2D(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			GlSetTex2D(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
-		});
-
-	WrenBindMethod("app", "App", true, "glSetFloat(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			f32 value = WrenGetSlotFloat(vm, 1);
-			GlSetFloat(value);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetVec2f(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			SCRIPT_ARGS_ARR(v, 0, 2, f32, Float);
-			GlSetVec2F(v[0], v[1]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetVec3f(_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 3);
-			SCRIPT_ARGS_ARR(v, 0, 3, f32, Float);
-			GlSetVec3F(v[0], v[1], v[2]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetVec4f(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
-			GlSetVec4F(v[0], v[1], v[2], v[3]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat2x2f(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
-			GlSetMat2x2F(v[0], v[1], v[2], v[3]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat2x3f(_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 6);
-			SCRIPT_ARGS_ARR(v, 0, 6, f32, Float);
-			GlSetMat2x3F(v[0], v[1], v[2], v[3], v[4], v[5]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat2x4f(_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 8);
-			SCRIPT_ARGS_ARR(v, 0, 8, f32, Float);
-			GlSetMat2x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat3x2f(_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 6);
-			SCRIPT_ARGS_ARR(v, 0, 6, f32, Float);
-			GlSetMat3x2F(v[0], v[1], v[2], v[3], v[4], v[5]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat3x3f(_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 9);
-			SCRIPT_ARGS_ARR(v, 0, 9, f32, Float);
-			GlSetMat3x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat3x4f(_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 12);
-			SCRIPT_ARGS_ARR(v, 0, 12, f32, Float);
-			GlSetMat3x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat4x2f(_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 8);
-			SCRIPT_ARGS_ARR(v, 0, 8, f32, Float);
-			GlSetMat4x2F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat4x3f(_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 12);
-			SCRIPT_ARGS_ARR(v, 0, 12, f32, Float);
-			GlSetMat4x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat4x4f(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 16);
-			SCRIPT_ARGS_ARR(v, 0, 16, f32, Float);
-			GlSetMat4x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
-		});
-
-	WrenBindMethod("app", "App", true, "glAddVertex(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 5);
-			SCRIPT_ARGS_ARR(p, 0, 4, f32, Float);
-			SCRIPT_ARGS_ARR(c, 4, 4, u32, UInt);
-			SCRIPT_ARGS_ARR(v, 8, 8, f32, Float);
-			GlAddVertex(
-				p[0], p[1], p[2], p[3], c[0], c[1], c[2], c[3],
-				v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
-		});
-
-	// Gui
-	WrenBindMethod("app", "App", true, "guiPushItemWidth(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiPushItemWidth(WrenGetSlotFloat(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "guiPopItemWidth()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiPopItemWidth();
-		});
-
-	WrenBindMethod("app", "App", true, "guiText(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiText(WrenGetSlotString(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "guiBool(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotBool(vm, 0, GuiBool(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiInt(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiInt(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2), WrenGetSlotInt(vm, 3), WrenGetSlotInt(vm, 4)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiFloat(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotFloat(vm, 0, GuiFloat(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiFloat(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotFloat(vm, 0, GuiFloat(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2), WrenGetSlotFloat(vm, 3), WrenGetSlotFloat(vm, 4)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiSeparator(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiSeparator(WrenGetSlotString(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "guiButton(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, GuiButton(WrenGetSlotString(vm, 1)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiSameLine()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiSameLine();
-		});
-
-	WrenBindMethod("app", "App", true, "guiContentAvailWidth()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotFloat(vm, 0, GuiContentAvailWidth());
-		});
-
-	WrenBindMethod("app", "App", true, "guiContentAvailHeight()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotFloat(vm, 0, GuiContentAvailHeight());
-		});
-
-	WrenBindMethod("app", "App", true, "guiBeginChild(_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 3);
-			WrenSetSlotBool(vm, 0, GuiBeginChild(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2), WrenGetSlotFloat(vm, 3)));
-		});
-
-	WrenBindMethod("app", "App", true, "guiEndChild()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			GuiEndChild();
-		});
-
-	// Audio
-	WrenBindMethod("app", "App", true, "sfxLoadAudio(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			u32 audio = SfxLoadAudio(WrenGetSlotString(vm, 1));
-			WrenSetSlotUInt(vm, 0, audio);
-		});
-
-	WrenBindMethod("app", "App", true, "sfxDestroyAudio(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			SfxDestroyAudio(WrenGetSlotUInt(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "sfxCreateChannel(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			u32 channel = SfxCreateChannel(WrenGetSlotFloat(vm, 1));
-			WrenSetSlotUInt(vm, 0, channel);
-		});
-
-	WrenBindMethod("app", "App", true, "sfxDestroyChannel(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			SfxDestroyChannel(WrenGetSlotUInt(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "sfxSetChannelVolume(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			SfxSetChannelVolume(WrenGetSlotUInt(vm, 1), WrenGetSlotFloat(vm, 2));
-		});
-
-	WrenBindMethod("app", "App", true, "sfxPlay(_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 3);
-			SfxPlay(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotBool(vm, 3));
-		});
-
-	WrenBindMethod("app", "App", true, "sfxStop(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			SfxStop(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
-		});
-
-	// Net
-	WrenBindMethod("app", "App", true, "netStartServer(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			NetStartServer(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3), WrenGetSlotUInt(vm, 4));
-		});
-
-	WrenBindMethod("app", "App", true, "netStopServer()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			NetStopServer();
-		});
-
-	WrenBindMethod("app", "App", true, "netConnectClient(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			u32 client = NetConnectClient(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3), WrenGetSlotUInt(vm, 4));
-			WrenSetSlotUInt(vm, 0, client);
-		});
-
-	WrenBindMethod("app", "App", true, "netDisconnectClient(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			NetDisconnectClient(WrenGetSlotUInt(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "netMakeUuid()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotUInt(vm, 0, NetMakeUUID());
-		});
-
-	WrenBindMethod("app", "App", true, "netIsServer()",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, NetIsServer());
-		});
-
-	WrenBindMethod("app", "App", true, "netIsClient(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			wrenSetSlotBool(vm, 0, NetIsClient(WrenGetSlotUInt(vm, 1)));
-		});
-
-	WrenBindMethod("app", "App", true, "netCreatePacket(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			auto packet = NetCreatePacket(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
-			WrenSetSlotUInt(vm, 0, packet);
-		});
-
-	WrenBindMethod("app", "App", true, "netPacketId(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			auto id = NetPacketId(WrenGetSlotUInt(vm, 1));
-			WrenSetSlotUInt(vm, 0, id);
-		});
-
-	WrenBindMethod("app", "App", true, "netBroadcast(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			NetBroadcast(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
-		});
-
-	WrenBindMethod("app", "App", true, "netSend(_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 3);
-			NetSend(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3));
-		});
-
-#define SCRIPT_NET_GET(Type)																					\
-	WrenBindMethod("app", "App", true, "netGet"#Type"(_,_)",											\
-	[](ScriptVM* vm)																					\
-		{																								\
-			WrenEnsureSlots(vm, 2);																		\
-			WrenSetSlot##Type(vm, 0, NetGet##Type(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2)));		\
-		});
-
-	SCRIPT_NET_GET(Bool);
-	SCRIPT_NET_GET(UInt);
-	SCRIPT_NET_GET(Int);
-	SCRIPT_NET_GET(Float);
-	SCRIPT_NET_GET(Double);
-
-	WrenBindMethod("app", "App", true, "netGetString(_,_)", 
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			wrenSetSlotString(vm, 0, NetGetString(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2)));
-		});
-
-#define SCRIPT_NET_SET(Type)																					\
-	WrenBindMethod("app", "App", true, "netSet"#Type"(_,_,_)",											\
-	[](ScriptVM* vm)																					\
-		{																								\
-			WrenEnsureSlots(vm, 3);																		\
-			NetSet##Type(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlot##Type(vm, 3));		\
-		});
-
-	SCRIPT_NET_SET(Bool);
-	SCRIPT_NET_SET(UInt);
-	SCRIPT_NET_SET(Int);
-	SCRIPT_NET_SET(Float);
-	SCRIPT_NET_SET(Double);
-
-	WrenBindMethod("app", "App", true, "netSetString(_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 3);
-			NetSetString(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotString(vm, 3));
-		});
-
+	// Load scripts in manifest
 	for (const auto& path : g_app.manifest)
 	{
 		static std::size_t main_hash = str_hash("main");

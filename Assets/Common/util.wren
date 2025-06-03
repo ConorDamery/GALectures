@@ -12,19 +12,19 @@ class Util {
 		var b = -t
 		var r = t * aspect
 		var l = -r
-		App.glUniform(name)
-		App.glMat3x2f(r, l, t, b, near, far)
+		App.glSetUniform(name)
+		App.glSetMat3x2f(r, l, t, b, near, far)
 	}
 
 	static glDrawOrigin(x, y, z) {
 		var s = 1
 		App.glBegin(true, true, 1, 1)
-		App.glVertex(x-s, y, z, 0x0F0000FF)
-		App.glVertex(x+s, y, z, App.glRed)
-		App.glVertex(x, y-s, z, 0x0F00FF00)
-		App.glVertex(x, y+s, z, App.glGreen)
-		App.glVertex(x, y, z-s, 0x0FFF0000)
-		App.glVertex(x, y, z+s, App.glBlue)
+		App.glAddVertex(x-s, y, z, 0x0F0000FF)
+		App.glAddVertex(x+s, y, z, App.glRed)
+		App.glAddVertex(x, y-s, z, 0x0F00FF00)
+		App.glAddVertex(x, y+s, z, App.glGreen)
+		App.glAddVertex(x, y, z-s, 0x0FFF0000)
+		App.glAddVertex(x, y, z+s, App.glBlue)
 		App.glEnd(App.glLines)
 	}
 
@@ -36,30 +36,30 @@ class Util {
 		x = x * size
 		var xRange = (size / gridSpacing).floor
 		for (i in -xRange..xRange) {
-			App.glVertex(x, i * gridSpacing, -size, App.glGray)
-			App.glVertex(x, i * gridSpacing,  size, App.glGray)
-			App.glVertex(x, -size, i * gridSpacing, App.glGray)
-			App.glVertex(x,  size, i * gridSpacing, App.glGray)
+			App.glAddVertex(x, i * gridSpacing, -size, App.glGray)
+			App.glAddVertex(x, i * gridSpacing,  size, App.glGray)
+			App.glAddVertex(x, -size, i * gridSpacing, App.glGray)
+			App.glAddVertex(x,  size, i * gridSpacing, App.glGray)
 		}
 
 		// Y plane
 		y = y * size
 		var yRange = (size / gridSpacing).floor
 		for (i in -yRange..yRange) {
-			App.glVertex(i * gridSpacing, y, -size, App.glGray)
-			App.glVertex(i * gridSpacing, y,  size, App.glGray)
-			App.glVertex(-size, y, i * gridSpacing, App.glGray)
-			App.glVertex( size, y, i * gridSpacing, App.glGray)
+			App.glAddVertex(i * gridSpacing, y, -size, App.glGray)
+			App.glAddVertex(i * gridSpacing, y,  size, App.glGray)
+			App.glAddVertex(-size, y, i * gridSpacing, App.glGray)
+			App.glAddVertex( size, y, i * gridSpacing, App.glGray)
 		}
 
 		// Z plane
 		z = z * size
 		var zRange = (size / gridSpacing).floor
 		for (i in -zRange..zRange) {
-			App.glVertex(i * gridSpacing, -size, z, App.glGray)
-			App.glVertex(i * gridSpacing,  size, z, App.glGray)
-			App.glVertex(-size, i * gridSpacing, z, App.glGray)
-			App.glVertex( size, i * gridSpacing, z, App.glGray)
+			App.glAddVertex(i * gridSpacing, -size, z, App.glGray)
+			App.glAddVertex(i * gridSpacing,  size, z, App.glGray)
+			App.glAddVertex(-size, i * gridSpacing, z, App.glGray)
+			App.glAddVertex( size, i * gridSpacing, z, App.glGray)
 		}
 
 		App.glEnd(App.glLines)

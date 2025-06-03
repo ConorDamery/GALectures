@@ -91,8 +91,6 @@ enum struct GlTopology : u32
 enum struct NetEvent : u32 { CONNECT = 0, RECEIVE = 1, DISCONNECT = 2, TIMEOUT = 3 };
 enum struct NetPacketMode : u32 { RELIABLE = BIT(1), UNSEQUENCED = BIT(2), UNREALIABLE = BIT(4) };
 
-using NetRelayFn = void (*)(bool, u32, u32, u32, u32, u32);
-
 // Script
 using ScriptVM = struct WrenVM;
 using ScriptHandle = struct WrenHandle;
@@ -123,24 +121,46 @@ private:
 	static bool Initialize(const AppConfig& config);
 	static void Shutdown();
 
+	static bool WinInitialize(const AppConfig& config);
+	static void WinShutdown();
+
 	static bool GlInitialize(const AppConfig& config);
 	static void GlShutdown();
 
-	static bool NetInitialize(NetRelayFn relayFn);
+	static bool GuiInitialize(const AppConfig& config);
+	static void GuiShutdown();
+
+	static bool NetInitialize(const AppConfig& config);
 	static void NetShutdown();
 
-	static bool SfxInitialize();
+	static bool SfxInitialize(const AppConfig& config);
 	static void SfxShutdown();
 
+	static bool GuiWinInitialize();
+	static bool GuiGlInitialize();
+	static void GuiWinShutdown();
+	static void GuiGlShutdown();
+	static void GuiWinNewFrame();
+	static void GuiGlNewFrame();
+	static void GuiGlRender();
+
 	static void Reload();
+	static void WinReload();
 	static void GlReload();
+	static void GuiReload();
 	static void NetReload();
 	static void SfxReload();
 
 	static void Update(f64 dt);
 	static void Render();
-	static void Netcode();
 
+	static void WinPollEvents();
+	static void WinSwapBuffers();
+	static bool WinShouldClose();
+
+	static void GuiRender();
+
+	static void Netcode();
 	static void NetRelay(bool server, u32 client, u32 event, u32 peer, u32 channel, u32 packet);
 
 public:
@@ -151,6 +171,7 @@ public:
 	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
 	static void LogClear();
 
+	static f64 GetTime();
 	static void Wait(u32 ms);
 	static bool IsHeadless();
 
@@ -163,6 +184,7 @@ public:
 
 	static void WinMode(i32 mode);
 	static void WinCursor(i32 cursor);
+	static void WinAlwaysOnTop(bool enabled);
 
 	static i32 WinWidth();
 	static i32 WinHeight();
@@ -364,7 +386,7 @@ public:
 	static void WrenSetSlotInt(ScriptVM* vm, i32 slot, i32 value);
 	static void WrenSetSlotFloat(ScriptVM* vm, i32 slot, f32 value);
 	static void WrenSetSlotDouble(ScriptVM* vm, i32 slot, f64 value);
-	//static const char* GetSlotString(ScriptVM* vm, i32 slot);
+	static void WrenSetSlotString(ScriptVM* vm, i32 slot, const char* str);
 	//static void* GetSlotObject(ScriptVM* vm, i32 slot);
 	//static const char* GetSlotBytes(ScriptVM* vm, i32 slot, i32* length);
 	static void* WrenSetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t size);

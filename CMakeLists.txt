@@ -18,11 +18,12 @@ add_library (Common STATIC
 	"Source/App.cpp"
     "Source/Backend/Win.cpp"
     "Source/Backend/Gl.cpp"
+    "Source/Backend/Gui.cpp"
     "Source/Backend/Sfx.cpp"
     "Source/Backend/Net.cpp"
 )
 target_link_libraries (Common stb cgltf miniaudio glfw enet_static glad imgui wren)
-target_include_directories (Common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source")
+target_include_directories (Common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Include")
 
 if(WIN32)
     set(ICON_RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/GASandbox.rc")

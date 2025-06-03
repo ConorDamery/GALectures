@@ -74,7 +74,7 @@ static void sfx_data_callback(ma_device* pDevice, void* pOutput, const void* pIn
     (void)pInput;
 }
 
-bool App::SfxInitialize()
+bool App::SfxInitialize(const AppConfig& config)
 {
     ma_device_config deviceConfig = ma_device_config_init(ma_device_type_playback);
     deviceConfig.playback.format = ma_format_f32;
@@ -116,6 +116,58 @@ void App::SfxReload()
 
     g_data.audios.clear();
     g_data.channels.clear();
+
+    // Audio API
+    WrenBindMethod("app", "App", true, "sfxLoadAudio(_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            u32 audio = SfxLoadAudio(WrenGetSlotString(vm, 1));
+            WrenSetSlotUInt(vm, 0, audio);
+        });
+
+    WrenBindMethod("app", "App", true, "sfxDestroyAudio(_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            SfxDestroyAudio(WrenGetSlotUInt(vm, 1));
+        });
+
+    WrenBindMethod("app", "App", true, "sfxCreateChannel(_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            u32 channel = SfxCreateChannel(WrenGetSlotFloat(vm, 1));
+            WrenSetSlotUInt(vm, 0, channel);
+        });
+
+    WrenBindMethod("app", "App", true, "sfxDestroyChannel(_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 1);
+            SfxDestroyChannel(WrenGetSlotUInt(vm, 1));
+        });
+
+    WrenBindMethod("app", "App", true, "sfxSetChannelVolume(_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 2);
+            SfxSetChannelVolume(WrenGetSlotUInt(vm, 1), WrenGetSlotFloat(vm, 2));
+        });
+
+    WrenBindMethod("app", "App", true, "sfxPlay(_,_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 3);
+            SfxPlay(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotBool(vm, 3));
+        });
+
+    WrenBindMethod("app", "App", true, "sfxStop(_,_)",
+        [](ScriptVM* vm)
+        {
+            WrenEnsureSlots(vm, 2);
+            SfxStop(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+        });
 }
 
 static SfxChannel* sfx_get_channel(u32 channel)

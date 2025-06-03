@@ -9,7 +9,7 @@ class State {
 		_timeReverse = false
 		_camX = 0
 		_camY = 0
-
+		
 		World.init()
 		_world = World.new(Vec2.new(0, -10))
 
