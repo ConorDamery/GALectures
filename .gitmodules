@@ -22,3 +22,9 @@
 [submodule "ThirdParty/enet"]
 	path = ThirdParty/enet
 	url = https://github.com/zpl-c/enet.git
+[submodule "ThirdParty/cereal"]
+	path = ThirdParty/cereal
+	url = https://github.com/USCiLab/cereal.git
+[submodule "ThirdParty/filesystem"]
+	path = ThirdParty/filesystem
+	url = https://github.com/gulrak/filesystem.git

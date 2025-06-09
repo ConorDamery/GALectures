@@ -3,7 +3,7 @@
 ## **Introduction**  
 **GA Sandbox** is a hobby project designed for **game developers** who want to explore **Geometric Algebra (GA)** in an environment that feels familiar to game development.  
 
-The application supports **scripting via Wren**, providing a simple and efficient way to interact with the engine.  
+The application supports **scripting via [Wren](https://wren.io/)**, providing a simple and efficient way to interact with the engine.  
 
 ### **Recommended Resources for Learning GA**  
 - [bivector.net](https://bivector.net/) — Introductory site for geometric algebra concepts  
@@ -16,7 +16,7 @@ The application supports **scripting via Wren**, providing a simple and efficien
 ## **Getting Started**  
 - **Scripting**: The entire engine is exposed to Wren through a single class called `App`.  
 - **Documentation**: The `App` class contains **well-documented functions** with explicit type information, ensuring clarity on what the native code expects.  
-- **Wren Docs**: For more information about Wren, visit their official documentation: [https://wren.io/](https://wren.io/)  
+- **Wren Docs**: For more information about Wren, visit their [official documentation](https://wren.io/).
 
 ## **Creating a Scene**  
 To create and display a custom scene in **GA Sandbox**, follow these steps:  

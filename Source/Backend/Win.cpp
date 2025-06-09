@@ -4,7 +4,7 @@
 #include <GLFW/glfw3native.h>
 #include <backends/imgui_impl_glfw.h>
 
-struct State
+struct WinGlobal
 {
 	// Window
 	GLFWwindow* window{ nullptr };
@@ -13,7 +13,7 @@ struct State
 	int winWidth{ 0 }, winHeight{ 0 };
 };
 
-static State g_state{};
+static WinGlobal g{};
 
 static void glfw_error_callback(int i, const char* c)
 {
@@ -29,7 +29,7 @@ bool App::WinInitialize(const AppConfig& config)
 		return false;
 	}
 
-	g_state.winMode = config.windowMode;
+	g.winMode = config.windowMode;
 
 	GLFWmonitor* pMonitor = nullptr;
 	i32 width = config.width;
@@ -47,7 +47,7 @@ bool App::WinInitialize(const AppConfig& config)
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_SAMPLES, config.msaa);
 
-	if (g_state.winMode == WindowMode::FULLSCREEN)
+	if (g.winMode == WindowMode::FULLSCREEN)
 	{
 		pMonitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* pMode = glfwGetVideoMode(pMonitor);
@@ -60,27 +60,27 @@ bool App::WinInitialize(const AppConfig& config)
 		glfwWindowHint(GLFW_REFRESH_RATE, pMode->refreshRate);
 	}
 
-	g_state.window = glfwCreateWindow(width, height, config.title, pMonitor, NULL);
-	if (g_state.window == NULL)
+	g.window = glfwCreateWindow(width, height, config.title, pMonitor, NULL);
+	if (g.window == NULL)
 	{
 		LOGE("Failed to create GLFW window!");
 		return false;
 	}
 
-	glfwMakeContextCurrent(g_state.window);
+	glfwMakeContextCurrent(g.window);
 	glfwSwapInterval(1);
 
-	if (g_state.winMode == WindowMode::BORDERLESS)
+	if (g.winMode == WindowMode::BORDERLESS)
 	{
 		GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
 
-		glfwSetWindowAttrib(g_state.window, GLFW_DECORATED, GLFW_FALSE);
-		glfwSetWindowPos(g_state.window, 0, 0);
-		glfwSetWindowSize(g_state.window, mode->width, mode->height);
+		glfwSetWindowAttrib(g.window, GLFW_DECORATED, GLFW_FALSE);
+		glfwSetWindowPos(g.window, 0, 0);
+		glfwSetWindowSize(g.window, mode->width, mode->height);
 	}
 
-	glfwSetInputMode(g_state.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+	glfwSetInputMode(g.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
 	// Set icon
 	GLFWimage icon;
@@ -92,7 +92,7 @@ bool App::WinInitialize(const AppConfig& config)
 		icon.height = App::GlImageHeight(img);
 		icon.pixels = App::GlImageData(img);
 
-		glfwSetWindowIcon(g_state.window, 1, &icon);
+		glfwSetWindowIcon(g.window, 1, &icon);
 		App::GlDestroyImage(img);
 	}
 	else
@@ -105,7 +105,7 @@ bool App::WinInitialize(const AppConfig& config)
 
 void App::WinShutdown()
 {
-	glfwDestroyWindow(g_state.window);
+	glfwDestroyWindow(g.window);
 	glfwTerminate();
 }
 
@@ -207,7 +207,7 @@ void App::WinReload()
 // Window
 bool App::GuiWinInitialize()
 {
-	return ImGui_ImplGlfw_InitForOpenGL(g_state.window, true);
+	return ImGui_ImplGlfw_InitForOpenGL(g.window, true);
 }
 
 void App::GuiWinShutdown()
@@ -227,12 +227,12 @@ void App::WinPollEvents()
 
 bool App::WinShouldClose()
 {
-	return glfwWindowShouldClose(g_state.window);
+	return glfwWindowShouldClose(g.window);
 }
 
 void App::WinSwapBuffers()
 {
-	glfwSwapBuffers(g_state.window);
+	glfwSwapBuffers(g.window);
 }
 
 f64 App::GetTime()
@@ -248,88 +248,88 @@ void* App::WinGetProcAddress(const char* procname)
 void App::WinMode(i32 mode)
 {
 	auto winMode = (WindowMode)mode;
-	if (winMode == g_state.winMode)
+	if (winMode == g.winMode)
 		return;
 
 	GLFWmonitor* pMonitor = glfwGetPrimaryMonitor();
 	const GLFWvidmode* vidmode = glfwGetVideoMode(pMonitor);
 
-	g_state.winMode = winMode;
-	switch (g_state.winMode)
+	g.winMode = winMode;
+	switch (g.winMode)
 	{
 	case WindowMode::FULLSCREEN:
-		glfwGetWindowPos(g_state.window, &g_state.winX, &g_state.winY);
-		glfwGetWindowSize(g_state.window, &g_state.winWidth, &g_state.winHeight);
+		glfwGetWindowPos(g.window, &g.winX, &g.winY);
+		glfwGetWindowSize(g.window, &g.winWidth, &g.winHeight);
 
-		glfwSetWindowMonitor(g_state.window, pMonitor, 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
+		glfwSetWindowMonitor(g.window, pMonitor, 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
 		break;
 
 	case WindowMode::BORDERLESS:
-		glfwGetWindowPos(g_state.window, &g_state.winX, &g_state.winY);
-		glfwGetWindowSize(g_state.window, &g_state.winWidth, &g_state.winHeight);
+		glfwGetWindowPos(g.window, &g.winX, &g.winY);
+		glfwGetWindowSize(g.window, &g.winWidth, &g.winHeight);
 
-		glfwSetWindowAttrib(g_state.window, GLFW_DECORATED, GLFW_FALSE);
-		glfwSetWindowPos(g_state.window, 0, 0);
-		glfwSetWindowSize(g_state.window, vidmode->width, vidmode->height);
+		glfwSetWindowAttrib(g.window, GLFW_DECORATED, GLFW_FALSE);
+		glfwSetWindowPos(g.window, 0, 0);
+		glfwSetWindowSize(g.window, vidmode->width, vidmode->height);
 		break;
 
 	case WindowMode::UNDECORATED:
-		glfwSetWindowAttrib(g_state.window, GLFW_DECORATED, GLFW_FALSE);
+		glfwSetWindowAttrib(g.window, GLFW_DECORATED, GLFW_FALSE);
 		break;
 
 	default:
-		glfwSetWindowMonitor(g_state.window, nullptr, g_state.winX, g_state.winY, g_state.winWidth, g_state.winHeight, 0);
-		glfwSetWindowAttrib(g_state.window, GLFW_DECORATED, GLFW_TRUE);
+		glfwSetWindowMonitor(g.window, nullptr, g.winX, g.winY, g.winWidth, g.winHeight, 0);
+		glfwSetWindowAttrib(g.window, GLFW_DECORATED, GLFW_TRUE);
 	}
 }
 
 void App::WinCursor(i32 cursor)
 {
-	glfwSetInputMode(g_state.window, GLFW_CURSOR, cursor);
+	glfwSetInputMode(g.window, GLFW_CURSOR, cursor);
 }
 
 void App::WinAlwaysOnTop(bool enabled)
 {
-	glfwSetWindowAttrib(g_state.window, GLFW_FLOATING, enabled ? GLFW_TRUE : GLFW_FALSE);
+	glfwSetWindowAttrib(g.window, GLFW_FLOATING, enabled ? GLFW_TRUE : GLFW_FALSE);
 }
 
 i32 App::WinWidth()
 {
 	i32 w, h;
-	glfwGetWindowSize(g_state.window, &w, &h);
+	glfwGetWindowSize(g.window, &w, &h);
 	return w;
 }
 
 i32 App::WinHeight()
 {
 	i32 w, h;
-	glfwGetWindowSize(g_state.window, &w, &h);
+	glfwGetWindowSize(g.window, &w, &h);
 	return h;
 }
 
 f64 App::WinMouseX()
 {
 	f64 x, y;
-	glfwGetCursorPos(g_state.window, &x, &y);
+	glfwGetCursorPos(g.window, &x, &y);
 	return x;
 }
 
 f64 App::WinMouseY()
 {
 	f64 x, y;
-	glfwGetCursorPos(g_state.window, &x, &y);
+	glfwGetCursorPos(g.window, &x, &y);
 	return y;
 }
 
 bool App::WinButton(i32 b)
 {
-	return glfwGetMouseButton(g_state.window, b) == GLFW_PRESS;
+	return glfwGetMouseButton(g.window, b) == GLFW_PRESS;
 }
 
 bool App::WinKey(i32 k)
 {
 	GLFW_KEY_W;
-	return glfwGetKey(g_state.window, k) == GLFW_PRESS;
+	return glfwGetKey(g.window, k) == GLFW_PRESS;
 }
 
 i32 App::WinPadCount()
@@ -360,5 +360,5 @@ f32 App::WinPadAxis(i32 i, i32 a)
 
 void App::WinClose()
 {
-	glfwSetWindowShouldClose(g_state.window, GLFW_TRUE);
+	glfwSetWindowShouldClose(g.window, GLFW_TRUE);
 }

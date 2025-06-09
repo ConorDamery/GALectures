@@ -443,6 +443,9 @@ class App {
 	// TODO
 	foreign static guiText(text)
 
+	// TODO
+	foreign static guiAbsText(text, x, y, c)
+
     // Creates a GUI checkbox.
     //
     // @param label (string) The label of the checkbox.

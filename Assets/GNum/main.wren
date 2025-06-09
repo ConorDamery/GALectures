@@ -1,5 +1,5 @@
 import "app" for App
-import "gnum" for Point, Complex
+import "gnum" for Complex
 
 class Util {
     static glDrawGrid(width, height, depth, resolution, color) {
@@ -31,7 +31,6 @@ class State {
 		_camY = 0
 
         _c = Complex.new(0.5, Num.pi/4)
-        _p = Point.new(0.919, 0.394)
 		_mode = 0
     }
 
@@ -44,8 +43,6 @@ class State {
             App.guiSeparator("Data")
             _c.r = App.guiFloat("c.s", _c.r)
             _c.i = App.guiFloat("c.e12", _c.i)
-            _p.x = App.guiFloat("p.e01", _p.x)
-            _p.y = App.guiFloat("p.e02", _p.y)
 			
 			App.guiSeparator("Formula")
 			_mode = App.guiInt("Mode", _mode, 0, 3)
@@ -71,11 +68,10 @@ class State {
         Util.glDrawGrid(20, 20, 0.5, 20, App.glGray)
 
 		_c.glDraw(0xFF00FFFF)
-		_p.glDraw(0xFFFFFF00)
 
 		//System.print((_c*~_c).toString)
 
-		if (_mode == 0) {
+		/*if (_mode == 0) {
 			var c = _c * _p
 			c.glDraw(0xFFFFFFFF)
 
@@ -121,7 +117,7 @@ class State {
 				App.glAddVertex(x.x, x.y, 0, 0xA0FFFFFF)
 			}
 			App.glEnd(App.glLines)	
-		}
+		}*/
 	}
 }
 

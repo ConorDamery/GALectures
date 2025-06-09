@@ -34,18 +34,17 @@ struct SfxChannel
     std::vector<SfxInstance> instances;
 };
 
-struct SfxData
+struct SfxGlobal
 {
     ma_device device{};
     std::vector<SfxAudio> audios{};
     std::vector<SfxChannel> channels{};
 };
-
-static SfxData g_data;
+static SfxGlobal g;
 
 static void sfx_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-    auto* data = static_cast<SfxData*>(pDevice->pUserData);
+    auto* data = static_cast<SfxGlobal*>(pDevice->pUserData);
     float* out = static_cast<float*>(pOutput);
     std::memset(out, 0, frameCount * sizeof(float) * 2);
 
@@ -81,26 +80,26 @@ bool App::SfxInitialize(const AppConfig& config)
     deviceConfig.playback.channels = 2;
     deviceConfig.sampleRate = 48000;
     deviceConfig.dataCallback = sfx_data_callback;
-    deviceConfig.pUserData = &g_data;
+    deviceConfig.pUserData = &g;
 
-    if (ma_device_init(nullptr, &deviceConfig, &g_data.device) != MA_SUCCESS)
+    if (ma_device_init(nullptr, &deviceConfig, &g.device) != MA_SUCCESS)
     {
         LOGE("Failed to initialize playback device.");
         return false;
     }
-    ma_device_start(&g_data.device);
+    ma_device_start(&g.device);
     return true;
 }
 
 void App::SfxShutdown()
 {
     SfxReload();
-    ma_device_uninit(&g_data.device);
+    ma_device_uninit(&g.device);
 }
 
 void App::SfxReload()
 {
-    for (auto& channel : g_data.channels)
+    for (auto& channel : g.channels)
     {
         for (auto& inst : channel.instances)
         {
@@ -109,13 +108,13 @@ void App::SfxReload()
         channel.instances.clear();
     }
 
-    for (auto& audio : g_data.audios)
+    for (auto& audio : g.audios)
     {
         ma_decoder_uninit(&audio.decoder);
     }
 
-    g_data.audios.clear();
-    g_data.channels.clear();
+    g.audios.clear();
+    g.channels.clear();
 
     // Audio API
     WrenBindMethod("app", "App", true, "sfxLoadAudio(_)",
@@ -172,24 +171,24 @@ void App::SfxReload()
 
 static SfxChannel* sfx_get_channel(u32 channel)
 {
-    if (channel == 0 || channel > g_data.channels.size())
+    if (channel == 0 || channel > g.channels.size())
     {
         LOGW("Invalid channel handle!");
         return nullptr;
     }
 
-    return &g_data.channels[static_cast<size_t>(channel) - 1];
+    return &g.channels[static_cast<size_t>(channel) - 1];
 }
 
 static SfxAudio* sfx_get_audio(u32 audio)
 {
-    if (audio == 0 || audio > g_data.audios.size())
+    if (audio == 0 || audio > g.audios.size())
     {
         LOGW("Invalid audio handle!");
         return nullptr;
     }
 
-    return &g_data.audios[static_cast<size_t>(audio) - 1];
+    return &g.audios[static_cast<size_t>(audio) - 1];
 }
 
 u32 App::SfxLoadAudio(const char* filepath)
@@ -205,8 +204,8 @@ u32 App::SfxLoadAudio(const char* filepath)
         return 0;
     }
 
-    g_data.audios.push_back(audio);
-    return static_cast<u32>(g_data.audios.size());
+    g.audios.push_back(audio);
+    return static_cast<u32>(g.audios.size());
 }
 
 void App::SfxDestroyAudio(u32 audio)
@@ -219,8 +218,8 @@ void App::SfxDestroyAudio(u32 audio)
 
 u32 App::SfxCreateChannel(f32 volume)
 {
-    g_data.channels.emplace_back(SfxChannel{ volume, true });
-    return static_cast<u32>(g_data.channels.size());
+    g.channels.emplace_back(SfxChannel{ volume, true });
+    return static_cast<u32>(g.channels.size());
 }
 
 void App::SfxDestroyChannel(u32 channel)

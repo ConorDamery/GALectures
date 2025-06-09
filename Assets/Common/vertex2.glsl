@@ -14,7 +14,8 @@ out vec4 Frag_Color;
 void main()
 {
 	Frag_Color = Col0;
-	gl_Position = vec4((Pos.x - Proj.x) / Proj.z, Pos.y - Proj.y, Pos.z, Proj.w);
+	vec4 position = vec4((Pos.x - Proj.x) / Proj.z, Pos.y - Proj.y, Pos.z, Proj.w);
+	gl_Position = vec4(position.xyz / Pos.w, position.w);
 }
 #endif
 

@@ -132,13 +132,14 @@ class Line2 {
     // TODO?
 
 	// Normalization
+    norm_sq { e1*e1 + e2*e2 }
     normalized {
-        var norm = e1*e1 + e2*e2
-        if (norm == 0) {
+        var n = this.norm_sq
+        if (n == 0) {
             return Line2.new(0, 0, 0)
         } else {
-            norm = 1 / norm.sqrt
-            return this * norm
+            n = 1 / n.sqrt
+            return this * n
         }
     }
 
@@ -312,17 +313,27 @@ class Point2 {
 	// TODO?
 
     // Normalization
+    norm_sq { e12 == 0 ? e20*e20 + e01*e01 : e12*e12 }
     normalized {
-        var norm = e12*e12
-        if (norm == 0) {
+        var n = this.norm_sq
+        if (n == 0) {
             return Point2.new(0, 0, 0)
         } else {
-            norm = 1 / norm.sqrt
-            return this * norm
+            n = 1 / n.sqrt
+            return this * n
         }
     }
 
 	// Exponentiation
+    exp(b) {
+        var a = b * 0.5
+        if (e12 != 0) {
+            var s = a.sin
+            return Motor2.new(a.cos, s * e01, s * -e20, s * e12)
+        }
+        return Motor2.new(1, a * e01, a * -e20, 0)
+    }
+
 	// Logarithm
 
     proj(b) { (this | b) ^ b }
@@ -340,8 +351,11 @@ class Point2 {
     }
 
     glDraw(color) {
+        var n = e12 != 0 ? 1 / e12 : 1
+        App.guiAbsText(toString, 100, 100, 0xFFFFFFFF)
+
         App.glBegin(true, true, 10, 2)
-        App.glAddVertex(e20, e01, 0, color)
+        App.glAddVertex(e20, e01, 0, e12, color, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         App.glEnd(App.glPoints)
     }
 
@@ -580,6 +594,8 @@ class Motor2 {
 	// Normalization
 	// Exponentiation
 	// Logarithm
+
+    sqrt {  }
 
     glSetUniform(name) {
         App.glSetUniform(name)

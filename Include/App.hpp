@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 // Macros
 #define XSTR(x) #x
@@ -49,6 +50,23 @@ using i64 = int64_t;
 
 using f32 = float;
 using f64 = double;
+
+using SizeType = size_t;
+
+using CString = const char*;
+using String = std::string;
+
+// File
+struct FileInfo
+{
+	std::string path{};
+	std::string name{};
+	std::string ext{};
+
+	SizeType pathHash{ 0 };
+	SizeType nameHash{ 0 };
+	SizeType extHash{ 0 };
+};
 
 // Window
 enum struct WindowMode { WINDOWED = 0, UNDECORATED = 1, BORDERLESS = 2, FULLSCREEN = 3 };
@@ -104,12 +122,10 @@ struct ScriptClass
 };
 
 // Application
-enum struct FrameOp { NONE, RELOAD };
-
 struct AppConfig
 {
-	i32 width{ 800 }, height{ 600 };
 	const char* title{ nullptr };
+	i32 width{ 800 }, height{ 600 };
 	WindowMode windowMode{ WindowMode::WINDOWED };
 	i32 msaa{ 8 };
 	bool headless{ false };
@@ -118,23 +134,29 @@ struct AppConfig
 class App
 {
 private:
+	static bool Configure(int argc, char** args, AppConfig& config);
+
 	static bool Initialize(const AppConfig& config);
 	static void Shutdown();
 
+	static bool FileInitialize(const AppConfig& config);
+	static void FileShutdown();
+
+	static const std::vector<FileInfo>& FileGetIndex();
+	static const std::vector<FileInfo>& FileGetManifest();
+
 	static bool WinInitialize(const AppConfig& config);
 	static void WinShutdown();
+
+	static void WinPollEvents();
+	static void WinSwapBuffers();
+	static bool WinShouldClose();
 
 	static bool GlInitialize(const AppConfig& config);
 	static void GlShutdown();
 
 	static bool GuiInitialize(const AppConfig& config);
 	static void GuiShutdown();
-
-	static bool NetInitialize(const AppConfig& config);
-	static void NetShutdown();
-
-	static bool SfxInitialize(const AppConfig& config);
-	static void SfxShutdown();
 
 	static bool GuiWinInitialize();
 	static bool GuiGlInitialize();
@@ -144,30 +166,46 @@ private:
 	static void GuiGlNewFrame();
 	static void GuiGlRender();
 
-	static void Reload();
+	static void GuiSaveStyle();
+	static void GuiLoadStyle();
+	static void GuiResetStyle();
+	static void GuiRender();
+
+	static bool NetInitialize(const AppConfig& config);
+	static void NetShutdown();
+
+	static bool SfxInitialize(const AppConfig& config);
+	static void SfxShutdown();
+
+	static bool WrenInitialize(const AppConfig& config);
+	static void WrenShutdown();
+
+	static void WrenCollectGarbage();
+	static SizeType WrenBytesAllocated();
+
+	static bool WrenIsPaused();
+	static void WrenTogglePaused();
+
+	static void WrenUpdate(f64 dt);
+	static void WrenRender();
+	static void WrenNetcode(bool server, u32 client, u32 event, u32 peer, u32 channel, u32 packet);
+	
+	static void Reload(const AppConfig& config);
 	static void WinReload();
 	static void GlReload();
 	static void GuiReload();
 	static void NetReload();
 	static void SfxReload();
+	static void WrenReload();
 
 	static void Update(f64 dt);
 	static void Render();
 
-	static void WinPollEvents();
-	static void WinSwapBuffers();
-	static bool WinShouldClose();
-
-	static void GuiRender();
-
-	static void Netcode();
-	static void NetRelay(bool server, u32 client, u32 event, u32 peer, u32 channel, u32 packet);
-
 public:
-	static int Run(const AppConfig& config);
+	static int Run(int argc, char** args);
 
 	// Util
-	static void SetFrameOp(FrameOp op);
+	static void QueueReload();
 	static void Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...);
 	static void LogClear();
 
@@ -175,6 +213,7 @@ public:
 	static void Wait(u32 ms);
 	static bool IsHeadless();
 
+	static FileInfo FileGetInfo(const char* filepath);
 	static const char* FilePath(const char* filepath);
 	static std::string FileLoad(const char* filepath);
 	static void FileSave(const char* filepath, const std::string& src);
@@ -299,6 +338,7 @@ public:
 	static void GuiPushItemWidth(f32 w);
 	static void GuiPopItemWidth();
 	static void GuiText(const char* text);
+	static void GuiAbsText(const char* text, f32 x, f32 y, u32 c);
 	static bool GuiBool(const char* label, bool v);
 	static i32 GuiInt(const char* label, i32 i);
 	static i32 GuiInt(const char* label, i32 i, i32 min, i32 max);

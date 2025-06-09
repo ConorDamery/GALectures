@@ -9,7 +9,7 @@
 #include <chrono>
 #include <vector>
 
-using NetRelayFn = void (*)(bool, u32, u32, u32, u32, u32);
+using NetcodeFn = void (*)(bool, u32, u32, u32, u32, u32);
 
 struct NetPacket
 {
@@ -24,9 +24,9 @@ struct NetClient
     ENetPeer* peer{ nullptr };
 };
 
-struct State
+struct NetGlobal
 {
-    NetRelayFn relayFn{ nullptr };
+    NetcodeFn netcodeFn{ nullptr };
 
     ENetHost* server{ nullptr };
     std::vector<ENetPeer*> peers;
@@ -36,7 +36,7 @@ struct State
     std::vector<NetPacket> packets{};
 };
 
-static State g_state{};
+static NetGlobal g{};
 
 static ENetPacket* net_create_packet(const NetPacket& packet, NetPacketMode mode)
 {
@@ -62,7 +62,7 @@ static NetPacket net_receive_packet(ENetPacket* packet)
     NetPacket received{};
 
     // Ensure packet is large enough to contain `id` and `size`
-    const std::size_t headerSize = sizeof(NetPacket::id) + sizeof(NetPacket::size);
+    const SizeType headerSize = sizeof(NetPacket::id) + sizeof(NetPacket::size);
     if (packet->dataLength >= headerSize)
     {
         u32 offset = 0;
@@ -94,14 +94,14 @@ static void net_connect(const ENetEvent& e, bool server, u32 client)
     if (server)
     {
         LOGD("A new peer with ID %u connected from ::1:%u.", e.peer->incomingPeerID, e.peer->address.port);
-        g_state.peers[e.peer->incomingPeerID] = e.peer;
+        g.peers[e.peer->incomingPeerID] = e.peer;
     }
     else
     {
         LOGD("Client connected!");
     }
 
-    g_state.relayFn(server, client, (u32)NetEvent::CONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g.netcodeFn(server, client, (u32)NetEvent::CONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
 }
 
 static void net_receive(const ENetEvent& e, bool server, u32 client)
@@ -110,8 +110,8 @@ static void net_receive(const ENetEvent& e, bool server, u32 client)
 
     if (received.data != nullptr)
     {
-        g_state.packets.emplace_back(received);
-        g_state.relayFn(server, client, (u32)NetEvent::RECEIVE, (u32)e.peer->incomingPeerID, e.channelID, (u32)(g_state.packets.size() - 1));
+        g.packets.emplace_back(received);
+        g.netcodeFn(server, client, (u32)NetEvent::RECEIVE, (u32)e.peer->incomingPeerID, e.channelID, (u32)(g.packets.size() - 1));
     }
 
     enet_packet_destroy(e.packet);
@@ -119,7 +119,7 @@ static void net_receive(const ENetEvent& e, bool server, u32 client)
 
 static void net_disconnect(const ENetEvent& e, bool server, u32 client)
 {
-    g_state.relayFn(server, client, (u32)NetEvent::DISCONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g.netcodeFn(server, client, (u32)NetEvent::DISCONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
 
     if (server)
     {
@@ -135,7 +135,7 @@ static void net_disconnect(const ENetEvent& e, bool server, u32 client)
 
 static void net_timeout(const ENetEvent& e, bool server, u32 client)
 {
-    g_state.relayFn(server, client, (u32)NetEvent::TIMEOUT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g.netcodeFn(server, client, (u32)NetEvent::TIMEOUT, (u32)e.peer->incomingPeerID, e.channelID, -1);
 
     if (server)
     {
@@ -151,7 +151,7 @@ static void net_timeout(const ENetEvent& e, bool server, u32 client)
 
 static bool net_validate_packet(u32 packet)
 {
-    if (packet >= g_state.packets.size())
+    if (packet >= g.packets.size())
     {
         LOGW("Attempting to access invalid packet!");
         return false;
@@ -177,7 +177,7 @@ bool App::NetInitialize(const AppConfig& config)
         return false;
     }
 
-    g_state.relayFn = App::NetRelay;
+    g.netcodeFn = App::WrenNetcode;
     return true;
 }
 
@@ -189,7 +189,7 @@ void App::NetShutdown()
 
 void App::NetReload()
 {
-    for (u32 i = 0; i < g_state.clients.size(); i++)
+    for (u32 i = 0; i < g.clients.size(); i++)
         NetDisconnectClient(i);
 
     if (NetIsServer())
@@ -332,14 +332,14 @@ void App::NetStartServer(const char* ip, u32 port, u32 peerCount, u32 channelLim
         enet_address_set_host(&address, ip);
     address.port = port;
 
-    g_state.server = enet_host_create(&address, peerCount, channelLimit, 0, 0);
-    if (g_state.server == nullptr)
+    g.server = enet_host_create(&address, peerCount, channelLimit, 0, 0);
+    if (g.server == nullptr)
     {
         LOGE("Failed to create an ENet server.");
     }
     
-    g_state.peers.clear();
-    g_state.peers.resize(peerCount);
+    g.peers.clear();
+    g.peers.resize(peerCount);
     LOGD("Server successfully started on: %d", address.port);
 }
 
@@ -348,8 +348,8 @@ void App::NetStopServer()
     if (!NetIsServer())
         return;
 
-    enet_host_destroy(g_state.server);
-    g_state.server = nullptr;
+    enet_host_destroy(g.server);
+    g.server = nullptr;
 }
 
 u32 App::NetConnectClient(const char* ip, u32 port, u32 peerCount, u32 channelLimit)
@@ -376,8 +376,8 @@ u32 App::NetConnectClient(const char* ip, u32 port, u32 peerCount, u32 channelLi
     }
 
     LOGD("Client attempting to connect...");
-    g_state.clients.emplace_back(client);
-    return (u32)g_state.clients.size() - 1;
+    g.clients.emplace_back(client);
+    return (u32)g.clients.size() - 1;
 }
 
 void App::NetDisconnectClient(u32 client)
@@ -385,7 +385,7 @@ void App::NetDisconnectClient(u32 client)
     if (!NetIsClient(client))
         return;
 
-    auto& c = g_state.clients[client];
+    auto& c = g.clients[client];
     enet_peer_disconnect(c.peer, 0);
     enet_peer_reset(c.peer);
     enet_host_destroy(c.client);
@@ -402,13 +402,13 @@ u32 App::NetMakeUUID()
     return static_cast<u32>(uuid64) ^ static_cast<u32>(uuid64 >> 32);
 }
 
-bool App::NetIsServer() { return g_state.server != nullptr; }
+bool App::NetIsServer() { return g.server != nullptr; }
 
 bool App::NetIsClient(u32 client)
 {
-    if (client >= g_state.clients.size())
+    if (client >= g.clients.size())
         return false;
-    const auto& c = g_state.clients[client];
+    const auto& c = g.clients[client];
     return c.client != nullptr && c.peer != nullptr;
 }
 
@@ -418,15 +418,15 @@ u32 App::NetCreatePacket(u32 id, u32 size)
     memcpy(&packet.id, &id, sizeof(packet.id)); // Copy only the actual data
     packet.size = size;
     packet.data = new char[size];
-    g_state.packets.emplace_back(std::move(packet));
-    return (u32)(g_state.packets.size() - 1);
+    g.packets.emplace_back(std::move(packet));
+    return (u32)(g.packets.size() - 1);
 }
 
 u32 App::NetPacketId(u32 packet)
 {
     if (!net_validate_packet(packet))
         return -1;
-    return g_state.packets[packet].id;
+    return g.packets[packet].id;
 }
 
 void App::NetBroadcast(u32 packet, u32 mode)
@@ -441,12 +441,12 @@ void App::NetBroadcast(u32 packet, u32 mode)
         return;
     }
 
-    for (auto peer : g_state.peers)
+    for (auto peer : g.peers)
     {
         if (peer != nullptr)
-            enet_peer_send(peer, 0, net_create_packet(g_state.packets[packet], (NetPacketMode)mode));
+            enet_peer_send(peer, 0, net_create_packet(g.packets[packet], (NetPacketMode)mode));
     }
-    enet_host_flush(g_state.server);
+    enet_host_flush(g.server);
 }
 
 void App::NetSend(u32 client, u32 packet, u32 mode)
@@ -462,17 +462,17 @@ void App::NetSend(u32 client, u32 packet, u32 mode)
     }
 
     // Send to the peer
-    const auto& c = g_state.clients[client];
-    enet_peer_send(c.peer, 0, net_create_packet(g_state.packets[packet], (NetPacketMode)mode));
+    const auto& c = g.clients[client];
+    enet_peer_send(c.peer, 0, net_create_packet(g.packets[packet], (NetPacketMode)mode));
     enet_host_flush(c.client);
 }
 
 void App::NetPollEvents()
 {
-    if (g_state.server)
+    if (g.server)
     {
         ENetEvent e{};
-        while (enet_host_service(g_state.server, &e, 0) > 0)
+        while (enet_host_service(g.server, &e, 0) > 0)
         {
             switch (e.type)
             {
@@ -496,7 +496,7 @@ void App::NetPollEvents()
     }
 
     u32 clientIdx = 0;
-    for (const auto& client : g_state.clients)
+    for (const auto& client : g.clients)
     {
         ENetEvent e{};
         while (enet_host_service(client.client, &e, 0) > 0)
@@ -525,9 +525,9 @@ void App::NetPollEvents()
     }
 
     // Free memory
-    for (const auto& p : g_state.packets)
+    for (const auto& p : g.packets)
         delete[] p.data;
-    g_state.packets.clear();
+    g.packets.clear();
 }
 
 bool App::NetGetBool(u32 packet, u32 offset)
@@ -535,7 +535,7 @@ bool App::NetGetBool(u32 packet, u32 offset)
     if (!net_validate_packet(packet))
         return false;
     
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, 1))
         return false;
 
@@ -547,7 +547,7 @@ u32 App::NetGetUInt(u32 packet, u32 offset)
     if (!net_validate_packet(packet))
         return 0;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, sizeof(u32)))
         return 0;
 
@@ -561,7 +561,7 @@ i32 App::NetGetInt(u32 packet, u32 offset)
     if (!net_validate_packet(packet))
         return 0;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, sizeof(i32)))
         return 0;
 
@@ -575,7 +575,7 @@ f32 App::NetGetFloat(u32 packet, u32 offset)
     if (!net_validate_packet(packet))
         return 0;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, sizeof(f32)))
         return 0;
 
@@ -589,7 +589,7 @@ f64 App::NetGetDouble(u32 packet, u32 offset)
     if (!net_validate_packet(packet))
         return 0;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, sizeof(f64)))
         return 0;
 
@@ -603,12 +603,12 @@ const char* App::NetGetString(u32 packet, u32 offset)
     if (!net_validate_packet(packet))
         return "";
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, p.size - offset))
         return "";
 
     char* str = reinterpret_cast<char*>(p.data + offset);
-    std::size_t maxLen = (std::size_t)p.size - offset;
+    SizeType maxLen = (SizeType)p.size - offset;
 
     const char* end = static_cast<const char*>(std::memchr(str, '\0', maxLen));
     if (end == nullptr)
@@ -625,7 +625,7 @@ void App::NetSetBool(u32 packet, u32 offset, bool v)
     if (!net_validate_packet(packet))
         return;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, 1))
         return;
 
@@ -637,7 +637,7 @@ void App::NetSetUInt(u32 packet, u32 offset, u32 v)
     if (!net_validate_packet(packet))
         return;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, sizeof(u32)))
         return;
 
@@ -649,7 +649,7 @@ void App::NetSetInt(u32 packet, u32 offset, i32 v)
     if (!net_validate_packet(packet))
         return;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, sizeof(i32)))
         return;
 
@@ -661,7 +661,7 @@ void App::NetSetFloat(u32 packet, u32 offset, f32 v)
     if (!net_validate_packet(packet))
         return;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, sizeof(f32)))
         return;
 
@@ -673,7 +673,7 @@ void App::NetSetDouble(u32 packet, u32 offset, f64 v)
     if (!net_validate_packet(packet))
         return;
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
     if (!net_guard_packet(p.size, offset, sizeof(f64)))
         return;
 
@@ -691,11 +691,11 @@ void App::NetSetString(u32 packet, u32 offset, const char* v)
         return;
     }
 
-    auto& p = g_state.packets[packet];
+    auto& p = g.packets[packet];
 
     // Search for null terminator within packet bounds
-    const char* end = (const char*)std::memchr(v, '\0', p.size - static_cast<std::size_t>(offset) - 1);
-    u32 length = end ? (end - v) : (p.size - static_cast<std::size_t>(offset) - 1); // Truncate if too long
+    const char* end = (const char*)std::memchr(v, '\0', p.size - static_cast<SizeType>(offset) - 1);
+    u32 length = end ? (end - v) : (p.size - static_cast<SizeType>(offset) - 1); // Truncate if too long
 
     if (!net_guard_packet(p.size, offset, length))
         return;

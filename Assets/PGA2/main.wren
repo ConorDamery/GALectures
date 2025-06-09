@@ -39,15 +39,14 @@ class Handle {
 	x=(v) { _x = v }
 	y=(v) { _y = v }
 
+	static sel { __sel }  
+
 	isOver(s, mx, my) {
 		return (mx > x - s*0.05 && mx < x + s*0.05 &&
 			 	my > y - s*0.05 && my < y + s*0.05)
 	}
 
-	update(s, dt) {
-		var mx = s * Util.winMouseX
-		var my = s * Util.winMouseY
-
+	update(mx, my, dt) {
 		if (__sel == null &&
 			App.winButton(App.winButtonLeft) &&
 			isOver(s, mx, my)) {
@@ -72,16 +71,31 @@ class State {
 		_camScale = 2
 		_camX = 0
 		_camY = 0
+		_mx = _camScale * Util.winMouseX
+		_my = _camScale * Util.winMouseY
 
 		_a = Handle.new(-1, -1)
 		_b = Handle.new(-1, 1)
 		_c = Handle.new(1, 1)
+
+		_handles = [_a, _b, _c]
     }
 
 	update(dt) {
-		_a.update(_camScale, dt)
-		_b.update(_camScale, dt)
-		_c.update(_camScale, dt)
+		var mx = _camScale * Util.winMouseX
+		var my = _camScale * Util.winMouseY
+		var dmx = _mx - mx
+		var dmy = _my - my
+		_mx = mx
+		_my = my
+
+		for (i in _handles) {
+			i.update(mx, my, dt)
+		}
+
+		if (Handle.sel == null && App.winButton(App.winButtonLeft)) {
+			_camX = _camX + 
+		}
 	}
 
 	render() {
@@ -111,15 +125,15 @@ class State {
 		var l = Line2.new(-0.5, 1, 1)
 
 		var m = c & a
-		var d = (l ^ m).normalized
+		var d = l ^ m
 
 		//var d = m ^ Line2.new(1, 0, 0)
 		//var p = Point2.new(0, 0, 1).proj(m)
 		//var mp = (p + d).normalized
 
-		a.guiInspect("a")
-		c.guiInspect("c")
-		m.guiInspect("m")
+		//a.guiInspect("a")
+		//c.guiInspect("c")
+		//m.guiInspect("m")
 		d.guiInspect("d")
 		//p.guiInspect("p")
 		//mp.guiInspect("mp")

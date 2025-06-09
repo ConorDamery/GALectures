@@ -68,7 +68,7 @@ struct GlVertex
 	f32 v[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 };
 
-struct GlData
+struct GlGlobal
 {
 	GLuint shader{ 0 };
 	GLuint vao{ 0 };
@@ -87,7 +87,7 @@ struct GlData
 	std::vector<GlVertex> vertices{};
 };
 
-static GlData g_data{};
+static GlGlobal g{};
 
 static u32 gl_extract_index(u64 encoded) { return (u32)(encoded >> 32); }
 static u32 gl_extract_count(u64 encoded) { return (u32)(encoded & 0xFFFFFFFF); }
@@ -194,11 +194,11 @@ bool App::GlInitialize(const AppConfig& config)
 	}
 #endif
 
-	glGenVertexArrays(1, &g_data.vao);
-	glGenBuffers(1, &g_data.vbo);
+	glGenVertexArrays(1, &g.vao);
+	glGenBuffers(1, &g.vbo);
 
-	glBindVertexArray(g_data.vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_data.vbo);
+	glBindVertexArray(g.vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g.vbo);
 
 	const GLsizei stride = 64;
 	glEnableVertexAttribArray(0);
@@ -226,24 +226,24 @@ void App::GlShutdown()
 {
 	GlReload();
 
-	glDeleteProgram(g_data.shader);
-	glDeleteBuffers(1, &g_data.vbo);
-	glDeleteVertexArrays(1, &g_data.vao);
+	glDeleteProgram(g.shader);
+	glDeleteBuffers(1, &g.vbo);
+	glDeleteVertexArrays(1, &g.vao);
 }
 
 void App::GlReload()
 {
-	for (const auto shader : g_data.shaders)
+	for (const auto shader : g.shaders)
 		GlDestroyShader(shader);
-	g_data.shaders.clear();
+	g.shaders.clear();
 
-	for (const auto& image : g_data.images)
+	for (const auto& image : g.images)
 		if (image.data) stbi_image_free(image.data);
-	g_data.images.clear();
+	g.images.clear();
 
-	for (const auto texture : g_data.textures)
+	for (const auto texture : g.textures)
 		GlDestroyTexture(texture);
-	g_data.textures.clear();
+	g.textures.clear();
 
 	// Graphics API
 #define SCRIPT_ARGS_ARR(l, s, n, p, t) p l[n]; for (u8 i = 0; i < n; ++i) l[i] = WrenGetSlot##t##(vm, s + i + 1);
@@ -613,7 +613,7 @@ static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
 		return 0;
 	}
 
-	g_data.shaders.emplace_back(program);
+	g.shaders.emplace_back(program);
 	return program;
 }
 
@@ -679,19 +679,19 @@ void App::GlDestroyShader(u32 shader)
 
 void App::GlSetShader(u32 shader)
 {
-	g_data.shader = shader;
-	glUseProgram(g_data.shader);
+	g.shader = shader;
+	glUseProgram(g.shader);
 }
 
 static GlImage* gl_get_image(u32 image)
 {
-	if (image == 0 || image > g_data.images.size())
+	if (image == 0 || image > g.images.size())
 	{
 		LOGW("Invalid image handle!");
 		return nullptr;
 	}
 
-	return &g_data.images[static_cast<size_t>(image) - 1];
+	return &g.images[static_cast<size_t>(image) - 1];
 }
 
 u32 App::GlLoadImage(const char* filepath, bool flipY)
@@ -707,16 +707,16 @@ u32 App::GlLoadImage(const char* filepath, bool flipY)
 		return -1;
 	}
 
-	g_data.images.emplace_back(img);
-	return (u32)(g_data.images.size());
+	g.images.emplace_back(img);
+	return (u32)(g.images.size());
 }
 
 u32 App::GlCreateImage(i32 w, i32 h, i32 c, u8* data)
 {
 	GlImage img{ w, h, c, data };
 
-	g_data.images.emplace_back(img);
-	return (u32)(g_data.images.size());
+	g.images.emplace_back(img);
+	return (u32)(g.images.size());
 }
 
 void App::GlDestroyImage(u32 image)
@@ -808,15 +808,15 @@ static void gltf_extract_mesh_data(const cgltf_mesh& mesh)
 
 			// Allocate space in global model data and link the attribute buffer
 			if (attributeHandle == 0) {
-				attributeHandle = gl_encode_range(g_data.g_modelData.size(), attribute.data->count);
+				attributeHandle = gl_encode_range(g.g_modelData.size(), attribute.data->count);
 				// Add attribute data to the global buffer here (e.g., position, normal, etc.)
 				for (cgltf_size k = 0; k < attribute.data->count; ++k) {
 					const cgltf_accessor& accessor = *attribute.data;
-					// Convert data based on type and store in g_data.g_modelData
+					// Convert data based on type and store in g.g_modelData
 					// Example: copying float data for POSITION
 					if (accessor.type == cgltf_type_vec3) {
 						const float* position = (const float*)accessor.buffer_view->buffer->data + accessor.offset;
-						g_data.g_modelData.insert(g_data.g_modelData.end(), position, position + 3);
+						g.g_modelData.insert(g.g_modelData.end(), position, position + 3);
 					}
 				}
 			}
@@ -827,15 +827,15 @@ static void gltf_extract_mesh_data(const cgltf_mesh& mesh)
 		{
 			u64& indicesHandle = glMesh.indices;
 			if (indicesHandle == 0) {
-				indicesHandle = gl_encode_range(g_data.g_modelData.size(), prim.indices->count);
+				indicesHandle = gl_encode_range(g.g_modelData.size(), prim.indices->count);
 				// Allocate space in the global model data buffer for indices and copy them
 				const u32* indices = (const u32*)prim.indices->buffer_view->buffer->data + prim.indices->offset;
-				g_data.g_modelData.insert(g_data.g_modelData.end(), indices, indices + prim.indices->count);
+				g.g_modelData.insert(g.g_modelData.end(), indices, indices + prim.indices->count);
 			}
 		}
 	}
 
-	g_data.g_meshes.push_back(glMesh);
+	g.g_meshes.push_back(glMesh);
 }
 
 static void gltf_extract_node_data(const cgltf_node& node, u64& childrenRange)
@@ -846,20 +846,20 @@ static void gltf_extract_node_data(const cgltf_node& node, u64& childrenRange)
 
 	// Extracting mesh and animation references
 	//if (node.mesh)
-	//	glNode.mesh = g_data.g_meshes.size() + 1;  // Store mesh handle
+	//	glNode.mesh = g.g_meshes.size() + 1;  // Store mesh handle
 	//if (node.animation)
-	//	glNode.anim = g_data.g_anims.size() + 1; // Store animation handle
+	//	glNode.anim = g.g_anims.size() + 1; // Store animation handle
 
 	// Extracting children (stored as a range of indices)
-	u32 childStart = g_data.g_nodes.size();
+	u32 childStart = g.g_nodes.size();
 	for (cgltf_size i = 0; i < node.children_count; ++i)
 	{
 		gltf_extract_node_data(*node.children[i], childrenRange);
 	}
-	u32 childEnd = g_data.g_nodes.size();
+	u32 childEnd = g.g_nodes.size();
 	glNode.children = gl_encode_range(childStart, childEnd - childStart);
 
-	g_data.g_nodes.push_back(glNode);
+	g.g_nodes.push_back(glNode);
 }
 
 static void gltf_extract_animation_data(const cgltf_animation& animation)
@@ -885,7 +885,7 @@ static void gltf_extract_animation_data(const cgltf_animation& animation)
 	}
 }
 
-	g_data.g_anims.push_back(glAnim);
+	g.g_anims.push_back(glAnim);
 }
 
 u32 App::GlLoadModel(const char* filepath)
@@ -925,18 +925,18 @@ u32 App::GlLoadModel(const char* filepath)
 	}
 
 	// Store the model handle (root node)
-	g_data.g_models.push_back(g_data.g_nodes.size());
+	g.g_models.push_back(g.g_nodes.size());
 
 	gltf_free(data); // Done with glTF data
 
-	return (u32)g_data.g_models.size(); // Return the model handle
+	return (u32)g.g_models.size(); // Return the model handle
 }
 
 void App::GlDestroyModel(u32 model)
 {
 	// This will not free the global data, just mark the model as destroyed if necessary
 	// Currently, we just reset the root node (but children and other data are still intact)
-	g_data.g_models[model] = 0;  // Reset root node handle to 0 (indicating 'destroyed' state)
+	g.g_models[model] = 0;  // Reset root node handle to 0 (indicating 'destroyed' state)
 }
 
 static GLenum opengl_internal_format(TextureFormat fmt)
@@ -1053,15 +1053,15 @@ void App::GlBegin(bool alpha, bool ztest, f32 pointSize, f32 lineWidth)
 	glPointSize(pointSize);
 	glLineWidth(lineWidth);
 
-	g_data.vertices.clear();
+	g.vertices.clear();
 }
 
 void App::GlEnd(u32 mode)
 {
-	glBindVertexArray(g_data.vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_data.vbo);
+	glBindVertexArray(g.vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g.vbo);
 
-	glBufferData(GL_ARRAY_BUFFER, g_data.vertices.size() * sizeof(GlVertex), g_data.vertices.data(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, g.vertices.size() * sizeof(GlVertex), g.vertices.data(), GL_DYNAMIC_DRAW);
 
 	for (u32 bit = 1; bit <= (u32)GlTopology::TRIANGLE_FAN; bit <<= 1)
 	{
@@ -1069,7 +1069,7 @@ void App::GlEnd(u32 mode)
 		{
 			u32 i = 0, b = bit;
 			while (b > 1 && ++i) b >>= 1;
-			glDrawArrays(GL_POINTS + i, 0, (GLsizei)g_data.vertices.size());
+			glDrawArrays(GL_POINTS + i, 0, (GLsizei)g.vertices.size());
 		}
 	}
 
@@ -1114,34 +1114,34 @@ void App::GlClear(f32 r, f32 g, f32 b, f32 a, f64 d, i32 s, u32 flags)
 
 void App::GlSetUniform(const char* name)
 {
-	g_data.uniformName = name;
+	g.uniformName = name;
 }
 
 void App::GlSetTex2D(u32 i, u32 texture)
 {
 	glActiveTexture(GL_TEXTURE0 + i);
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glUniform1i(glGetUniformLocation(g_data.shader, g_data.uniformName), i);
+	glUniform1i(glGetUniformLocation(g.shader, g.uniformName), i);
 }
 
 void App::GlSetFloat(f32 x)
 {
-	glUniform1f(glGetUniformLocation(g_data.shader, g_data.uniformName), x);
+	glUniform1f(glGetUniformLocation(g.shader, g.uniformName), x);
 }
 
 void App::GlSetVec2F(f32 x, f32 y)
 {
-	glUniform2f(glGetUniformLocation(g_data.shader, g_data.uniformName), x, y);
+	glUniform2f(glGetUniformLocation(g.shader, g.uniformName), x, y);
 }
 
 void App::GlSetVec3F(f32 x, f32 y, f32 z)
 {
-	glUniform3f(glGetUniformLocation(g_data.shader, g_data.uniformName), x, y, z);
+	glUniform3f(glGetUniformLocation(g.shader, g.uniformName), x, y, z);
 }
 
 void App::GlSetVec4F(f32 x, f32 y, f32 z, f32 w)
 {
-	glUniform4f(glGetUniformLocation(g_data.shader, g_data.uniformName), x, y, z, w);
+	glUniform4f(glGetUniformLocation(g.shader, g.uniformName), x, y, z, w);
 }
 
 void App::GlSetMat2x2F(
@@ -1149,7 +1149,7 @@ void App::GlSetMat2x2F(
 	f32 m10, f32 m11)
 {
 	const GLfloat v[4] = { m00, m01, m10, m11 };
-	glUniformMatrix2fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix2fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlSetMat2x3F(
@@ -1157,7 +1157,7 @@ void App::GlSetMat2x3F(
 	f32 m10, f32 m11, f32 m12)
 {
 	const GLfloat v[6] = { m00, m01, m02, m10, m11, m12 };
-	glUniformMatrix2x3fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix2x3fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlSetMat2x4F(
@@ -1165,7 +1165,7 @@ void App::GlSetMat2x4F(
 	f32 m10, f32 m11, f32 m12, f32 m13)
 {
 	const GLfloat v[8] = { m00, m01, m02, m03, m10, m11, m12, m13 };
-	glUniformMatrix2x4fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix2x4fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlSetMat3x2F(
@@ -1174,7 +1174,7 @@ void App::GlSetMat3x2F(
 	f32 m20, f32 m21)
 {
 	const GLfloat v[6] = { m00, m01, m10, m11, m20, m21 };
-	glUniformMatrix3x2fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix3x2fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlSetMat3x3F(
@@ -1183,7 +1183,7 @@ void App::GlSetMat3x3F(
 	f32 m20, f32 m21, f32 m22)
 {
 	const GLfloat v[9] = { m00, m01, m02, m10, m11, m12, m20, m21, m22 };
-	glUniformMatrix3fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix3fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlSetMat3x4F(
@@ -1192,7 +1192,7 @@ void App::GlSetMat3x4F(
 	f32 m20, f32 m21, f32 m22, f32 m23)
 {
 	const GLfloat v[12] = { m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23 };
-	glUniformMatrix3x4fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix3x4fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlSetMat4x2F(
@@ -1202,7 +1202,7 @@ void App::GlSetMat4x2F(
 	f32 m30, f32 m31)
 {
 	const GLfloat v[8] = { m00, m01, m10, m11, m20, m21 };
-	glUniformMatrix4x2fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix4x2fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlSetMat4x3F(
@@ -1212,7 +1212,7 @@ void App::GlSetMat4x3F(
 	f32 m30, f32 m31, f32 m32)
 {
 	const GLfloat v[12] = { m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32 };
-	glUniformMatrix4x3fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix4x3fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlSetMat4x4F(
@@ -1222,7 +1222,7 @@ void App::GlSetMat4x4F(
 	f32 m30, f32 m31, f32 m32, f32 m33)
 {
 	const GLfloat v[16] = { m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33 };
-	glUniformMatrix4fv(glGetUniformLocation(g_data.shader, g_data.uniformName), 1, GL_FALSE, v);
+	glUniformMatrix4fv(glGetUniformLocation(g.shader, g.uniformName), 1, GL_FALSE, v);
 }
 
 void App::GlAddVertex(
@@ -1231,5 +1231,5 @@ void App::GlAddVertex(
 	f32 v0, f32 v1, f32 v2, f32 v3,
 	f32 v4, f32 v5, f32 v6, f32 v7)
 {
-	g_data.vertices.emplace_back(GlVertex{ { x, y, z, w }, { c0, c1 }, { i0, i1 }, { v0, v1, v2, v3, v4, v5, v6, v7 } });
+	g.vertices.emplace_back(GlVertex{ { x, y, z, w }, { c0, c1 }, { i0, i1 }, { v0, v1, v2, v3, v4, v5, v6, v7 } });
 }

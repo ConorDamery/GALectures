@@ -1,6 +1,16 @@
+# Filesystem
+add_subdirectory (filesystem)
+
 # STB lib
 add_library(stb STATIC "stb/stb_vorbis.c")
 target_include_directories (stb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/stb)
+
+# Cereal lib
+set (BUILD_DOC OFF CACHE BOOL "")
+set (BUILD_SANDBOX OFF CACHE BOOL "")
+set (SKIP_PERFORMANCE_COMPARISON ON CACHE BOOL "")
+
+add_subdirectory (cereal)
 
 # CGLTF lib
 add_library(cgltf INTERFACE)
