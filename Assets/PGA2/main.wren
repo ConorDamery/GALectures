@@ -46,7 +46,7 @@ class Handle {
 			 	my > y - s*0.05 && my < y + s*0.05)
 	}
 
-	update(mx, my, dt) {
+	update(s, mx, my, dt) {
 		if (__sel == null &&
 			App.winButton(App.winButtonLeft) &&
 			isOver(s, mx, my)) {
@@ -90,11 +90,11 @@ class State {
 		_my = my
 
 		for (i in _handles) {
-			i.update(mx, my, dt)
+			i.update(_camScale, mx, my, dt)
 		}
 
 		if (Handle.sel == null && App.winButton(App.winButtonLeft)) {
-			_camX = _camX + 
+			//_camX = _camX + 
 		}
 	}
 

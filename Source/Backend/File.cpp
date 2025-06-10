@@ -5,20 +5,21 @@ namespace fs = ghc::filesystem;
 
 #include <fstream>
 #include <sstream>
-#include <vector>
+
+using namespace GASandbox;
 
 struct FileGlobal
 {
-	std::vector<FileInfo> index{};
-	std::vector<FileInfo> manifest{};
+	list<sFileInfo> index{};
+	list<sFileInfo> manifest{};
 };
 static FileGlobal g;
 
-bool App::FileInitialize(const AppConfig& config)
+bool App::FileInitialize(const sAppConfig& config)
 {
-	std::string indexSrc = FileLoad("Assets/index.txt");
+	string indexSrc = FileLoad("Assets/index.txt");
 	std::istringstream stream(indexSrc);
-	std::string line;
+	string line;
 
 	while (std::getline(stream, line))
 	{
@@ -46,36 +47,36 @@ void App::FileShutdown()
 {
 }
 
-const std::vector<FileInfo>& App::FileGetIndex()
+const list<sFileInfo>& App::FileGetIndex()
 {
 	return g.index;
 }
 
-const std::vector<FileInfo>& App::FileGetManifest()
+const list<sFileInfo>& App::FileGetManifest()
 {
 	return g.manifest;
 }
 
-FileInfo App::FileGetInfo(const char* filepath)
+sFileInfo App::FileGetInfo(cstring filepath)
 {
-	FileInfo info;
+	sFileInfo info;
 	info.path = filepath;
 
 	// Find last '/' or '\' (for both Windows and Unix-style paths)
-	SizeType lastSlash = info.path.find_last_of("/\\");
-	SizeType lastDot = info.path.find_last_of('.');
+	size_type lastSlash = info.path.find_last_of("/\\");
+	size_type lastDot = info.path.find_last_of('.');
 
 	// Extract filename and extension
-	if (lastSlash != std::string::npos)
-		info.name = info.path.substr(lastSlash + 1, (lastDot != std::string::npos ? lastDot - lastSlash - 1 : std::string::npos));
+	if (lastSlash != string::npos)
+		info.name = info.path.substr(lastSlash + 1, (lastDot != string::npos ? lastDot - lastSlash - 1 : string::npos));
 	else
 		info.name = info.path.substr(0, lastDot); // No folder, just the name
 
-	if (lastDot != std::string::npos && lastDot > lastSlash)
+	if (lastDot != string::npos && lastDot > lastSlash)
 		info.ext = info.path.substr(lastDot + 1);
 
 	// Hash values
-	static std::hash<std::string> g_hash;
+	static std::hash<string> g_hash;
 	info.pathHash = g_hash(info.path);
 	info.nameHash = g_hash(info.name);
 	info.extHash = g_hash(info.ext);
@@ -83,20 +84,20 @@ FileInfo App::FileGetInfo(const char* filepath)
 	return info;
 }
 
-const char* App::FilePath(const char* filepath)
+cstring App::FilePath(cstring filepath)
 {
 #if _DEBUG
-	thread_local std::string pathStr{};
-	pathStr = PROJECT_PATH + std::string(filepath);
+	thread_local string pathStr{};
+	pathStr = PROJECT_PATH + string(filepath);
 	return pathStr.c_str();
 #else
 	return filepath;
 #endif
 }
 
-std::string App::FileLoad(const char* filepath)
+string App::FileLoad(cstring filepath)
 {
-	const char* path = FilePath(filepath);
+	cstring path = FilePath(filepath);
 	std::ifstream file(path);
 	if (!file.is_open())
 	{
@@ -111,9 +112,9 @@ std::string App::FileLoad(const char* filepath)
 	return buffer.str();
 }
 
-void App::FileSave(const char* filepath, const std::string& src)
+void App::FileSave(cstring filepath, const string& src)
 {
-	const char* path = FilePath(filepath);
+	cstring path = FilePath(filepath);
 	std::ofstream file(path);
 	if (!file.is_open())
 	{

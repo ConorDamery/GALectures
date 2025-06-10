@@ -9,10 +9,9 @@
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
 
-#include <string>
 #include <sstream>
-#include <vector>
-#include <unordered_map>
+
+using namespace GASandbox;
 
 struct GlImage
 {
@@ -22,7 +21,7 @@ struct GlImage
 
 struct GlAnim
 {
-	std::string name{};
+	string name{};
 	u64 translations{ 0 };
 	u64 rotations{ 0 };
 	u64 scales{ 0 };
@@ -46,7 +45,7 @@ struct GlMesh
 
 struct GlNode
 {
-	std::string name{};
+	string name{};
 	u64 children{ 0 };
 	u32 mesh{ 0 };
 	u32 anim{ 0 };
@@ -74,19 +73,18 @@ struct GlGlobal
 	GLuint vao{ 0 };
 	GLuint vbo{ 0 };
 
-	const char* uniformName{ nullptr };
+	cstring uniformName{ nullptr };
 
-	std::vector<GLuint> shaders{};
-	std::vector<GlImage> images{};
-	std::vector<f32> g_modelData{}; // Float buffer for all model data
-	std::vector<GlMesh> g_meshes{};
-	std::vector<GlAnim> g_anims{};
-	std::vector<GlNode> g_nodes{};
-	std::vector<u32> g_models{};
-	std::vector<GLuint> textures{};
-	std::vector<GlVertex> vertices{};
+	list<GLuint> shaders{};
+	list<GlImage> images{};
+	list<f32> g_modelData{}; // Float buffer for all model data
+	list<GlMesh> g_meshes{};
+	list<GlAnim> g_anims{};
+	list<GlNode> g_nodes{};
+	list<u32> g_models{};
+	list<GLuint> textures{};
+	list<GlVertex> vertices{};
 };
-
 static GlGlobal g{};
 
 static u32 gl_extract_index(u64 encoded) { return (u32)(encoded >> 32); }
@@ -94,21 +92,21 @@ static u32 gl_extract_count(u64 encoded) { return (u32)(encoded & 0xFFFFFFFF); }
 static u64 gl_encode_range(u32 index, u32 count) { return ((u64)index << 32) | count; }
 
 template <typename T>
-T& gl_get(std::vector<T>& vec, u32 handle)
+T& gl_get(list<T>& vec, u32 handle)
 {
 	assert(handle > 0 && handle <= vec.size()); // Debug safety
 	return vec[handle - 1];
 }
 
 template <typename T>
-const T& gl_get(const std::vector<T>& vec, u32 handle)
+const T& gl_get(const list<T>& vec, u32 handle)
 {
 	assert(handle > 0 && handle <= vec.size());
 	return vec[handle - 1];
 }
 
 #if _DEBUG
-static const char* opengl_source(GLenum source)
+static cstring opengl_source(GLenum source)
 {
 	switch (source)
 	{
@@ -123,7 +121,7 @@ static const char* opengl_source(GLenum source)
 	return "Unknown";
 }
 
-static const char* opengl_type(GLenum type)
+static cstring opengl_type(GLenum type)
 {
 	switch (type)
 	{
@@ -141,7 +139,7 @@ static const char* opengl_type(GLenum type)
 	return "Unknown";
 }
 
-static const char* opengl_severity(GLenum severity)
+static cstring opengl_severity(GLenum severity)
 {
 	switch (severity)
 	{
@@ -154,7 +152,7 @@ static const char* opengl_severity(GLenum severity)
 	return "Unknown";
 }
 
-static void APIENTRY opengl_debug_callback(GLenum source, GLenum type, u32 id, GLenum severity, GLsizei length, const char* message, const void* userParam)
+static void APIENTRY opengl_debug_callback(GLenum source, GLenum type, u32 id, GLenum severity, GLsizei length, cstring message, const void* userParam)
 {
 	// Ignore non-significant error/warning codes
 	if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
@@ -169,7 +167,7 @@ static void APIENTRY opengl_debug_callback(GLenum source, GLenum type, u32 id, G
 }
 #endif
 
-bool App::GlInitialize(const AppConfig& config)
+bool App::GlInitialize(const sAppConfig& config)
 {
 	if (!gladLoadGLLoader((GLADloadproc)WinGetProcAddress))
 	{
@@ -246,290 +244,319 @@ void App::GlReload()
 	g.textures.clear();
 
 	// Graphics API
-#define SCRIPT_ARGS_ARR(l, s, n, p, t) p l[n]; for (u8 i = 0; i < n; ++i) l[i] = WrenGetSlot##t##(vm, s + i + 1);
+#define SCRIPT_ARGS_ARR(l, s, n, p, t) p l[n]; for (u8 i = 0; i < n; ++i) l[i] = CodeGetSlot##t##(vm, s + i + 1);
 
-	WrenBindMethod("app", "App", true, "glViewport(_,_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glViewport(_,_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 4);
+			CodeEnsureSlots(vm, 4);
 			SCRIPT_ARGS_ARR(vi, 0, 2, i32, Int);
 			SCRIPT_ARGS_ARR(vu, 3, 2, u32, UInt);
 			GlViewport(vi[0], vi[1], vu[0], vu[1]);
 		});
 
-	WrenBindMethod("app", "App", true, "glScissor(_,_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glScissor(_,_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 4);
+			CodeEnsureSlots(vm, 4);
 			SCRIPT_ARGS_ARR(vi, 0, 2, i32, Int);
 			SCRIPT_ARGS_ARR(vu, 3, 2, u32, UInt);
 			GlScissor(vi[0], vi[1], vu[0], vu[1]);
 		});
 
-	WrenBindMethod("app", "App", true, "glClear(_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glClear(_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 7);
+			CodeEnsureSlots(vm, 7);
 			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
-			GlClear(v[0], v[1], v[2], v[3], WrenGetSlotDouble(vm, 7), WrenGetSlotInt(vm, 7), WrenGetSlotUInt(vm, 7));
+			GlClear(v[0], v[1], v[2], v[3], CodeGetSlotDouble(vm, 7), CodeGetSlotInt(vm, 7), (eGlClearFlags)CodeGetSlotUInt(vm, 7));
 		});
 
-	WrenBindMethod("app", "App", true, "glLoadShader(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glLoadShader(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto shader = GlLoadShader(WrenGetSlotString(vm, 1));
-			WrenSetSlotUInt(vm, 0, shader);
+			CodeEnsureSlots(vm, 1);
+			auto shader = GlLoadShader(CodeGetSlotString(vm, 1));
+			CodeSetSlotUInt(vm, 0, shader);
 		});
 
-	WrenBindMethod("app", "App", true, "glCreateShader(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glCreateShader(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto shader = GlCreateShader(WrenGetSlotString(vm, 1));
-			WrenSetSlotUInt(vm, 0, shader);
+			CodeEnsureSlots(vm, 1);
+			auto shader = GlCreateShader(CodeGetSlotString(vm, 1));
+			CodeSetSlotUInt(vm, 0, shader);
 		});
 
-	WrenBindMethod("app", "App", true, "glDestroyShader(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glDestroyShader(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto shader = WrenGetSlotUInt(vm, 1);
+			CodeEnsureSlots(vm, 1);
+			auto shader = CodeGetSlotUInt(vm, 1);
 			GlDestroyShader(shader);
 		});
 
-	WrenBindMethod("app", "App", true, "glLoadImage(_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glSetShader(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 2);
-			auto image = GlLoadImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
-			WrenSetSlotUInt(vm, 0, image);
+			CodeEnsureSlots(vm, 1);
+			auto shader = CodeGetSlotUInt(vm, 1);
+			GlSetShader(shader);
+		});
+
+	CodeBindMethod("app", "App", true, "glLoadImage(_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 2);
+			auto image = GlLoadImage(CodeGetSlotString(vm, 1), CodeGetSlotBool(vm, 2));
+			CodeSetSlotUInt(vm, 0, image);
 		});
 
 	//WrenBindMethod("app", "App", true, "glCreateImage(_,_)",
-	//	[](ScriptVM* vm)
+	//	[](sScriptVM* vm)
 	//	{
 	//		WrenEnsureSlots(vm, 2);
 	//		auto image = GlCreateImage(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2));
 	//		WrenSetSlotUInt(vm, 0, image);
 	//	});
 
-	WrenBindMethod("app", "App", true, "glDestroyImage(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glDestroyImage(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto image = WrenGetSlotUInt(vm, 1);
+			CodeEnsureSlots(vm, 1);
+			auto image = CodeGetSlotUInt(vm, 1);
 			GlDestroyImage(image);
 		});
 
-	WrenBindMethod("app", "App", true, "glImageWidth(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glImageWidth(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto image = WrenGetSlotUInt(vm, 1);
-			WrenSetSlotInt(vm, 0, GlImageWidth(image));
+			CodeEnsureSlots(vm, 1);
+			auto image = CodeGetSlotUInt(vm, 1);
+			CodeSetSlotInt(vm, 0, GlImageWidth(image));
 		});
 
-	WrenBindMethod("app", "App", true, "glImageHeight(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glImageHeight(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto image = WrenGetSlotUInt(vm, 1);
-			WrenSetSlotInt(vm, 0, GlImageHeight(image));
+			CodeEnsureSlots(vm, 1);
+			auto image = CodeGetSlotUInt(vm, 1);
+			CodeSetSlotInt(vm, 0, GlImageHeight(image));
 		});
 
-	WrenBindMethod("app", "App", true, "glImageChannels(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glImageChannels(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto image = WrenGetSlotUInt(vm, 1);
-			WrenSetSlotInt(vm, 0, GlImageChannels(image));
+			CodeEnsureSlots(vm, 1);
+			auto image = CodeGetSlotUInt(vm, 1);
+			CodeSetSlotInt(vm, 0, GlImageChannels(image));
 		});
 
-	WrenBindMethod("app", "App", true, "glLoadModel(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glLoadModel(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto model = GlLoadModel(WrenGetSlotString(vm, 1));
-			WrenSetSlotUInt(vm, 0, model);
+			CodeEnsureSlots(vm, 1);
+			auto model = GlLoadModel(CodeGetSlotString(vm, 1));
+			CodeSetSlotUInt(vm, 0, model);
 		});
 
-	WrenBindMethod("app", "App", true, "glDestroyModel(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glDestroyModel(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto model = WrenGetSlotUInt(vm, 1);
+			CodeEnsureSlots(vm, 1);
+			auto model = CodeGetSlotUInt(vm, 1);
 			GlDestroyModel(model);
 		});
 
-	WrenBindMethod("app", "App", true, "glCreateTexture(_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glCreateBuffer(_,_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 7);
-			SCRIPT_ARGS_ARR(v, 0, 6, u32, UInt);
-			auto texture = GlCreateTexture(v[0], (TextureFormat)v[1], (TextureFilter)v[2], (TextureFilter)v[3], (TextureWrap)v[4], (TextureWrap)v[5], WrenGetSlotBool(vm, 7));
-			WrenSetSlotUInt(vm, 0, texture);
+			CodeEnsureSlots(vm, 4);
+			SCRIPT_ARGS_ARR(a, 0, 4, u32, UInt);
+			GlCreateBuffer(a[0], (eGlBufferType)a[1], (eGlBufferUsage)a[2], (eGlBufferAccess)a[3]);
 		});
 
-	WrenBindMethod("app", "App", true, "glDestroyTexture(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glDestroyBuffer(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto texture = WrenGetSlotUInt(vm, 1);
-			GlDestroyTexture(texture);
+			CodeEnsureSlots(vm, 1);
+			GlDestroyBuffer(CodeGetSlotUInt(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "glSetShader(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glBindBuffer(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			auto shader = WrenGetSlotUInt(vm, 1);
-			GlSetShader(shader);
+			CodeEnsureSlots(vm, 1);
+			GlBindBuffer(CodeGetSlotUInt(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "glBegin(_,_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glSubmitBuffer(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 3);
-			GlBegin(WrenGetSlotBool(vm, 1), WrenGetSlotBool(vm, 2), WrenGetSlotFloat(vm, 3), WrenGetSlotFloat(vm, 4));
+			CodeEnsureSlots(vm, 1);
+			GlSubmitBuffer(CodeGetSlotUInt(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "glEnd(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "glAddVertex(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			GlEnd(WrenGetSlotUInt(vm, 1));
-		});
-
-	WrenBindMethod("app", "App", true, "glSetUniform(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			const char* value = WrenGetSlotString(vm, 1);
-			GlSetUniform(value);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetTex2D(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			GlSetTex2D(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
-		});
-
-	WrenBindMethod("app", "App", true, "glSetFloat(_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 1);
-			f32 value = WrenGetSlotFloat(vm, 1);
-			GlSetFloat(value);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetVec2f(_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 2);
-			SCRIPT_ARGS_ARR(v, 0, 2, f32, Float);
-			GlSetVec2F(v[0], v[1]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetVec3f(_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 3);
-			SCRIPT_ARGS_ARR(v, 0, 3, f32, Float);
-			GlSetVec3F(v[0], v[1], v[2]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetVec4f(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
-			GlSetVec4F(v[0], v[1], v[2], v[3]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat2x2f(_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 4);
-			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
-			GlSetMat2x2F(v[0], v[1], v[2], v[3]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat2x3f(_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 6);
-			SCRIPT_ARGS_ARR(v, 0, 6, f32, Float);
-			GlSetMat2x3F(v[0], v[1], v[2], v[3], v[4], v[5]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat2x4f(_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 8);
-			SCRIPT_ARGS_ARR(v, 0, 8, f32, Float);
-			GlSetMat2x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat3x2f(_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 6);
-			SCRIPT_ARGS_ARR(v, 0, 6, f32, Float);
-			GlSetMat3x2F(v[0], v[1], v[2], v[3], v[4], v[5]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat3x3f(_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 9);
-			SCRIPT_ARGS_ARR(v, 0, 9, f32, Float);
-			GlSetMat3x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat3x4f(_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 12);
-			SCRIPT_ARGS_ARR(v, 0, 12, f32, Float);
-			GlSetMat3x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat4x2f(_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 8);
-			SCRIPT_ARGS_ARR(v, 0, 8, f32, Float);
-			GlSetMat4x2F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat4x3f(_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 12);
-			SCRIPT_ARGS_ARR(v, 0, 12, f32, Float);
-			GlSetMat4x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
-		});
-
-	WrenBindMethod("app", "App", true, "glSetMat4x4f(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 16);
-			SCRIPT_ARGS_ARR(v, 0, 16, f32, Float);
-			GlSetMat4x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
-		});
-
-	WrenBindMethod("app", "App", true, "glAddVertex(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
-		[](ScriptVM* vm)
-		{
-			WrenEnsureSlots(vm, 5);
+			CodeEnsureSlots(vm, 5);
 			SCRIPT_ARGS_ARR(p, 0, 4, f32, Float);
 			SCRIPT_ARGS_ARR(c, 4, 4, u32, UInt);
 			SCRIPT_ARGS_ARR(v, 8, 8, f32, Float);
 			GlAddVertex(
 				p[0], p[1], p[2], p[3], c[0], c[1], c[2], c[3],
 				v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+		});
+
+	CodeBindMethod("app", "App", true, "glCreateTexture(_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 7);
+			SCRIPT_ARGS_ARR(v, 0, 6, u32, UInt);
+			auto texture = GlCreateTexture(v[0], (eGlTextureFormat)v[1], (eGlTextureFilter)v[2], (eGlTextureFilter)v[3], (eGlTextureWrap)v[4], (eGlTextureWrap)v[5], CodeGetSlotBool(vm, 7));
+			CodeSetSlotUInt(vm, 0, texture);
+		});
+
+	CodeBindMethod("app", "App", true, "glDestroyTexture(_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 1);
+			auto texture = CodeGetSlotUInt(vm, 1);
+			GlDestroyTexture(texture);
+		});
+
+	CodeBindMethod("app", "App", true, "glBegin(_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 4);
+			GlBegin(CodeGetSlotBool(vm, 1), CodeGetSlotBool(vm, 2), CodeGetSlotFloat(vm, 3), CodeGetSlotFloat(vm, 4));
+		});
+
+	CodeBindMethod("app", "App", true, "glEnd(_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 3);
+			GlEnd(CodeGetSlotBool(vm, 1), CodeGetSlotUInt(vm, 2), CodeGetSlotUInt(vm, 3));
+		});
+
+	CodeBindMethod("app", "App", true, "glSetUniform(_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 1);
+			cstring value = CodeGetSlotString(vm, 1);
+			GlSetUniform(value);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetTex2D(_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 2);
+			GlSetTex2D(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2));
+		});
+
+	CodeBindMethod("app", "App", true, "glSetFloat(_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 1);
+			f32 value = CodeGetSlotFloat(vm, 1);
+			GlSetFloat(value);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetVec2f(_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 2);
+			SCRIPT_ARGS_ARR(v, 0, 2, f32, Float);
+			GlSetVec2F(v[0], v[1]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetVec3f(_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 3);
+			SCRIPT_ARGS_ARR(v, 0, 3, f32, Float);
+			GlSetVec3F(v[0], v[1], v[2]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetVec4f(_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 4);
+			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
+			GlSetVec4F(v[0], v[1], v[2], v[3]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat2x2f(_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 4);
+			SCRIPT_ARGS_ARR(v, 0, 4, f32, Float);
+			GlSetMat2x2F(v[0], v[1], v[2], v[3]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat2x3f(_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 6);
+			SCRIPT_ARGS_ARR(v, 0, 6, f32, Float);
+			GlSetMat2x3F(v[0], v[1], v[2], v[3], v[4], v[5]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat2x4f(_,_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 8);
+			SCRIPT_ARGS_ARR(v, 0, 8, f32, Float);
+			GlSetMat2x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat3x2f(_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 6);
+			SCRIPT_ARGS_ARR(v, 0, 6, f32, Float);
+			GlSetMat3x2F(v[0], v[1], v[2], v[3], v[4], v[5]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat3x3f(_,_,_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 9);
+			SCRIPT_ARGS_ARR(v, 0, 9, f32, Float);
+			GlSetMat3x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat3x4f(_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 12);
+			SCRIPT_ARGS_ARR(v, 0, 12, f32, Float);
+			GlSetMat3x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat4x2f(_,_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 8);
+			SCRIPT_ARGS_ARR(v, 0, 8, f32, Float);
+			GlSetMat4x2F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat4x3f(_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 12);
+			SCRIPT_ARGS_ARR(v, 0, 12, f32, Float);
+			GlSetMat4x3F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11]);
+		});
+
+	CodeBindMethod("app", "App", true, "glSetMat4x4f(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_)",
+		[](sCodeVM* vm)
+		{
+			CodeEnsureSlots(vm, 16);
+			SCRIPT_ARGS_ARR(v, 0, 16, f32, Float);
+			GlSetMat4x4F(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
 		});
 }
 
@@ -554,7 +581,7 @@ void App::GuiGlRender()
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
+static GLuint opengl_load_shader(cstring vsrc, cstring fsrc)
 {
 	// Compile vertex shader
 	GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
@@ -617,30 +644,30 @@ static GLuint opengl_load_shader(const char* vsrc, const char* fsrc)
 	return program;
 }
 
-static std::string shader_process_includes(const std::string& source)
+static string shader_process_includes(const string& source)
 {
 	std::stringstream processed;
 	std::istringstream input(source);
-	std::string line;
-	static std::string includePath;
+	string line;
+	static string includePath;
 
 	while (std::getline(input, line))
 	{
 		// Check for #include "filename"
 		if (line.rfind("#include", 0) == 0)
 		{
-			size_t start = line.find('"');
-			size_t end = line.rfind('"');
-			if (start != std::string::npos && end != std::string::npos && start < end)
+			size_type start = line.find('"');
+			size_type end = line.rfind('"');
+			if (start != string::npos && end != string::npos && start < end)
 			{
-				size_t len = end - start - 1;
+				size_type len = end - start - 1;
 
 				// Ensure buffer is large enough
 				includePath.resize(len);
 				std::memcpy(&includePath[0], line.c_str() + start + 1, len);
 				includePath[len] = '\0'; // Null-terminate manually
 
-				std::string includedSource = App::FileLoad(includePath.c_str());
+				string includedSource = App::FileLoad(includePath.c_str());
 				processed << shader_process_includes(includedSource) << "\n";
 				continue; // Skip writing the #include line itself
 			}
@@ -650,7 +677,7 @@ static std::string shader_process_includes(const std::string& source)
 	return processed.str();
 }
 
-u32 App::GlLoadShader(const char* filepath)
+u32 App::GlLoadShader(cstring filepath)
 {
 	auto src = shader_process_includes(FileLoad(filepath));
 	auto vsrc = "#version 330 core\n#define VERT\n" + src;
@@ -661,7 +688,7 @@ u32 App::GlLoadShader(const char* filepath)
 	return shader;
 }
 
-u32 App::GlCreateShader(const char* source)
+u32 App::GlCreateShader(cstring source)
 {
 	auto src = shader_process_includes(source);
 	auto vsrc = "#version 330 core\n#define VERT\n" + src;
@@ -691,12 +718,12 @@ static GlImage* gl_get_image(u32 image)
 		return nullptr;
 	}
 
-	return &g.images[static_cast<size_t>(image) - 1];
+	return &g.images[static_cast<size_type>(image) - 1];
 }
 
-u32 App::GlLoadImage(const char* filepath, bool flipY)
+u32 App::GlLoadImage(cstring filepath, bool flipY)
 {
-	const char* path = FilePath(filepath);
+	cstring path = FilePath(filepath);
 
 	GlImage img{};
 	stbi_set_flip_vertically_on_load(flipY);
@@ -761,7 +788,7 @@ static void gltf_free(cgltf_data* data)
 		cgltf_free(data);
 }
 
-static cgltf_data* gltf_load(const char* filepath)
+static cgltf_data* gltf_load(cstring filepath)
 {
 	cgltf_options options = {};
 	cgltf_data* data{ nullptr };
@@ -888,14 +915,14 @@ static void gltf_extract_animation_data(const cgltf_animation& animation)
 	g.g_anims.push_back(glAnim);
 }
 
-u32 App::GlLoadModel(const char* filepath)
+u32 App::GlLoadModel(cstring filepath)
 {
 #if _DEBUG
-	std::string pathStr = PROJECT_PATH;
+	string pathStr = PROJECT_PATH;
 	pathStr += filepath;
-	const char* path = pathStr.c_str();
+	cstring path = pathStr.c_str();
 #else
-	const char* path = filepath;
+	CString path = filepath;
 #endif
 
 	auto data = gltf_load(path);
@@ -939,54 +966,71 @@ void App::GlDestroyModel(u32 model)
 	g.g_models[model] = 0;  // Reset root node handle to 0 (indicating 'destroyed' state)
 }
 
-static GLenum opengl_internal_format(TextureFormat fmt)
+u32 App::GlCreateBuffer(u32 byteStride, eGlBufferType type, eGlBufferUsage usage, eGlBufferAccess access)
+{
+	return 0;
+}
+
+void App::GlDestroyBuffer(u32 buffer)
+{
+}
+
+void App::GlBindBuffer(u32 buffer)
+{
+}
+
+void App::GlSubmitBuffer(u32 buffer)
+{
+}
+
+static GLenum opengl_internal_format(eGlTextureFormat fmt)
 {
 	switch (fmt)
 	{
-	case TextureFormat::R8:    return GL_R8;
-	case TextureFormat::RG8:   return GL_RG8;
-	case TextureFormat::RGB8:  return GL_RGB8;
-	case TextureFormat::RGBA8: return GL_RGBA8;
+	case eGlTextureFormat::R8:    return GL_R8;
+	case eGlTextureFormat::RG8:   return GL_RG8;
+	case eGlTextureFormat::RGB8:  return GL_RGB8;
+	case eGlTextureFormat::RGBA8: return GL_RGBA8;
 	default:                   return GL_RGBA8;
 	}
 }
 
-GLenum opengl_format(TextureFormat fmt)
+GLenum opengl_format(eGlTextureFormat fmt)
 {
 	switch (fmt)
 	{
-	case TextureFormat::R8:    return GL_RED;
-	case TextureFormat::RG8:   return GL_RG;
-	case TextureFormat::RGB8:  return GL_RGB;
-	case TextureFormat::RGBA8: return GL_RGBA;
+	case eGlTextureFormat::R8:    return GL_RED;
+	case eGlTextureFormat::RG8:   return GL_RG;
+	case eGlTextureFormat::RGB8:  return GL_RGB;
+	case eGlTextureFormat::RGBA8: return GL_RGBA;
 	default:                   return GL_RGBA;
 	}
 }
 
-GLenum opengl_type(TextureFormat fmt)
+GLenum opengl_type(eGlTextureFormat fmt)
 {
 	return GL_UNSIGNED_BYTE;
 }
 
-GLenum opengl_filter(TextureFilter filter, bool useMipmaps)
+GLenum opengl_filter(eGlTextureFilter filter, bool useMipmaps)
 {
 	switch (filter)
 	{
-	case TextureFilter::NEAREST:	return useMipmaps ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST;
-	case TextureFilter::LINEAR:		return useMipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
+	case eGlTextureFilter::NEAREST:	return useMipmaps ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST;
+	case eGlTextureFilter::LINEAR:	return useMipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
 	default:						return GL_LINEAR;
 	}
 }
 
-GLenum opengl_wrap(TextureWrap wrap)
+GLenum opengl_wrap(eGlTextureWrap wrap)
 {
-	return wrap == TextureWrap::REPEAT ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+	return wrap == eGlTextureWrap::REPEAT ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 }
 
 u32 App::GlCreateTexture(
-	u32 image, TextureFormat format,
-	TextureFilter minFilter, TextureFilter magFilter,
-	TextureWrap wrapS, TextureWrap wrapT,
+	u32 image, eGlTextureFormat format,
+	eGlTextureFilter minFilter, eGlTextureFilter magFilter,
+	eGlTextureWrap wrapS, eGlTextureWrap wrapT,
 	bool genMipmaps)
 {
 	auto* img = gl_get_image(image);
@@ -1056,14 +1100,14 @@ void App::GlBegin(bool alpha, bool ztest, f32 pointSize, f32 lineWidth)
 	g.vertices.clear();
 }
 
-void App::GlEnd(u32 mode)
+void App::GlEnd(bool indexed, u32 mode, u32 count)
 {
 	glBindVertexArray(g.vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g.vbo);
 
 	glBufferData(GL_ARRAY_BUFFER, g.vertices.size() * sizeof(GlVertex), g.vertices.data(), GL_DYNAMIC_DRAW);
 
-	for (u32 bit = 1; bit <= (u32)GlTopology::TRIANGLE_FAN; bit <<= 1)
+	for (u32 bit = 1; bit <= (u32)eGlTopology::TRIANGLE_FAN; bit <<= 1)
 	{
 		if (mode & bit)
 		{
@@ -1077,6 +1121,14 @@ void App::GlEnd(u32 mode)
 	glBindVertexArray(0);
 }
 
+void App::GlSetRenderTarget(u32 target, u32 depthStencil)
+{
+}
+
+void App::GlReadPixels(u32 x, u32 y, u32 w, u32 h, void* pixelData, u32 target)
+{
+}
+
 void App::GlViewport(i32 x, i32 y, u32 w, u32 h)
 {
 	glViewport(x, y, w, h);
@@ -1087,23 +1139,23 @@ void App::GlScissor(i32 x, i32 y, u32 w, u32 h)
 	glScissor(x, y, w, h);
 }
 
-void App::GlClear(f32 r, f32 g, f32 b, f32 a, f64 d, i32 s, u32 flags)
+void App::GlClear(f32 r, f32 g, f32 b, f32 a, f64 d, i32 s, eGlClearFlags flags)
 {
 	GLbitfield clear = 0;
 
-	if ((flags & (u32)GlClearFlags::COLOR) != 0)
+	if (((u32)flags & (u32)eGlClearFlags::COLOR) != 0)
 	{
 		clear |= GL_COLOR_BUFFER_BIT;
 		glClearColor(r, g, b, a);
 	}
 
-	if ((flags & (u32)GlClearFlags::DEPTH) != 0)
+	if (((u32)flags & (u32)eGlClearFlags::DEPTH) != 0)
 	{
 		clear |= GL_DEPTH_BUFFER_BIT;
 		glClearDepth(d);
 	}
 
-	if ((flags & (u32)GlClearFlags::STENCIL) != 0)
+	if (((u32)flags & (u32)eGlClearFlags::STENCIL) != 0)
 	{
 		clear |= GL_STENCIL_BUFFER_BIT;
 		glClearStencil(s);
@@ -1112,7 +1164,7 @@ void App::GlClear(f32 r, f32 g, f32 b, f32 a, f64 d, i32 s, u32 flags)
 	glClear(clear);
 }
 
-void App::GlSetUniform(const char* name)
+void App::GlSetUniform(cstring name)
 {
 	g.uniformName = name;
 }

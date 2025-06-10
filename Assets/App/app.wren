@@ -316,10 +316,10 @@ class App {
     // @param shader (u32) The shader handle to be deleted.
     foreign static glDestroyShader(shader)
 
-    // Sets the active shader for rendering.
-    //
+	// Sets the active shader for rendering.
+	//
     // @param shader (u32) The shader handle.
-    foreign static glSetShader(shader)
+	foreign static glSetShader(shader)
 
 	// TODO
 	foreign static glLoadImage(path, flipY)
@@ -365,13 +365,58 @@ class App {
 	// TODO
 	foreign static glDestroyTexture(texture)
 
+	// Buffer Config Constants
+
+	static glBuffVertex { 0 }
+	static glBuffIndex { 1 }
+	static glBuffUniform { 2 }
+	static glBuffStorage { 3 }
+
+	static glBuffUseImmutable { 0 }
+	static glBuffUseDefault { 1 }
+	static glBuffUseDynamic { 2 }
+
+	static glBuffAccessNone { 0 }
+	static glBuffAccessRead { 1 }
+	static glBuffAccessWrite { 2 }
+
+	// TODO
+	foreign static glCreateBuffer(byteStride, type, usage, access)
+	
+	// TODO
+	foreign static glDestroyBuffer(buffer)
+	
+	// TODO
+	foreign static glBindBuffer(buffer)
+	
+	// TODO
+	foreign static glSubmitBuffer(buffer)
+
+	// Specifies a vertex position and color (utility from having to fill the entire vertex format).
+    //
+    // @param x (f32) X position.
+    // @param y (f32) Y position.
+    // @param z (f32) Z position.
+    // @param c (u32) Color encoded as RGBA.
+    static glAddVertex(x, y, z, c) {
+		glAddVertex(x, y, z, 1, c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	}
+
+	// TODO
+	static glAddVertex(x, y, z, c, u, v) {
+		glAddVertex(x, y, z, 1, c, 0, 0, 0, u, v, 0, 0, 0, 0, 0, 0)
+	}
+
+	// TODO
+	foreign static glAddVertex(x, y, z, w, c0, c1, i0, i1, v0, v1, v2, v3, v4, v5, v6, v7)
+
     // Begins drawing with optional settings.
     //
-    // @param alpha (bool) Enable alpha blending.
+	// @param alpha (bool) Enable alpha blending.
     // @param ztest (bool) Enable depth testing.
     // @param pointSize (f32) The size of points.
     // @param lineWidth (f32) The width of lines.
-    foreign static glBegin(alpha, ztest, pointSize, lineWidth)
+	foreign static glBegin(alpha, ztest, pointSize, lineWidth)
 
 	// Primitive Constants
 
@@ -383,10 +428,17 @@ class App {
     static glTriangleStrip { 32 }
     static glTriangleFan { 64 }
 
+	// TODO
+	static glEnd(mode) {
+		glEnd(false, mode, -1)
+	}
+
     // Ends drawing and submits the primitives.
     //
-    // @param mode (u32) The primitive type (e.g., `glTriangles`).
-    foreign static glEnd(mode)
+    // @param indexed (bool) Whether we should use an index buffer or not.
+	// @param mode (u32) The primitive type (e.g., `glTriangles`).
+	// @param count (u32) The number of primitives to draw.
+    foreign static glEnd(indexed, mode, count)
 
     // Specifies the name of the uniform variable to be set.
     // This must be called before setting any uniform value.
@@ -411,24 +463,6 @@ class App {
 	foreign static glSetMat4x2f(m00, m01, m10, m11, m20, m21, m30, m31)
 	foreign static glSetMat4x3f(m00, m01, m02, m10, m11, m12, m20, m21, m22, m30, m31, m32)
 	foreign static glSetMat4x4f(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
-
-    // Specifies a vertex position and color (utility from having to fill the entire vertex format).
-    //
-    // @param x (f32) X position.
-    // @param y (f32) Y position.
-    // @param z (f32) Z position.
-    // @param c (u32) Color encoded as RGBA.
-    static glAddVertex(x, y, z, c) {
-		glAddVertex(x, y, z, 1, c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-	}
-
-	// TODO
-	static glAddVertex(x, y, z, c, u, v) {
-		glAddVertex(x, y, z, 1, c, 0, 0, 0, u, v, 0, 0, 0, 0, 0, 0)
-	}
-
-	// TODO
-	foreign static glAddVertex(x, y, z, w, c0, c1, i0, i1, v0, v1, v2, v3, v4, v5, v6, v7)
 
     // ==============================
     // GUI

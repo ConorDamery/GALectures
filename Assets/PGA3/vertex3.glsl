@@ -1,4 +1,4 @@
-#include "Assets/Common/pga3.glsl"
+#include "Assets/PGA3/pga3.glsl"
 
 #ifdef VERT
 precision highp float;

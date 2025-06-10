@@ -22,7 +22,7 @@ add_library (GASandboxLib STATIC
     "Source/Backend/Gui.cpp"
     "Source/Backend/Sfx.cpp"
     "Source/Backend/Net.cpp"
-    "Source/Backend/Wren.cpp"
+    "Source/Backend/Code.cpp"
 )
 target_link_libraries (GASandboxLib ghc_filesystem stb cereal cgltf miniaudio glfw enet_static glad imgui wren)
 target_include_directories (GASandboxLib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Include")

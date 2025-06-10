@@ -12,9 +12,11 @@
 
 #include <fstream>
 
+using namespace GASandbox;
+
 struct GuiFont
 {
-	std::string path{};
+	string path{};
 	f32 size{ 20 };
 };
 
@@ -161,7 +163,7 @@ void serialize(Archive& archive, ImGuiStyle& m)
 	);
 }
 
-bool App::GuiInitialize(const AppConfig& config)
+bool App::GuiInitialize(const sAppConfig& config)
 {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -200,115 +202,115 @@ void App::GuiShutdown()
 void App::GuiReload()
 {
 	// Gui
-	WrenBindMethod("app", "App", true, "guiPushItemWidth(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiPushItemWidth(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			GuiPushItemWidth(WrenGetSlotFloat(vm, 1));
+			CodeEnsureSlots(vm, 1);
+			GuiPushItemWidth(CodeGetSlotFloat(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "guiPopItemWidth()",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiPopItemWidth()",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
+			CodeEnsureSlots(vm, 1);
 			GuiPopItemWidth();
 		});
 
-	WrenBindMethod("app", "App", true, "guiText(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiText(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			GuiText(WrenGetSlotString(vm, 1));
+			CodeEnsureSlots(vm, 1);
+			GuiText(CodeGetSlotString(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "guiAbsText(_,_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiAbsText(_,_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 4);
-			GuiAbsText(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2), WrenGetSlotFloat(vm, 3), WrenGetSlotUInt(vm, 4));
+			CodeEnsureSlots(vm, 4);
+			GuiAbsText(CodeGetSlotString(vm, 1), CodeGetSlotFloat(vm, 2), CodeGetSlotFloat(vm, 3), CodeGetSlotUInt(vm, 4));
 		});
 
-	WrenBindMethod("app", "App", true, "guiBool(_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiBool(_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotBool(vm, 0, GuiBool(WrenGetSlotString(vm, 1), WrenGetSlotBool(vm, 2)));
+			CodeEnsureSlots(vm, 2);
+			CodeSetSlotBool(vm, 0, GuiBool(CodeGetSlotString(vm, 1), CodeGetSlotBool(vm, 2)));
 		});
 
-	WrenBindMethod("app", "App", true, "guiInt(_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiInt(_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2)));
+			CodeEnsureSlots(vm, 2);
+			CodeSetSlotInt(vm, 0, GuiInt(CodeGetSlotString(vm, 1), CodeGetSlotInt(vm, 2)));
 		});
 
-	WrenBindMethod("app", "App", true, "guiInt(_,_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiInt(_,_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 4);
-			WrenSetSlotInt(vm, 0, GuiInt(WrenGetSlotString(vm, 1), WrenGetSlotInt(vm, 2), WrenGetSlotInt(vm, 3), WrenGetSlotInt(vm, 4)));
+			CodeEnsureSlots(vm, 4);
+			CodeSetSlotInt(vm, 0, GuiInt(CodeGetSlotString(vm, 1), CodeGetSlotInt(vm, 2), CodeGetSlotInt(vm, 3), CodeGetSlotInt(vm, 4)));
 		});
 
-	WrenBindMethod("app", "App", true, "guiFloat(_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiFloat(_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotFloat(vm, 0, GuiFloat(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2)));
+			CodeEnsureSlots(vm, 2);
+			CodeSetSlotFloat(vm, 0, GuiFloat(CodeGetSlotString(vm, 1), CodeGetSlotFloat(vm, 2)));
 		});
 
-	WrenBindMethod("app", "App", true, "guiFloat(_,_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiFloat(_,_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotFloat(vm, 0, GuiFloat(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2), WrenGetSlotFloat(vm, 3), WrenGetSlotFloat(vm, 4)));
+			CodeEnsureSlots(vm, 2);
+			CodeSetSlotFloat(vm, 0, GuiFloat(CodeGetSlotString(vm, 1), CodeGetSlotFloat(vm, 2), CodeGetSlotFloat(vm, 3), CodeGetSlotFloat(vm, 4)));
 		});
 
-	WrenBindMethod("app", "App", true, "guiSeparator(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiSeparator(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			GuiSeparator(WrenGetSlotString(vm, 1));
+			CodeEnsureSlots(vm, 1);
+			GuiSeparator(CodeGetSlotString(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "guiButton(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiButton(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, GuiButton(WrenGetSlotString(vm, 1)));
+			CodeEnsureSlots(vm, 1);
+			CodeSetSlotBool(vm, 0, GuiButton(CodeGetSlotString(vm, 1)));
 		});
 
-	WrenBindMethod("app", "App", true, "guiSameLine()",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiSameLine()",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
+			CodeEnsureSlots(vm, 1);
 			GuiSameLine();
 		});
 
-	WrenBindMethod("app", "App", true, "guiContentAvailWidth()",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiContentAvailWidth()",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotFloat(vm, 0, GuiContentAvailWidth());
+			CodeEnsureSlots(vm, 1);
+			CodeSetSlotFloat(vm, 0, GuiContentAvailWidth());
 		});
 
-	WrenBindMethod("app", "App", true, "guiContentAvailHeight()",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiContentAvailHeight()",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotFloat(vm, 0, GuiContentAvailHeight());
+			CodeEnsureSlots(vm, 1);
+			CodeSetSlotFloat(vm, 0, GuiContentAvailHeight());
 		});
 
-	WrenBindMethod("app", "App", true, "guiBeginChild(_,_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiBeginChild(_,_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 3);
-			WrenSetSlotBool(vm, 0, GuiBeginChild(WrenGetSlotString(vm, 1), WrenGetSlotFloat(vm, 2), WrenGetSlotFloat(vm, 3)));
+			CodeEnsureSlots(vm, 3);
+			CodeSetSlotBool(vm, 0, GuiBeginChild(CodeGetSlotString(vm, 1), CodeGetSlotFloat(vm, 2), CodeGetSlotFloat(vm, 3)));
 		});
 
-	WrenBindMethod("app", "App", true, "guiEndChild()",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "guiEndChild()",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
+			CodeEnsureSlots(vm, 1);
 			GuiEndChild();
 		});
 }
@@ -363,53 +365,53 @@ void App::GuiPopItemWidth()
 	ImGui::PopItemWidth();
 }
 
-void App::GuiText(const char* text)
+void App::GuiText(cstring text)
 {
 	ImGui::Text(text);
 }
 
-void App::GuiAbsText(const char* text, f32 x, f32 y, u32 c)
+void App::GuiAbsText(cstring text, f32 x, f32 y, u32 c)
 {
 	ImDrawList* drawlist = ImGui::GetBackgroundDrawList();
 	drawlist->AddText(ImVec2(x, y), c, text);
 }
 
-bool App::GuiBool(const char* label, bool v)
+bool App::GuiBool(cstring label, bool v)
 {
 	ImGui::Checkbox(label, &v);
 	return v;
 }
 
-i32 App::GuiInt(const char* label, i32 i)
+i32 App::GuiInt(cstring label, i32 i)
 {
 	ImGui::InputInt(label, &i);
 	return i;
 }
 
-i32 App::GuiInt(const char* label, i32 i, i32 min, i32 max)
+i32 App::GuiInt(cstring label, i32 i, i32 min, i32 max)
 {
 	ImGui::SliderInt(label, &i, min, max);
 	return i;
 }
 
-f32 App::GuiFloat(const char* label, f32 v)
+f32 App::GuiFloat(cstring label, f32 v)
 {
 	ImGui::DragFloat(label, &v, 0.1f);
 	return v;
 }
 
-f32 App::GuiFloat(const char* label, f32 v, f32 min, f32 max)
+f32 App::GuiFloat(cstring label, f32 v, f32 min, f32 max)
 {
 	ImGui::SliderFloat(label, &v, min, max);
 	return v;
 }
 
-void App::GuiSeparator(const char* label)
+void App::GuiSeparator(cstring label)
 {
 	ImGui::SeparatorText(label);
 }
 
-bool App::GuiButton(const char* label)
+bool App::GuiButton(cstring label)
 {
 	return ImGui::Button(label);
 }
@@ -429,7 +431,7 @@ f32 App::GuiContentAvailHeight()
 	return ImGui::GetContentRegionAvail().y;
 }
 
-bool App::GuiBeginChild(const char* label, f32 w, f32 h)
+bool App::GuiBeginChild(cstring label, f32 w, f32 h)
 {
 	return ImGui::BeginChild(label, ImVec2(w, h));
 }

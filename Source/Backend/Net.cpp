@@ -3,13 +3,13 @@
 #define ENET_IMPLEMENTATION
 #include <enet.h>
 
-#include <vector>
 #include <thread>
 #include <random>
 #include <chrono>
-#include <vector>
 
-using NetcodeFn = void (*)(bool, u32, u32, u32, u32, u32);
+using namespace GASandbox;
+
+using NetcodeFn = void (*)(bool, u32, eNetEvent, u16, u32, u32);
 
 struct NetPacket
 {
@@ -29,16 +29,16 @@ struct NetGlobal
     NetcodeFn netcodeFn{ nullptr };
 
     ENetHost* server{ nullptr };
-    std::vector<ENetPeer*> peers;
+    list<ENetPeer*> peers;
 
-    std::vector<NetClient> clients;
+    list<NetClient> clients;
 
-    std::vector<NetPacket> packets{};
+    list<NetPacket> packets{};
 };
 
 static NetGlobal g{};
 
-static ENetPacket* net_create_packet(const NetPacket& packet, NetPacketMode mode)
+static ENetPacket* net_create_packet(const NetPacket& packet, eNetPacketMode mode)
 {
     int totalSize = sizeof(packet.id) + sizeof(packet.size) + packet.size;
     char* buffer = new char[totalSize];
@@ -62,7 +62,7 @@ static NetPacket net_receive_packet(ENetPacket* packet)
     NetPacket received{};
 
     // Ensure packet is large enough to contain `id` and `size`
-    const SizeType headerSize = sizeof(NetPacket::id) + sizeof(NetPacket::size);
+    const size_type headerSize = sizeof(NetPacket::id) + sizeof(NetPacket::size);
     if (packet->dataLength >= headerSize)
     {
         u32 offset = 0;
@@ -101,7 +101,7 @@ static void net_connect(const ENetEvent& e, bool server, u32 client)
         LOGD("Client connected!");
     }
 
-    g.netcodeFn(server, client, (u32)NetEvent::CONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g.netcodeFn(server, client, eNetEvent::CONNECT, e.peer->incomingPeerID, e.channelID, -1);
 }
 
 static void net_receive(const ENetEvent& e, bool server, u32 client)
@@ -111,7 +111,7 @@ static void net_receive(const ENetEvent& e, bool server, u32 client)
     if (received.data != nullptr)
     {
         g.packets.emplace_back(received);
-        g.netcodeFn(server, client, (u32)NetEvent::RECEIVE, (u32)e.peer->incomingPeerID, e.channelID, (u32)(g.packets.size() - 1));
+        g.netcodeFn(server, client, eNetEvent::RECEIVE, e.peer->incomingPeerID, e.channelID, (u32)(g.packets.size() - 1));
     }
 
     enet_packet_destroy(e.packet);
@@ -119,7 +119,7 @@ static void net_receive(const ENetEvent& e, bool server, u32 client)
 
 static void net_disconnect(const ENetEvent& e, bool server, u32 client)
 {
-    g.netcodeFn(server, client, (u32)NetEvent::DISCONNECT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g.netcodeFn(server, client, eNetEvent::DISCONNECT, e.peer->incomingPeerID, e.channelID, -1);
 
     if (server)
     {
@@ -135,7 +135,7 @@ static void net_disconnect(const ENetEvent& e, bool server, u32 client)
 
 static void net_timeout(const ENetEvent& e, bool server, u32 client)
 {
-    g.netcodeFn(server, client, (u32)NetEvent::TIMEOUT, (u32)e.peer->incomingPeerID, e.channelID, -1);
+    g.netcodeFn(server, client, eNetEvent::TIMEOUT, e.peer->incomingPeerID, e.channelID, -1);
 
     if (server)
     {
@@ -169,7 +169,7 @@ static bool net_guard_packet(u32 packet_size, u32 offset, u32 size)
     return true;
 }
 
-bool App::NetInitialize(const AppConfig& config)
+bool App::NetInitialize(const sAppConfig& config)
 {
     if (enet_initialize() != 0)
     {
@@ -177,7 +177,7 @@ bool App::NetInitialize(const AppConfig& config)
         return false;
     }
 
-    g.netcodeFn = App::WrenNetcode;
+    g.netcodeFn = App::ScriptNetcode;
     return true;
 }
 
@@ -196,92 +196,92 @@ void App::NetReload()
         NetStopServer();
 
     // Net API
-    WrenBindMethod("app", "App", true, "netStartServer(_,_,_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netStartServer(_,_,_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 4);
-            NetStartServer(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3), WrenGetSlotUInt(vm, 4));
+            CodeEnsureSlots(vm, 4);
+            NetStartServer(CodeGetSlotString(vm, 1), CodeGetSlotUInt(vm, 2), CodeGetSlotUInt(vm, 3), CodeGetSlotUInt(vm, 4));
         });
 
-    WrenBindMethod("app", "App", true, "netStopServer()",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netStopServer()",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
+            CodeEnsureSlots(vm, 1);
             NetStopServer();
         });
 
-    WrenBindMethod("app", "App", true, "netConnectClient(_,_,_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netConnectClient(_,_,_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 4);
-            u32 client = NetConnectClient(WrenGetSlotString(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3), WrenGetSlotUInt(vm, 4));
-            WrenSetSlotUInt(vm, 0, client);
+            CodeEnsureSlots(vm, 4);
+            u32 client = NetConnectClient(CodeGetSlotString(vm, 1), CodeGetSlotUInt(vm, 2), CodeGetSlotUInt(vm, 3), CodeGetSlotUInt(vm, 4));
+            CodeSetSlotUInt(vm, 0, client);
         });
 
-    WrenBindMethod("app", "App", true, "netDisconnectClient(_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netDisconnectClient(_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            NetDisconnectClient(WrenGetSlotUInt(vm, 1));
+            CodeEnsureSlots(vm, 1);
+            NetDisconnectClient(CodeGetSlotUInt(vm, 1));
         });
 
-    WrenBindMethod("app", "App", true, "netMakeUuid()",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netMakeUuid()",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            WrenSetSlotUInt(vm, 0, NetMakeUUID());
+            CodeEnsureSlots(vm, 1);
+            CodeSetSlotUInt(vm, 0, NetMakeUUID());
         });
 
-    WrenBindMethod("app", "App", true, "netIsServer()",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netIsServer()",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            WrenSetSlotBool(vm, 0, NetIsServer());
+            CodeEnsureSlots(vm, 1);
+            CodeSetSlotBool(vm, 0, NetIsServer());
         });
 
-    WrenBindMethod("app", "App", true, "netIsClient(_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netIsClient(_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            WrenSetSlotBool(vm, 0, NetIsClient(WrenGetSlotUInt(vm, 1)));
+            CodeEnsureSlots(vm, 1);
+            CodeSetSlotBool(vm, 0, NetIsClient(CodeGetSlotUInt(vm, 1)));
         });
 
-    WrenBindMethod("app", "App", true, "netCreatePacket(_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netCreatePacket(_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 2);
-            auto packet = NetCreatePacket(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
-            WrenSetSlotUInt(vm, 0, packet);
+            CodeEnsureSlots(vm, 2);
+            auto packet = NetCreatePacket(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2));
+            CodeSetSlotUInt(vm, 0, packet);
         });
 
-    WrenBindMethod("app", "App", true, "netPacketId(_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netPacketId(_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            auto id = NetPacketId(WrenGetSlotUInt(vm, 1));
-            WrenSetSlotUInt(vm, 0, id);
+            CodeEnsureSlots(vm, 1);
+            auto id = NetPacketId(CodeGetSlotUInt(vm, 1));
+            CodeSetSlotUInt(vm, 0, id);
         });
 
-    WrenBindMethod("app", "App", true, "netBroadcast(_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netBroadcast(_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 2);
-            NetBroadcast(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+            CodeEnsureSlots(vm, 2);
+            NetBroadcast(CodeGetSlotUInt(vm, 1), (eNetPacketMode)CodeGetSlotUInt(vm, 2));
         });
 
-    WrenBindMethod("app", "App", true, "netSend(_,_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netSend(_,_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 3);
-            NetSend(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotUInt(vm, 3));
+            CodeEnsureSlots(vm, 3);
+            NetSend(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2), (eNetPacketMode)CodeGetSlotUInt(vm, 3));
         });
 
-#define SCRIPT_NET_GET(Type)																					\
-	WrenBindMethod("app", "App", true, "netGet"#Type"(_,_)",											\
-	[](ScriptVM* vm)																					\
+#define SCRIPT_NET_GET(Type)																			\
+	CodeBindMethod("app", "App", true, "netGet"#Type"(_,_)",											\
+	[](sCodeVM* vm)																					    \
 		{																								\
-			WrenEnsureSlots(vm, 2);																		\
-			WrenSetSlot##Type(vm, 0, NetGet##Type(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2)));		\
+			CodeEnsureSlots(vm, 2);																		\
+			CodeSetSlot##Type(vm, 0, NetGet##Type(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2)));	    \
 		});
 
     SCRIPT_NET_GET(Bool);
@@ -290,19 +290,19 @@ void App::NetReload()
     SCRIPT_NET_GET(Float);
     SCRIPT_NET_GET(Double);
 
-    WrenBindMethod("app", "App", true, "netGetString(_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netGetString(_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 2);
-            WrenSetSlotString(vm, 0, NetGetString(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2)));
+            CodeEnsureSlots(vm, 2);
+            CodeSetSlotString(vm, 0, NetGetString(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2)));
         });
 
-#define SCRIPT_NET_SET(Type)																					\
-	WrenBindMethod("app", "App", true, "netSet"#Type"(_,_,_)",											\
-	[](ScriptVM* vm)																					\
+#define SCRIPT_NET_SET(Type)																			\
+	CodeBindMethod("app", "App", true, "netSet"#Type"(_,_,_)",											\
+	[](sCodeVM* vm)																					    \
 		{																								\
-			WrenEnsureSlots(vm, 3);																		\
-			NetSet##Type(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlot##Type(vm, 3));		\
+			CodeEnsureSlots(vm, 3);																		\
+			NetSet##Type(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2), CodeGetSlot##Type(vm, 3));	    \
 		});
 
     SCRIPT_NET_SET(Bool);
@@ -311,15 +311,15 @@ void App::NetReload()
     SCRIPT_NET_SET(Float);
     SCRIPT_NET_SET(Double);
 
-    WrenBindMethod("app", "App", true, "netSetString(_,_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "netSetString(_,_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 3);
-            NetSetString(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotString(vm, 3));
+            CodeEnsureSlots(vm, 3);
+            NetSetString(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2), CodeGetSlotString(vm, 3));
         });
 }
 
-void App::NetStartServer(const char* ip, u32 port, u32 peerCount, u32 channelLimit)
+void App::NetStartServer(cstring ip, u32 port, u32 peerCount, u32 channelLimit)
 {
     if (NetIsServer())
         return;
@@ -352,7 +352,7 @@ void App::NetStopServer()
     g.server = nullptr;
 }
 
-u32 App::NetConnectClient(const char* ip, u32 port, u32 peerCount, u32 channelLimit)
+u32 App::NetConnectClient(cstring ip, u32 port, u32 peerCount, u32 channelLimit)
 {
     NetClient client{};
     client.client = enet_host_create(nullptr, peerCount, channelLimit, 0, 0);
@@ -429,7 +429,7 @@ u32 App::NetPacketId(u32 packet)
     return g.packets[packet].id;
 }
 
-void App::NetBroadcast(u32 packet, u32 mode)
+void App::NetBroadcast(u32 packet, eNetPacketMode mode)
 {
     if (!net_validate_packet(packet))
         return;
@@ -444,12 +444,12 @@ void App::NetBroadcast(u32 packet, u32 mode)
     for (auto peer : g.peers)
     {
         if (peer != nullptr)
-            enet_peer_send(peer, 0, net_create_packet(g.packets[packet], (NetPacketMode)mode));
+            enet_peer_send(peer, 0, net_create_packet(g.packets[packet], mode));
     }
     enet_host_flush(g.server);
 }
 
-void App::NetSend(u32 client, u32 packet, u32 mode)
+void App::NetSend(u32 client, u32 packet, eNetPacketMode mode)
 {
     if (!net_validate_packet(packet))
         return;
@@ -463,7 +463,7 @@ void App::NetSend(u32 client, u32 packet, u32 mode)
 
     // Send to the peer
     const auto& c = g.clients[client];
-    enet_peer_send(c.peer, 0, net_create_packet(g.packets[packet], (NetPacketMode)mode));
+    enet_peer_send(c.peer, 0, net_create_packet(g.packets[packet], mode));
     enet_host_flush(c.client);
 }
 
@@ -598,7 +598,7 @@ f64 App::NetGetDouble(u32 packet, u32 offset)
     return value;
 }
 
-const char* App::NetGetString(u32 packet, u32 offset)
+cstring App::NetGetString(u32 packet, u32 offset)
 {
     if (!net_validate_packet(packet))
         return "";
@@ -608,9 +608,9 @@ const char* App::NetGetString(u32 packet, u32 offset)
         return "";
 
     char* str = reinterpret_cast<char*>(p.data + offset);
-    SizeType maxLen = (SizeType)p.size - offset;
+    size_type maxLen = (size_type)p.size - offset;
 
-    const char* end = static_cast<const char*>(std::memchr(str, '\0', maxLen));
+    cstring end = static_cast<cstring>(std::memchr(str, '\0', maxLen));
     if (end == nullptr)
     {
         LOGW("String read attempt without null termination!");
@@ -680,7 +680,7 @@ void App::NetSetDouble(u32 packet, u32 offset, f64 v)
     std::memcpy(p.data + offset, &v, sizeof(f64));
 }
 
-void App::NetSetString(u32 packet, u32 offset, const char* v)
+void App::NetSetString(u32 packet, u32 offset, cstring v)
 {
     if (!net_validate_packet(packet))
         return;
@@ -694,8 +694,8 @@ void App::NetSetString(u32 packet, u32 offset, const char* v)
     auto& p = g.packets[packet];
 
     // Search for null terminator within packet bounds
-    const char* end = (const char*)std::memchr(v, '\0', p.size - static_cast<SizeType>(offset) - 1);
-    u32 length = end ? (end - v) : (p.size - static_cast<SizeType>(offset) - 1); // Truncate if too long
+    cstring end = (cstring)std::memchr(v, '\0', p.size - static_cast<size_type>(offset) - 1);
+    u32 length = end ? (end - v) : (p.size - static_cast<size_type>(offset) - 1); // Truncate if too long
 
     if (!net_guard_packet(p.size, offset, length))
         return;

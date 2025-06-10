@@ -5,7 +5,7 @@ extern "C" {
 #include <wren_vm.h>
 }
 
-#include <unordered_map>
+using namespace GASandbox;
 
 struct WrenGlobal
 {
@@ -19,46 +19,44 @@ struct WrenGlobal
 	bool error{ false };
 	bool paused{ false };
 
-	std::unordered_map<size_t, ScriptClass> classes{};
-	std::unordered_map<size_t, ScriptMethodFn> methods{};
+	hashmap<size_type, sCodeClass> classes{};
+	hashmap<size_type, fCodeMethod> methods{};
 };
 static WrenGlobal g;
 
-static size_t wren_class_hash(const char* moduleName, const char* className)
+static size_type wren_class_hash(cstring moduleName, cstring className)
 {
-	static std::hash<std::string> hash;
-	return hash(moduleName) ^ hash(className);
+	return App::Hash(moduleName) ^ App::Hash(className);
 }
 
-static size_t wren_method_hash(const char* moduleName, const char* className, bool isStatic, const char* signature)
+static size_type wren_method_hash(cstring moduleName, cstring className, bool isStatic, cstring signature)
 {
-	static std::hash<std::string> hash;
-	return hash(moduleName) ^ hash(className) ^ hash(isStatic ? "s" : "") ^ hash(signature);
+	return App::Hash(moduleName) ^ App::Hash(className) ^ App::Hash(isStatic ? "s" : "") ^ App::Hash(signature);
 }
 
-static WrenForeignMethodFn wren_bind_method(WrenVM* vm, const char* moduleName, const char* className, bool isStatic, const char* signature)
+static WrenForeignMethodFn wren_bind_method(WrenVM* vm, cstring moduleName, cstring className, bool isStatic, cstring signature)
 {
 	if (std::strcmp(moduleName, "random") == 0)
 		return nullptr;
 	if (std::strcmp(moduleName, "meta") == 0)
 		return nullptr;
 
-	const size_t hash = wren_method_hash(moduleName, className, isStatic, signature);
+	const size_type hash = wren_method_hash(moduleName, className, isStatic, signature);
 	const auto it = g.methods.find(hash);
 	if (it != g.methods.end())
-		return it->second;
+		return (WrenForeignMethodFn)it->second;
 	return nullptr;
 }
 
-static WrenForeignMethodFn wren_allocate(const size_t classHash)
+static WrenForeignMethodFn wren_allocate(const size_type classHash)
 {
 	const auto it = g.classes.find(classHash);
 	if (it != g.classes.end())
-		return it->second.allocate;
+		return (WrenForeignMethodFn)it->second.allocate;
 	return nullptr;
 }
 
-static WrenFinalizerFn wren_finalizer(const size_t classHash)
+static WrenFinalizerFn wren_finalizer(const size_type classHash)
 {
 	const auto it = g.classes.find(classHash);
 	if (it != g.classes.end())
@@ -66,7 +64,7 @@ static WrenFinalizerFn wren_finalizer(const size_t classHash)
 	return nullptr;
 }
 
-static WrenForeignClassMethods wren_bind_class(WrenVM* vm, const char* moduleName, const char* className)
+static WrenForeignClassMethods wren_bind_class(WrenVM* vm, cstring moduleName, cstring className)
 {
 	WrenForeignClassMethods methods{};
 	methods.allocate = nullptr;
@@ -75,20 +73,20 @@ static WrenForeignClassMethods wren_bind_class(WrenVM* vm, const char* moduleNam
 	if (std::strcmp(moduleName, "random") == 0) return methods;
 	if (std::strcmp(moduleName, "meta") == 0) return methods;
 
-	const size_t hash = wren_class_hash(moduleName, className);
+	const size_type hash = wren_class_hash(moduleName, className);
 	methods.allocate = wren_allocate(hash);
 	methods.finalize = wren_finalizer(hash);
 
 	return methods;
 }
 
-static WrenLoadModuleResult wren_load_module(WrenVM* vm, const char* name)
+static WrenLoadModuleResult wren_load_module(WrenVM* vm, cstring name)
 {
 	WrenLoadModuleResult res{};
 	return res;
 }
 
-static void wren_write(WrenVM* vm, const char* text)
+static void wren_write(WrenVM* vm, cstring text)
 {
 	if (strcmp(text, "\n") == 0)
 		return;
@@ -96,7 +94,7 @@ static void wren_write(WrenVM* vm, const char* text)
 	App::Log(false, "", 0, "", 0xFFFFFFFF, "%s", text);
 }
 
-static void wren_error(WrenVM* vm, WrenErrorType errorType, const char* module, const int line, const char* msg)
+static void wren_error(WrenVM* vm, WrenErrorType errorType, cstring module, const int line, cstring msg)
 {
 	switch (errorType)
 	{
@@ -114,7 +112,7 @@ static void wren_error(WrenVM* vm, WrenErrorType errorType, const char* module, 
 	g.error = true;
 }
 
-static void* wren_reallocate(void* ptr, SizeType newSize, void* _)
+static void* wren_reallocate(void* ptr, size_type newSize, void* _)
 {
 	if (newSize == 0)
 	{
@@ -125,12 +123,12 @@ static void* wren_reallocate(void* ptr, SizeType newSize, void* _)
 	return realloc(ptr, newSize);
 }
 
-static const char* wren_resolve_module(WrenVM* vm, const char* importer, const char* name)
+static cstring wren_resolve_module(WrenVM* vm, cstring importer, cstring name)
 {
 	return nullptr;
 }
 
-bool App::WrenInitialize(const AppConfig& config)
+bool App::ScriptInitialize(const sAppConfig& config)
 {
 	WrenConfiguration wrenConfig;
 	wrenInitConfiguration(&wrenConfig);
@@ -149,7 +147,7 @@ bool App::WrenInitialize(const AppConfig& config)
 	return true;
 }
 
-void App::WrenShutdown()
+void App::ScriptShutdown()
 {
 	if (g.vm == nullptr)
 		return;
@@ -167,28 +165,28 @@ void App::WrenShutdown()
 	g.netcodeMethod = nullptr;
 }
 
-void App::WrenCollectGarbage()
+void App::ScriptCollectGarbage()
 {
 	if (!g.error)
 		wrenCollectGarbage(g.vm);
 }
 
-SizeType App::WrenBytesAllocated()
+size_type App::ScriptBytesAllocated()
 {
 	return g.error ? 0 : g.vm->bytesAllocated;
 }
 
-bool App::WrenIsPaused()
+bool App::ScriptIsPaused()
 {
 	return g.paused;
 }
 
-void App::WrenTogglePaused()
+void App::ScriptTogglePaused()
 {
 	g.paused = !g.paused;
 }
 
-void App::WrenUpdate(f64 dt)
+void App::ScriptUpdate(f64 dt)
 {
 	if (g.error || g.paused)
 		return;
@@ -210,7 +208,7 @@ void App::WrenUpdate(f64 dt)
 	}
 }
 
-void App::WrenRender()
+void App::ScriptRender()
 {
 	if (g.error)
 		return;
@@ -231,7 +229,7 @@ void App::WrenRender()
 	}
 }
 
-void App::WrenNetcode(bool server, u32 client, u32 event, u32 peer, u32 channel, u32 packet)
+void App::ScriptNetcode(bool server, u32 client, eNetEvent event, u16 peer, u32 channel, u32 packet)
 {
 	if (!g.error && !g.paused)
 	{
@@ -239,12 +237,12 @@ void App::WrenNetcode(bool server, u32 client, u32 event, u32 peer, u32 channel,
 		{
 			wrenEnsureSlots(g.vm, 6);
 			wrenSetSlotHandle(g.vm, 0, g.mainClass);
-			WrenSetSlotBool(g.vm, 1, server);
-			WrenSetSlotUInt(g.vm, 2, client);
-			WrenSetSlotUInt(g.vm, 3, event);
-			WrenSetSlotUInt(g.vm, 4, peer);
-			WrenSetSlotUInt(g.vm, 5, channel);
-			WrenSetSlotUInt(g.vm, 6, packet);
+			CodeSetSlotBool(g.vm, 1, server);
+			CodeSetSlotUInt(g.vm, 2, client);
+			CodeSetSlotUInt(g.vm, 3, (u32)event);
+			CodeSetSlotUInt(g.vm, 4, peer);
+			CodeSetSlotUInt(g.vm, 5, channel);
+			CodeSetSlotUInt(g.vm, 6, packet);
 			wrenCall(g.vm, g.netcodeMethod);
 		}
 		catch (const std::exception& e)
@@ -262,7 +260,7 @@ void App::WrenReload()
 {
 	if (g.error)
 	{
-		WrenShutdown();
+		ScriptShutdown();
 		return;
 	}
 
@@ -293,13 +291,13 @@ void App::WrenReload()
 }
 
 // Script
-void App::WrenParseFile(const char* moduleName, const char* filepath)
+void App::CodeParseFile(cstring moduleName, cstring filepath)
 {
 	auto src = FileLoad(filepath);
-	WrenParseSource(moduleName, src.c_str());
+	CodeParseSource(moduleName, src.c_str());
 }
 
-void App::WrenParseSource(const char* moduleName, const char* source)
+void App::CodeParseSource(cstring moduleName, cstring source)
 {
 	switch (wrenInterpret(g.vm, moduleName, source))
 	{
@@ -320,99 +318,99 @@ void App::WrenParseSource(const char* moduleName, const char* source)
 	}
 }
 
-void App::WrenBindClass(const char* moduleName, const char* className, ScriptClass scriptClass)
+void App::CodeBindClass(cstring moduleName, cstring className, sCodeClass scriptClass)
 {
-	const size_t hash = wren_class_hash(moduleName, className);
+	const size_type hash = wren_class_hash(moduleName, className);
 	g.classes.insert(std::make_pair(hash, scriptClass));
 }
 
-void App::WrenBindMethod(const char* moduleName, const char* className, bool isStatic, const char* signature, ScriptMethodFn scriptMethod)
+void App::CodeBindMethod(cstring moduleName, cstring className, bool isStatic, cstring signature, fCodeMethod scriptMethod)
 {
-	const size_t hash = wren_method_hash(moduleName, className, isStatic, signature);
+	const size_type hash = wren_method_hash(moduleName, className, isStatic, signature);
 	g.methods.insert(std::make_pair(hash, scriptMethod));
 }
 
-void App::WrenEnsureSlots(ScriptVM* vm, i32 count)
+void App::CodeEnsureSlots(sCodeVM vm, i32 count)
 {
-	wrenEnsureSlots(vm, count);
+	wrenEnsureSlots((WrenVM*)vm, count);
 }
 
-void App::WrenGetVariable(ScriptVM* vm, const char* moduleName, const char* className, i32 slot)
+void App::CodeGetVariable(sCodeVM vm, cstring moduleName, cstring className, i32 slot)
 {
-	wrenGetVariable(vm, moduleName, className, slot);
+	wrenGetVariable((WrenVM*)vm, moduleName, className, slot);
 }
 
-bool App::WrenGetSlotBool(ScriptVM* vm, i32 slot)
+bool App::CodeGetSlotBool(sCodeVM vm, i32 slot)
 {
-	return wrenGetSlotBool(vm, slot);
+	return wrenGetSlotBool((WrenVM*)vm, slot);
 }
 
-u32 App::WrenGetSlotUInt(ScriptVM* vm, i32 slot)
+u32 App::CodeGetSlotUInt(sCodeVM vm, i32 slot)
 {
-	return (u32)wrenGetSlotDouble(vm, slot);
+	return (u32)wrenGetSlotDouble((WrenVM*)vm, slot);
 }
 
-i32 App::WrenGetSlotInt(ScriptVM* vm, i32 slot)
+i32 App::CodeGetSlotInt(sCodeVM vm, i32 slot)
 {
-	return (i32)wrenGetSlotDouble(vm, slot);
+	return (i32)wrenGetSlotDouble((WrenVM*)vm, slot);
 }
 
-f32 App::WrenGetSlotFloat(ScriptVM* vm, i32 slot)
+f32 App::CodeGetSlotFloat(sCodeVM vm, i32 slot)
 {
-	return (f32)wrenGetSlotDouble(vm, slot);
+	return (f32)wrenGetSlotDouble((WrenVM*)vm, slot);
 }
 
-f64 App::WrenGetSlotDouble(ScriptVM* vm, i32 slot)
+f64 App::CodeGetSlotDouble(sCodeVM vm, i32 slot)
 {
-	return wrenGetSlotDouble(vm, slot);
+	return wrenGetSlotDouble((WrenVM*)vm, slot);
 }
 
-const char* App::WrenGetSlotString(ScriptVM* vm, i32 slot)
+cstring App::CodeGetSlotString(sCodeVM vm, i32 slot)
 {
-	return wrenGetSlotString(vm, slot);
+	return wrenGetSlotString((WrenVM*)vm, slot);
 }
 
-void* App::WrenGetSlotObject(ScriptVM* vm, i32 slot)
+void* App::CodeGetSlotObject(sCodeVM vm, i32 slot)
 {
-	return wrenGetSlotForeign(vm, slot);
+	return wrenGetSlotForeign((WrenVM*)vm, slot);
 }
 
-const char* App::WrenGetSlotBytes(ScriptVM* vm, i32 slot, i32* length)
+cstring App::CodeGetSlotBytes(sCodeVM vm, i32 slot, i32* length)
 {
-	return wrenGetSlotBytes(vm, slot, length);
+	return wrenGetSlotBytes((WrenVM*)vm, slot, length);
 }
 
-void App::WrenSetSlotBool(ScriptVM* vm, i32 slot, bool value)
+void App::CodeSetSlotBool(sCodeVM vm, i32 slot, bool value)
 {
-	wrenSetSlotBool(vm, slot, value);
+	wrenSetSlotBool((WrenVM*)vm, slot, value);
 }
 
-void App::WrenSetSlotUInt(ScriptVM* vm, i32 slot, u32 value)
+void App::CodeSetSlotUInt(sCodeVM vm, i32 slot, u32 value)
 {
-	wrenSetSlotDouble(vm, slot, (f64)value);
+	wrenSetSlotDouble((WrenVM*)vm, slot, (f64)value);
 }
 
-void App::WrenSetSlotInt(ScriptVM* vm, i32 slot, i32 value)
+void App::CodeSetSlotInt(sCodeVM vm, i32 slot, i32 value)
 {
-	wrenSetSlotDouble(vm, slot, (f64)value);
+	wrenSetSlotDouble((WrenVM*)vm, slot, (f64)value);
 }
 
-void App::WrenSetSlotFloat(ScriptVM* vm, i32 slot, f32 value)
+void App::CodeSetSlotFloat(sCodeVM vm, i32 slot, f32 value)
 {
-	wrenSetSlotDouble(vm, slot, (f64)value);
+	wrenSetSlotDouble((WrenVM*)vm, slot, (f64)value);
 }
 
-void App::WrenSetSlotDouble(ScriptVM* vm, i32 slot, f64 value)
+void App::CodeSetSlotDouble(sCodeVM vm, i32 slot, f64 value)
 {
-	wrenSetSlotDouble(vm, slot, (f64)value);
+	wrenSetSlotDouble((WrenVM*)vm, slot, (f64)value);
 }
 
-void App::WrenSetSlotString(ScriptVM* vm, i32 slot, const char* str)
+void App::CodeSetSlotString(sCodeVM vm, i32 slot, cstring str)
 {
-	wrenSetSlotString(vm, slot, str);
+	wrenSetSlotString((WrenVM*)vm, slot, str);
 }
 
-void* App::WrenSetSlotNewObject(ScriptVM* vm, i32 slot, i32 classSlot, size_t size)
+void* App::CodeSetSlotNewObject(sCodeVM vm, i32 slot, i32 classSlot, size_type size)
 {
-	return wrenSetSlotNewForeign(vm, slot, classSlot, size);
+	return wrenSetSlotNewForeign((WrenVM*)vm, slot, classSlot, size);
 }

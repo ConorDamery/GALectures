@@ -7,11 +7,10 @@
 #include <miniaudio.h>
 
 #include <iostream>
-#include <string>
-#include <unordered_map>
-#include <vector>
 #include <algorithm>
 #include <cstring>
+
+using namespace GASandbox;
 
 struct SfxInstance
 {
@@ -24,21 +23,21 @@ struct SfxAudio
 {
     ma_decoder decoder{};
     f32 volume{ 1.0f };
-    std::string filepath{};
+    string filepath{};
 };
 
 struct SfxChannel
 {
     f32 volume{ 1.0f };
     bool active{ true };
-    std::vector<SfxInstance> instances;
+    list<SfxInstance> instances;
 };
 
 struct SfxGlobal
 {
     ma_device device{};
-    std::vector<SfxAudio> audios{};
-    std::vector<SfxChannel> channels{};
+    list<SfxAudio> audios{};
+    list<SfxChannel> channels{};
 };
 static SfxGlobal g;
 
@@ -54,7 +53,7 @@ static void sfx_data_callback(ma_device* pDevice, void* pOutput, const void* pIn
 
         for (auto& instance : channel.instances)
         {
-            std::vector<float> tempBuffer(frameCount * 2);
+            list<float> tempBuffer(frameCount * 2);
             ma_uint64 framesRead;
             ma_decoder_read_pcm_frames(&instance.decoder, tempBuffer.data(), frameCount, &framesRead);
 
@@ -73,7 +72,7 @@ static void sfx_data_callback(ma_device* pDevice, void* pOutput, const void* pIn
     (void)pInput;
 }
 
-bool App::SfxInitialize(const AppConfig& config)
+bool App::SfxInitialize(const sAppConfig& config)
 {
     ma_device_config deviceConfig = ma_device_config_init(ma_device_type_playback);
     deviceConfig.playback.format = ma_format_f32;
@@ -117,55 +116,55 @@ void App::SfxReload()
     g.channels.clear();
 
     // Audio API
-    WrenBindMethod("app", "App", true, "sfxLoadAudio(_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "sfxLoadAudio(_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            u32 audio = SfxLoadAudio(WrenGetSlotString(vm, 1));
-            WrenSetSlotUInt(vm, 0, audio);
+            CodeEnsureSlots(vm, 1);
+            u32 audio = SfxLoadAudio(CodeGetSlotString(vm, 1));
+            CodeSetSlotUInt(vm, 0, audio);
         });
 
-    WrenBindMethod("app", "App", true, "sfxDestroyAudio(_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "sfxDestroyAudio(_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            SfxDestroyAudio(WrenGetSlotUInt(vm, 1));
+            CodeEnsureSlots(vm, 1);
+            SfxDestroyAudio(CodeGetSlotUInt(vm, 1));
         });
 
-    WrenBindMethod("app", "App", true, "sfxCreateChannel(_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "sfxCreateChannel(_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            u32 channel = SfxCreateChannel(WrenGetSlotFloat(vm, 1));
-            WrenSetSlotUInt(vm, 0, channel);
+            CodeEnsureSlots(vm, 1);
+            u32 channel = SfxCreateChannel(CodeGetSlotFloat(vm, 1));
+            CodeSetSlotUInt(vm, 0, channel);
         });
 
-    WrenBindMethod("app", "App", true, "sfxDestroyChannel(_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "sfxDestroyChannel(_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 1);
-            SfxDestroyChannel(WrenGetSlotUInt(vm, 1));
+            CodeEnsureSlots(vm, 1);
+            SfxDestroyChannel(CodeGetSlotUInt(vm, 1));
         });
 
-    WrenBindMethod("app", "App", true, "sfxSetChannelVolume(_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "sfxSetChannelVolume(_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 2);
-            SfxSetChannelVolume(WrenGetSlotUInt(vm, 1), WrenGetSlotFloat(vm, 2));
+            CodeEnsureSlots(vm, 2);
+            SfxSetChannelVolume(CodeGetSlotUInt(vm, 1), CodeGetSlotFloat(vm, 2));
         });
 
-    WrenBindMethod("app", "App", true, "sfxPlay(_,_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "sfxPlay(_,_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 3);
-            SfxPlay(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2), WrenGetSlotBool(vm, 3));
+            CodeEnsureSlots(vm, 3);
+            SfxPlay(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2), CodeGetSlotBool(vm, 3));
         });
 
-    WrenBindMethod("app", "App", true, "sfxStop(_,_)",
-        [](ScriptVM* vm)
+    CodeBindMethod("app", "App", true, "sfxStop(_,_)",
+        [](sCodeVM* vm)
         {
-            WrenEnsureSlots(vm, 2);
-            SfxStop(WrenGetSlotUInt(vm, 1), WrenGetSlotUInt(vm, 2));
+            CodeEnsureSlots(vm, 2);
+            SfxStop(CodeGetSlotUInt(vm, 1), CodeGetSlotUInt(vm, 2));
         });
 }
 
@@ -177,7 +176,7 @@ static SfxChannel* sfx_get_channel(u32 channel)
         return nullptr;
     }
 
-    return &g.channels[static_cast<size_t>(channel) - 1];
+    return &g.channels[static_cast<size_type>(channel) - 1];
 }
 
 static SfxAudio* sfx_get_audio(u32 audio)
@@ -188,12 +187,12 @@ static SfxAudio* sfx_get_audio(u32 audio)
         return nullptr;
     }
 
-    return &g.audios[static_cast<size_t>(audio) - 1];
+    return &g.audios[static_cast<size_type>(audio) - 1];
 }
 
-u32 App::SfxLoadAudio(const char* filepath)
+u32 App::SfxLoadAudio(cstring filepath)
 {
-    const char* path = FilePath(filepath);
+    cstring path = FilePath(filepath);
 
     SfxAudio audio;
     audio.filepath = path;
@@ -274,7 +273,7 @@ void App::SfxStop(u32 audio, u32 channel)
         return;
 
     auto& instances = chn->instances;
-    for (size_t i = 0; i < instances.size(); )
+    for (size_type i = 0; i < instances.size(); )
     {
         if (instances[i].audio == audio)
         {

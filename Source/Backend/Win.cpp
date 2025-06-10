@@ -4,23 +4,24 @@
 #include <GLFW/glfw3native.h>
 #include <backends/imgui_impl_glfw.h>
 
+using namespace GASandbox;
+
 struct WinGlobal
 {
 	// Window
 	GLFWwindow* window{ nullptr };
-	WindowMode winMode{ WindowMode::WINDOWED };
-	int winX{ 0 }, winY{ 0 };
-	int winWidth{ 0 }, winHeight{ 0 };
+	eWinMode winMode{ eWinMode::WINDOWED };
+	i32 winX{ 0 }, winY{ 0 };
+	i32 winWidth{ 0 }, winHeight{ 0 };
 };
-
 static WinGlobal g{};
 
-static void glfw_error_callback(int i, const char* c)
+static void glfw_error_callback(int i, cstring c)
 {
 	LOGE("GLFW Error [%s]: ", c);
 }
 
-bool App::WinInitialize(const AppConfig& config)
+bool App::WinInitialize(const sAppConfig& config)
 {
 	glfwSetErrorCallback(glfw_error_callback);
 	if (!glfwInit())
@@ -47,7 +48,7 @@ bool App::WinInitialize(const AppConfig& config)
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_SAMPLES, config.msaa);
 
-	if (g.winMode == WindowMode::FULLSCREEN)
+	if (g.winMode == eWinMode::FULLSCREEN)
 	{
 		pMonitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* pMode = glfwGetVideoMode(pMonitor);
@@ -70,7 +71,7 @@ bool App::WinInitialize(const AppConfig& config)
 	glfwMakeContextCurrent(g.window);
 	glfwSwapInterval(1);
 
-	if (g.winMode == WindowMode::BORDERLESS)
+	if (g.winMode == eWinMode::BORDERLESS)
 	{
 		GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
@@ -112,94 +113,94 @@ void App::WinShutdown()
 void App::WinReload()
 {
 	// Window
-	WrenBindMethod("app", "App", true, "winMode(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winMode(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WinMode(WrenGetSlotInt(vm, 1));
+			CodeEnsureSlots(vm, 1);
+			WinMode((eWinMode)CodeGetSlotInt(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "winCursor(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winCursor(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WinCursor(WrenGetSlotInt(vm, 1));
+			CodeEnsureSlots(vm, 1);
+			WinCursor(CodeGetSlotInt(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "winAlwaysOnTop(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winAlwaysOnTop(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WinAlwaysOnTop(WrenGetSlotBool(vm, 1));
+			CodeEnsureSlots(vm, 1);
+			WinAlwaysOnTop(CodeGetSlotBool(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "winWidth",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winWidth",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 0);
-			WrenSetSlotInt(vm, 0, WinWidth());
+			CodeEnsureSlots(vm, 0);
+			CodeSetSlotInt(vm, 0, WinWidth());
 		});
 
-	WrenBindMethod("app", "App", true, "winHeight",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winHeight",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 0);
-			WrenSetSlotInt(vm, 0, WinHeight());
+			CodeEnsureSlots(vm, 0);
+			CodeSetSlotInt(vm, 0, WinHeight());
 		});
 
-	WrenBindMethod("app", "App", true, "winMouseX",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winMouseX",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 0);
-			WrenSetSlotDouble(vm, 0, WinMouseX());
+			CodeEnsureSlots(vm, 0);
+			CodeSetSlotDouble(vm, 0, WinMouseX());
 		});
 
-	WrenBindMethod("app", "App", true, "winMouseY",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winMouseY",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 0);
-			WrenSetSlotDouble(vm, 0, WinMouseY());
+			CodeEnsureSlots(vm, 0);
+			CodeSetSlotDouble(vm, 0, WinMouseY());
 		});
 
-	WrenBindMethod("app", "App", true, "winButton(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winButton(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, WinButton(WrenGetSlotInt(vm, 1)));
+			CodeEnsureSlots(vm, 1);
+			CodeSetSlotBool(vm, 0, WinButton(CodeGetSlotInt(vm, 1)));
 		});
 
-	WrenBindMethod("app", "App", true, "winKey(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winKey(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, WinKey(WrenGetSlotInt(vm, 1)));
+			CodeEnsureSlots(vm, 1);
+			CodeSetSlotBool(vm, 0, WinKey(CodeGetSlotInt(vm, 1)));
 		});
 
-	WrenBindMethod("app", "App", true, "winPadCount()",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winPadCount()",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotInt(vm, 0, WinPadCount());
+			CodeEnsureSlots(vm, 1);
+			CodeSetSlotInt(vm, 0, WinPadCount());
 		});
 
-	WrenBindMethod("app", "App", true, "winPadButton(_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winPadButton(_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotBool(vm, 0, WinPadButton(WrenGetSlotInt(vm, 1), WrenGetSlotInt(vm, 2)));
+			CodeEnsureSlots(vm, 2);
+			CodeSetSlotBool(vm, 0, WinPadButton(CodeGetSlotInt(vm, 1), CodeGetSlotInt(vm, 2)));
 		});
 
-	WrenBindMethod("app", "App", true, "winPadAxis(_,_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winPadAxis(_,_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 2);
-			WrenSetSlotFloat(vm, 0, WinPadAxis(WrenGetSlotInt(vm, 1), WrenGetSlotInt(vm, 2)));
+			CodeEnsureSlots(vm, 2);
+			CodeSetSlotFloat(vm, 0, WinPadAxis(CodeGetSlotInt(vm, 1), CodeGetSlotInt(vm, 2)));
 		});
 
-	WrenBindMethod("app", "App", true, "winClose()",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "winClose()",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 0);
+			CodeEnsureSlots(vm, 0);
 			WinClose();
 		});
 }
@@ -240,14 +241,14 @@ f64 App::GetTime()
 	return glfwGetTime();
 }
 
-void* App::WinGetProcAddress(const char* procname)
+void* App::WinGetProcAddress(cstring procname)
 {
 	return glfwGetProcAddress(procname);
 }
 
-void App::WinMode(i32 mode)
+void App::WinMode(eWinMode mode)
 {
-	auto winMode = (WindowMode)mode;
+	auto winMode = mode;
 	if (winMode == g.winMode)
 		return;
 
@@ -257,14 +258,14 @@ void App::WinMode(i32 mode)
 	g.winMode = winMode;
 	switch (g.winMode)
 	{
-	case WindowMode::FULLSCREEN:
+	case eWinMode::FULLSCREEN:
 		glfwGetWindowPos(g.window, &g.winX, &g.winY);
 		glfwGetWindowSize(g.window, &g.winWidth, &g.winHeight);
 
 		glfwSetWindowMonitor(g.window, pMonitor, 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
 		break;
 
-	case WindowMode::BORDERLESS:
+	case eWinMode::BORDERLESS:
 		glfwGetWindowPos(g.window, &g.winX, &g.winY);
 		glfwGetWindowSize(g.window, &g.winWidth, &g.winHeight);
 
@@ -273,7 +274,7 @@ void App::WinMode(i32 mode)
 		glfwSetWindowSize(g.window, vidmode->width, vidmode->height);
 		break;
 
-	case WindowMode::UNDECORATED:
+	case eWinMode::UNDECORATED:
 		glfwSetWindowAttrib(g.window, GLFW_DECORATED, GLFW_FALSE);
 		break;
 

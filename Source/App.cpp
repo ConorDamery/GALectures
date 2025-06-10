@@ -18,19 +18,21 @@
 #include <ctime>
 #include <iomanip>
 
+using namespace GASandbox;
+
 struct LogData
 {
 	u32 color{ 0xFFFFFFFF };
-	std::string message{};
-	SizeType hash{ 0 };
-	SizeType count{ 0 };
+	string message{};
+	size_type hash{ 0 };
+	size_type count{ 0 };
 };
 
 struct AppGlobal
 {
 	// App
-	std::vector<LogData> logs{};
-	std::unordered_map<SizeType, SizeType> logsHash{};
+	list<LogData> logs{};
+	hashmap<size_type, size_type> logsHash{};
 	std::mutex logMutex{};
 
 	u32 frames{ 0 };
@@ -52,9 +54,9 @@ struct AppGlobal
 static AppGlobal g;
 
 // Static utils
-static SizeType str_hash(const std::string& str)
+static size_type str_hash(const string& str)
 {
-	static std::hash<std::string> g_hash{};
+	static std::hash<string> g_hash{};
 	return g_hash(str);
 }
 
@@ -64,9 +66,9 @@ void App::QueueReload()
 	g.reload = true;
 }
 
-void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 color, const char* format, ...)
+void App::Log(bool verbose, cstring file, i32 line, cstring func, u32 color, cstring format, ...)
 {
-	static std::string buffer; // Persistent buffer to reduce allocations
+	static string buffer; // Persistent buffer to reduce allocations
 
 	std::lock_guard<std::mutex> lock(g.logMutex);
 
@@ -77,7 +79,7 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 	std::ostringstream ss;
 	ss << std::put_time(std::localtime(&in_time_t), "[%Y-%m-%d %H:%M:%S]");
 
-	std::string timestamp = ss.str();
+	string timestamp = ss.str();
 
 	// Initialize the argument list
 	va_list args;
@@ -97,12 +99,12 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 	std::vsnprintf(&buffer[0], buffer.size(), format, args);
 	va_end(args);
 
-	const char* filename = std::max(strrchr(file, '/'), strrchr(file, '\\'));
+	cstring filename = std::max(strrchr(file, '/'), strrchr(file, '\\'));
 	filename = filename ? filename + 1 : file; // Move past '/' or '\' if found
 
 	// We have the same log already, skip to avoid many repeating logs
-	static std::hash<std::string> g_hash{};
-	SizeType hash = g_hash(func) ^ g_hash(filename) ^ line ^ g_hash(buffer);
+	static std::hash<string> g_hash{};
+	size_type hash = g_hash(func) ^ g_hash(filename) ^ line ^ g_hash(buffer);
 	auto it = g.logsHash.find(hash);
 	if (it != g.logsHash.end())
 	{
@@ -122,7 +124,7 @@ void App::Log(bool verbose, const char* file, i32 line, const char* func, u32 co
 		// Format metadata in the same buffer
 		size = std::snprintf(nullptr, 0, "%s [%s] (%s:%d)\n%s", timestamp.c_str(), func, filename, line, buffer.c_str());
 
-		std::string temp;
+		string temp;
 		temp.resize(size + 1);
 
 		std::snprintf(&temp[0], temp.size(), "%s [%s] (%s:%d)\n%s", timestamp.c_str(), func, filename, line, buffer.c_str());
@@ -176,7 +178,18 @@ bool App::IsHeadless()
 	return g.headless;
 }
 
-bool App::Initialize(const AppConfig& config)
+size_type App::Hash(cstring str)
+{
+	return Hash(string{ str });
+}
+
+size_type App::Hash(const string& str)
+{
+	static std::hash<string> h{};
+	return h(str);
+}
+
+bool App::Initialize(const sAppConfig& config)
 {
 	if (!config.headless)
 	{
@@ -208,7 +221,7 @@ void App::Shutdown()
 {
 	FileShutdown();
 
-	WrenShutdown();
+	ScriptShutdown();
 
 	NetShutdown();
 	SfxShutdown();
@@ -223,7 +236,7 @@ void App::Shutdown()
 
 void App::Update(f64 dt)
 {
-	WrenCollectGarbage();
+	ScriptCollectGarbage();
 	WinPollEvents();
 	NetPollEvents();
 
@@ -237,13 +250,13 @@ void App::Update(f64 dt)
 		g.time = std::fmodf(g.time, 1.f);
 	}
 
-	WrenUpdate(dt);
+	ScriptUpdate(dt);
 }
 
 void App::Render()
 {
 	GlViewport(0, 0, WinWidth(), WinHeight());
-	GlClear(0, 0, 0, 1, 1, 0, (u32)GlClearFlags::ALL);
+	GlClear(0, 0, 0, 1, 1, 0, eGlClearFlags::ALL);
 
 	GuiWinNewFrame();
 	GuiGlNewFrame();
@@ -263,7 +276,7 @@ void App::Render()
 		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
 
 	ImGui::SetWindowFontScale(g.fontSize);
-	WrenRender();
+	ScriptRender();
 	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::PopStyleVar(2);
@@ -324,13 +337,13 @@ void App::GuiRender()
 					if (ImGui::BeginMenu("Mode"))
 					{
 						if (ImGui::MenuItem("Windowed"))
-							WinMode((i32)WindowMode::WINDOWED);
+							WinMode(eWinMode::WINDOWED);
 						if (ImGui::MenuItem("Undecorated"))
-							WinMode((i32)WindowMode::UNDECORATED);
+							WinMode(eWinMode::UNDECORATED);
 						if (ImGui::MenuItem("Borderless"))
-							WinMode((i32)WindowMode::BORDERLESS);
+							WinMode(eWinMode::BORDERLESS);
 						if (ImGui::MenuItem("Fullscreen"))
-							WinMode((i32)WindowMode::FULLSCREEN);
+							WinMode(eWinMode::FULLSCREEN);
 
 						ImGui::EndMenu();
 					}
@@ -368,10 +381,10 @@ void App::GuiRender()
 		if (ImGui::MenuItem("Reload"))
 			QueueReload();
 
-		if (ImGui::MenuItem(WrenIsPaused() ? "Play" : "Pause"))
-			WrenTogglePaused();
+		if (ImGui::MenuItem(ScriptIsPaused() ? "Play" : "Pause"))
+			ScriptTogglePaused();
 
-		const SizeType bytesAllocated = WrenBytesAllocated();
+		const size_type bytesAllocated = ScriptBytesAllocated();
 		ImGui::Text(" |  v%s  | %5.0f fps | %6.2f ms | %6.2f mb", VERSION_STR, g.fps, g.spf * 1000, bytesAllocated / 100000.f);
 		ImGui::EndMainMenuBar();
 	}
@@ -398,13 +411,13 @@ void App::GuiRender()
 
 				if (ImGui::Selectable("Copy"))
 				{
-					static std::string clipboard;
+					static string clipboard;
 					clipboard.clear();
 					clipboard.reserve(4096);
 
 					for (const auto& log : g.logs)
 					{
-						SizeType length = log.message.size();
+						size_type length = log.message.size();
 						if (length > 0 && log.message[length - 1] == '\0') --length;
 						clipboard.append(log.message, 0, length).append("\n");
 					}
@@ -437,12 +450,12 @@ void App::GuiRender()
 	}
 }
 
-bool App::Configure(int argc, char** args, AppConfig& config)
+bool App::Configure(int argc, char** args, sAppConfig& config)
 {
 	config.title = "GA Sandbox";
 	config.width = 800;
 	config.height = 600;
-	config.windowMode = WindowMode::WINDOWED;
+	config.windowMode = eWinMode::WINDOWED;
 	config.msaa = 8;
 	config.headless = false;
 
@@ -451,7 +464,7 @@ bool App::Configure(int argc, char** args, AppConfig& config)
 
 int App::Run(int argc, char** args)
 {
-	AppConfig config{};
+	sAppConfig config{};
 	LOGD("App configuring ...");
 	if (!Configure(argc, args, config))
 	{
@@ -488,7 +501,7 @@ int App::Run(int argc, char** args)
 	return EXIT_SUCCESS;
 }
 
-void App::Reload(const AppConfig& config)
+void App::Reload(const sAppConfig& config)
 {
 	g.reload = false;
 
@@ -498,8 +511,8 @@ void App::Reload(const AppConfig& config)
 	LOGD("App reloading ...");
 
 	// Reload wren vm
-	WrenShutdown();
-	WrenInitialize(config);
+	ScriptShutdown();
+	ScriptInitialize(config);
 
 	// Reload subsystems
 	WinReload();
@@ -509,37 +522,37 @@ void App::Reload(const AppConfig& config)
 	NetReload();
 
 	// Application API
-	WrenBindMethod("app", "App", true, "wait(_)",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "wait(_)",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			Wait(WrenGetSlotUInt(vm, 1));
+			CodeEnsureSlots(vm, 1);
+			Wait(CodeGetSlotUInt(vm, 1));
 		});
 
-	WrenBindMethod("app", "App", true, "isHeadless",
-		[](ScriptVM* vm)
+	CodeBindMethod("app", "App", true, "isHeadless",
+		[](sCodeVM* vm)
 		{
-			WrenEnsureSlots(vm, 1);
-			WrenSetSlotBool(vm, 0, IsHeadless());
+			CodeEnsureSlots(vm, 1);
+			CodeSetSlotBool(vm, 0, IsHeadless());
 		});
 
 	// Load scripts in manifest
 	const auto& manifest = FileGetManifest();
 	for (const auto& path : manifest)
 	{
-		static SizeType main_hash = str_hash("main");
+		static size_type main_hash = str_hash("main");
 		if (path.nameHash == main_hash)
 			continue;
 
-		static SizeType wren_hash = str_hash("wren");
+		static size_type wren_hash = str_hash("wren");
 		if (path.extHash == wren_hash)
-			WrenParseFile(path.name.c_str(), path.path.c_str());
+			CodeParseFile(path.name.c_str(), path.path.c_str());
 	}
 
 	// Main callbacks
 	const auto& index = FileGetIndex();
 	const auto& current = index[g.currentIndex];
-	WrenParseFile(current.name.c_str(), current.path.c_str());
+	CodeParseFile(current.name.c_str(), current.path.c_str());
 
 	WrenReload();
 	
