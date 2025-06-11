@@ -1,5 +1,5 @@
 import "app" for App
-import "gnum" for Complex
+import "gnum" for NumExt, Complex
 
 class Osc {
     construct new(freq) {
@@ -183,6 +183,85 @@ class Demo5 {
     }
 }
 
+// Demo 6 - Dubstep Growl (Simplified)
+class BPF {
+    construct new(freq, bw) {
+        _freq = freq
+        _bw = bw
+        _z1 = 0
+        _z2 = 0
+    }
+
+    freq=(v) { _freq = v }
+    bw=(v) { _bw = v }
+
+    process(x, sampleRate) {
+        var omega = 2 * Num.pi * _freq / sampleRate
+        var alpha = omega.sin * NumExt.sinh(2.log / 2 * _bw * omega / omega.sin)
+
+        var b0 = alpha
+        var b1 = 0
+        var b2 = -alpha
+        var a0 = 1 + alpha
+        var a1 = -2 * omega.cos
+        var a2 = 1 - alpha
+
+        var y = (b0 / a0) * x + (b1 / a0) * _z1 + (b2 / a0) * _z2 - (a1 / a0) * _z1 - (a2 / a0) * _z2
+        _z2 = _z1
+        _z1 = y
+        return y
+    }
+}
+
+class Demo6 {
+    construct new() {
+        _carrier = Osc.new(55.0)     // Base growl tone
+        _mod = Osc.new(50.0)        // Adds grit through phase modulation
+        _lfo = Osc.new(2.5)          // Sweeps vowel filter
+        _sub = Osc.new(27.5)         // Adds low-end body
+        _form1 = BPF.new(500, 1)
+        _form2 = BPF.new(1200, 1)
+    }
+
+    update(dt) {}
+
+    render() {
+        if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
+            App.guiText("Demo 6 - Dubstep Vowel Growl")
+            _carrier.freq = App.guiFloat("Carrier Freq", _carrier.freq, 30, 150)
+            _mod.freq = App.guiFloat("Mod Freq", _mod.freq, 30, 300)
+            _lfo.freq = App.guiFloat("Vowel LFO", _lfo.freq, 0.05, 3.0)
+        }
+        App.guiEndChild()
+    }
+
+    audio(sampleRate, dt) {
+        _carrier.update(dt)
+        _mod.update(dt)
+        _lfo.update(dt)
+        _sub.update(dt)
+
+        var modDepth = 6.0
+        var modSignal = _mod.sin * modDepth
+        var modPhase = (_carrier.phase + modSignal) % (2 * Num.pi)
+        var raw = modPhase.sin
+
+        var sub = _sub.square * 0.3
+
+        var lfo = (_lfo.normPhase * 2 * Num.pi).sin * 0.5 + 0.5
+
+        _form1.freq = 500 + lfo * 800
+        _form2.freq = 1200 + lfo * 600
+
+        var y = _form1.process(raw, sampleRate)
+        y = _form2.process(y, sampleRate)
+
+        var distorted = NumExt.tanh(y * 3.0)
+
+        return (sub + distorted) * 0.5
+    }
+}
+
 // Entry point
 class Main {
     static init() {
@@ -193,7 +272,8 @@ class Main {
             Demo2.new(),
             Demo3.new(),
             Demo4.new(),
-            Demo5.new()
+            Demo5.new(),
+            Demo6.new()
         ]
         App.sfxBindCallback()
     }
