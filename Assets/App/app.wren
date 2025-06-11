@@ -549,6 +549,15 @@ class App {
     // ==============================
 
 	// TODO
+	foreign static sfxBindCallback()
+
+	// TODO
+	foreign static sfxUnbindCallback()
+
+	// TODO
+	foreign static sfxIsCallbackBound
+
+	// TODO
 	foreign static sfxLoadAudio(filepath)
 	
 	// TODO

@@ -1,28 +1,27 @@
 import "app" for App
-import "pga2" for Line2, Point2, Motor2, MVec2
+import "pga2" for Line2, Point2, Rotor2, Translator2, Motor2, MVec2
 
-class Util {
-	static winMouseX { (App.winWidth / App.winHeight) * ((2 * App.winMouseX / App.winWidth) - 1) }
-	static winMouseY { 1 - (2 * App.winMouseY / App.winHeight) }
+class Cam {
+	construct new() {
+		_t = Translator2.new(0, 0)
+		_s = 2
+		_m = Motor2.new()
+	}
 
-    static glDrawGrid(width, height, depth, resolution, color) {
-		App.glBegin(true, true, 1, 1)
-		var ystep = height / resolution
-    	for (y in 0..resolution) {
-			var yPos = y * ystep
-            var c = (yPos - height / 2) == 0 ? App.glRed : color
-			App.glAddVertex(-width / 2, yPos - height / 2, depth, c)
-			App.glAddVertex(width / 2, yPos - height / 2, depth, c)
-		}
+	m { _m }
+	p { _p }
+	m=(v) { _m = v }
+	p=(v) { _p = v }
 
-		var xstep = width / resolution
-		for (x in 0..resolution) {
-			var xPos = x * xstep
-            var c = (xPos - width / 2) == 0 ? App.glGreen : color
-			App.glAddVertex(xPos - width / 2, -height / 2, depth, c)
-			App.glAddVertex(xPos - width / 2, height / 2, depth, c)
-		}
-		App.glEnd(App.glLines)
+	project(p) {
+		
+	}
+
+	glSetUniform() {
+		App.glSetUniform("Mtr")
+		App.glSetVec4f(_m.s, _m.e01, _m.e02, _m.e12)
+		App.glSetUniform("Prj")
+		App.glSetVec4f(_t.e01, _t.e02, App.winWidth / App.winHeight, _s)
 	}
 }
 
@@ -144,6 +143,29 @@ class State {
 		l.glDraw(0xFF00FFFF)
 		m.glDraw(0xFFFFFFFF)
 		d.glDraw(0xFFFFFF00)
+	}
+
+	static winMouseX { (App.winWidth / App.winHeight) * ((2 * App.winMouseX / App.winWidth) - 1) }
+	static winMouseY { 1 - (2 * App.winMouseY / App.winHeight) }
+
+    static glDrawGrid(width, height, depth, resolution, color) {
+		App.glBegin(true, true, 1, 1)
+		var ystep = height / resolution
+    	for (y in 0..resolution) {
+			var yPos = y * ystep
+            var c = (yPos - height / 2) == 0 ? App.glRed : color
+			App.glAddVertex(-width / 2, yPos - height / 2, depth, c)
+			App.glAddVertex(width / 2, yPos - height / 2, depth, c)
+		}
+
+		var xstep = width / resolution
+		for (x in 0..resolution) {
+			var xPos = x * xstep
+            var c = (xPos - width / 2) == 0 ? App.glGreen : color
+			App.glAddVertex(xPos - width / 2, -height / 2, depth, c)
+			App.glAddVertex(xPos - width / 2, height / 2, depth, c)
+		}
+		App.glEnd(App.glLines)
 	}
 }
 

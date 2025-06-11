@@ -9,8 +9,12 @@
 #include <iostream>
 #include <algorithm>
 #include <cstring>
+#include <atomic>
 
 using namespace GASandbox;
+
+using fReadSample = bool (*)(f32&);
+using fIsCallbackBound = bool (*)();
 
 struct SfxInstance
 {
@@ -38,14 +42,25 @@ struct SfxGlobal
     ma_device device{};
     list<SfxAudio> audios{};
     list<SfxChannel> channels{};
+
+    list<f32> buffer{};
+    size_type capacity{ 0 };
+    std::atomic<size_type> tail{ 0 };
+    std::atomic<size_type> head{ 0 };
+    std::atomic<bool> callbackBound{ false };
+
+    fReadSample freadSample{ nullptr };
+    fIsCallbackBound fisCallbackBound{ nullptr };
+
+    f64 sampleTimeAccum{ 0 };
 };
 static SfxGlobal g;
 
 static void sfx_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
     auto* data = static_cast<SfxGlobal*>(pDevice->pUserData);
-    float* out = static_cast<float*>(pOutput);
-    std::memset(out, 0, frameCount * sizeof(float) * 2);
+    f32* out = static_cast<f32*>(pOutput);
+    std::memset(out, 0, frameCount * sizeof(f32) * 2);
 
     for (auto& channel : data->channels)
     {
@@ -53,7 +68,7 @@ static void sfx_data_callback(ma_device* pDevice, void* pOutput, const void* pIn
 
         for (auto& instance : channel.instances)
         {
-            list<float> tempBuffer(frameCount * 2);
+            list<f32> tempBuffer(frameCount * 2);
             ma_uint64 framesRead;
             ma_decoder_read_pcm_frames(&instance.decoder, tempBuffer.data(), frameCount, &framesRead);
 
@@ -69,11 +84,32 @@ static void sfx_data_callback(ma_device* pDevice, void* pOutput, const void* pIn
             }
         }
     }
+
+    if (data->fisCallbackBound())
+    {
+        for (ma_uint32 i = 0; i < frameCount; ++i)
+        {
+            f32 scriptSample = 0.0f;
+            if (!data->freadSample(scriptSample))
+            {
+                scriptSample = 0.0f; // Underrun
+            }
+
+            out[i * 2 + 0] += scriptSample * 0.5f;
+            out[i * 2 + 1] += scriptSample * 0.5f;
+        }
+    }
+    
     (void)pInput;
 }
 
 bool App::SfxInitialize(const sAppConfig& config)
 {
+    g.capacity = (size_type)48000*2 + 1;
+    g.buffer.resize(g.capacity);
+    g.freadSample = App::SfxReadSample;
+    g.fisCallbackBound = App::SfxIsCallbackBound;
+
     ma_device_config deviceConfig = ma_device_config_init(ma_device_type_playback);
     deviceConfig.playback.format = ma_format_f32;
     deviceConfig.playback.channels = 2;
@@ -96,8 +132,80 @@ void App::SfxShutdown()
     ma_device_uninit(&g.device);
 }
 
+void App::SfxUpdate(f64 dt)
+{
+    if (!SfxIsCallbackBound())
+        return;
+
+    constexpr f64 sampleRate = 48000.0;
+    constexpr f64 sampleDelta = 1.0 / sampleRate;
+
+    g.sampleTimeAccum += dt;
+
+    // Cap to avoid runaway accumulation
+    constexpr f64 maxAccum = 0.25; // 250 ms = safe max
+    if (g.sampleTimeAccum > maxAccum)
+        g.sampleTimeAccum = maxAccum;
+
+    while (g.sampleTimeAccum >= sampleDelta)
+    {
+        f32 sample = CodeAudio(sampleRate, sampleDelta);
+        SfxWriteSample(sample);
+        g.sampleTimeAccum -= sampleDelta;
+    }
+}
+
+bool App::SfxWriteSample(f32 sample)
+{
+    size_type head = g.head.load(std::memory_order_relaxed);
+    size_type tail = g.tail.load(std::memory_order_acquire);
+
+    size_type nextHead = (head + 1) % g.capacity;
+    if (nextHead == tail)
+    {
+        // Buffer full
+        return false;
+    }
+
+    g.buffer[head] = sample;
+    g.head.store(nextHead, std::memory_order_release);
+    return true;
+}
+
+bool App::SfxReadSample(f32& sampleOut)
+{
+    size_type head = g.head.load(std::memory_order_acquire);
+    size_type tail = g.tail.load(std::memory_order_relaxed);
+
+    if (tail == head)
+    {
+        // Buffer empty
+        return false;
+    }
+
+    sampleOut = g.buffer[tail];
+    size_type nextTail = (tail + 1) % g.capacity;
+    g.tail.store(nextTail, std::memory_order_release);
+    return true;
+}
+
+size_type App::SfxSampleCount()
+{
+    if (g.head >= g.tail)
+        return g.head - g.tail;
+    return g.capacity - g.tail + g.head;
+}
+
+void App::SfxClearSamples()
+{
+    g.head = g.tail.load();
+}
+
 void App::SfxReload()
 {
+    SfxUnbindCallback();
+    SfxClearSamples();
+
     for (auto& channel : g.channels)
     {
         for (auto& inst : channel.instances)
@@ -116,6 +224,27 @@ void App::SfxReload()
     g.channels.clear();
 
     // Audio API
+    CodeBindMethod("app", "App", true, "sfxBindCallback()",
+        [](sCodeVM* vm)
+        {
+            CodeEnsureSlots(vm, 1);
+            SfxBindCallback();
+        });
+
+    CodeBindMethod("app", "App", true, "sfxUnbindCallback()",
+        [](sCodeVM* vm)
+        {
+            CodeEnsureSlots(vm, 1);
+            SfxUnbindCallback();
+        });
+
+    CodeBindMethod("app", "App", true, "sfxIsCallbackBound",
+        [](sCodeVM* vm)
+        {
+            CodeEnsureSlots(vm, 1);
+            CodeSetSlotBool(vm, SfxIsCallbackBound(), 0);
+        });
+
     CodeBindMethod("app", "App", true, "sfxLoadAudio(_)",
         [](sCodeVM* vm)
         {
@@ -188,6 +317,22 @@ static SfxAudio* sfx_get_audio(u32 audio)
     }
 
     return &g.audios[static_cast<size_type>(audio) - 1];
+}
+
+void App::SfxBindCallback()
+{
+    SfxClearSamples();
+    g.callbackBound.store(true, std::memory_order_release);
+}
+
+void App::SfxUnbindCallback()
+{
+    g.callbackBound.store(false, std::memory_order_release);
+}
+
+bool App::SfxIsCallbackBound()
+{
+    return g.callbackBound.load(std::memory_order_acquire);
 }
 
 u32 App::SfxLoadAudio(cstring filepath)

@@ -16,6 +16,7 @@ struct WrenGlobal
 	WrenHandle* updateMethod{ nullptr };
 	WrenHandle* renderMethod{ nullptr };
 	WrenHandle* netcodeMethod{ nullptr };
+	WrenHandle* audioMethod{ nullptr };
 	bool error{ false };
 	bool paused{ false };
 
@@ -128,7 +129,7 @@ static cstring wren_resolve_module(WrenVM* vm, cstring importer, cstring name)
 	return nullptr;
 }
 
-bool App::ScriptInitialize(const sAppConfig& config)
+bool App::CodeInitialize(const sAppConfig& config)
 {
 	WrenConfiguration wrenConfig;
 	wrenInitConfiguration(&wrenConfig);
@@ -147,7 +148,7 @@ bool App::ScriptInitialize(const sAppConfig& config)
 	return true;
 }
 
-void App::ScriptShutdown()
+void App::CodeShutdown()
 {
 	if (g.vm == nullptr)
 		return;
@@ -156,6 +157,7 @@ void App::ScriptShutdown()
 	if (g.initMethod) wrenReleaseHandle(g.vm, g.initMethod);
 	if (g.updateMethod) wrenReleaseHandle(g.vm, g.updateMethod);
 	if (g.netcodeMethod) wrenReleaseHandle(g.vm, g.netcodeMethod);
+	if (g.audioMethod) wrenReleaseHandle(g.vm, g.audioMethod);
 	if (g.vm) wrenFreeVM(g.vm);
 
 	g.vm = nullptr;
@@ -163,30 +165,31 @@ void App::ScriptShutdown()
 	g.initMethod = nullptr;
 	g.updateMethod = nullptr;
 	g.netcodeMethod = nullptr;
+	g.audioMethod = nullptr;
 }
 
-void App::ScriptCollectGarbage()
+void App::CodeCollectGarbage()
 {
 	if (!g.error)
 		wrenCollectGarbage(g.vm);
 }
 
-size_type App::ScriptBytesAllocated()
+size_type App::CodeBytesAllocated()
 {
 	return g.error ? 0 : g.vm->bytesAllocated;
 }
 
-bool App::ScriptIsPaused()
+bool App::CodeIsPaused()
 {
 	return g.paused;
 }
 
-void App::ScriptTogglePaused()
+void App::CodeTogglePaused()
 {
 	g.paused = !g.paused;
 }
 
-void App::ScriptUpdate(f64 dt)
+void App::CodeUpdate(f64 dt)
 {
 	if (g.error || g.paused)
 		return;
@@ -208,7 +211,7 @@ void App::ScriptUpdate(f64 dt)
 	}
 }
 
-void App::ScriptRender()
+void App::CodeRender()
 {
 	if (g.error)
 		return;
@@ -229,38 +232,64 @@ void App::ScriptRender()
 	}
 }
 
-void App::ScriptNetcode(bool server, u32 client, eNetEvent event, u16 peer, u32 channel, u32 packet)
+void App::CodeNetcode(bool server, u32 client, eNetEvent event, u16 peer, u32 channel, u32 packet)
 {
-	if (!g.error && !g.paused)
-	{
-		try
-		{
-			wrenEnsureSlots(g.vm, 6);
-			wrenSetSlotHandle(g.vm, 0, g.mainClass);
-			CodeSetSlotBool(g.vm, 1, server);
-			CodeSetSlotUInt(g.vm, 2, client);
-			CodeSetSlotUInt(g.vm, 3, (u32)event);
-			CodeSetSlotUInt(g.vm, 4, peer);
-			CodeSetSlotUInt(g.vm, 5, channel);
-			CodeSetSlotUInt(g.vm, 6, packet);
-			wrenCall(g.vm, g.netcodeMethod);
-		}
-		catch (const std::exception& e)
-		{
-			LOGE("Script exception: %s", e.what());
-			wrenSetSlotString(g.vm, 0, e.what());
-			wrenAbortFiber(g.vm, 0);
+	if (g.error || g.paused)
+		return;
 
-			g.error = true;
-		}
+	try
+	{
+		wrenEnsureSlots(g.vm, 6);
+		wrenSetSlotHandle(g.vm, 0, g.mainClass);
+		CodeSetSlotBool(g.vm, 1, server);
+		CodeSetSlotUInt(g.vm, 2, client);
+		CodeSetSlotUInt(g.vm, 3, (u32)event);
+		CodeSetSlotUInt(g.vm, 4, peer);
+		CodeSetSlotUInt(g.vm, 5, channel);
+		CodeSetSlotUInt(g.vm, 6, packet);
+		wrenCall(g.vm, g.netcodeMethod);
+	}
+	catch (const std::exception& e)
+	{
+		LOGE("Script exception: %s", e.what());
+		wrenSetSlotString(g.vm, 0, e.what());
+		wrenAbortFiber(g.vm, 0);
+
+		g.error = true;
 	}
 }
 
-void App::WrenReload()
+f32 App::CodeAudio(f64 sampleRate, f64 dt)
+{
+	if (g.error || g.paused || g.audioMethod == nullptr)
+		return 0;
+
+	f32 out = 0;
+	try
+	{
+		wrenEnsureSlots(g.vm, 3);
+		wrenSetSlotHandle(g.vm, 0, g.mainClass);
+		CodeSetSlotDouble(g.vm, 1, sampleRate);
+		CodeSetSlotDouble(g.vm, 2, dt);
+		wrenCall(g.vm, g.audioMethod);
+		out = CodeGetSlotFloat(g.vm, 0);
+	}
+	catch (const std::exception& e)
+	{
+		LOGE("Script exception: %s", e.what());
+		wrenSetSlotString(g.vm, 0, e.what());
+		wrenAbortFiber(g.vm, 0);
+
+		g.error = true;
+	}
+	return out;
+}
+
+void App::CodeReload()
 {
 	if (g.error)
 	{
-		ScriptShutdown();
+		CodeShutdown();
 		return;
 	}
 
@@ -268,6 +297,7 @@ void App::WrenReload()
 	g.updateMethod = wrenMakeCallHandle(g.vm, "update(_)");
 	g.renderMethod = wrenMakeCallHandle(g.vm, "render()");
 	g.netcodeMethod = wrenMakeCallHandle(g.vm, "netcode(_,_,_,_,_,_)");
+	g.audioMethod = wrenMakeCallHandle(g.vm, "audio(_,_)");
 
 	wrenEnsureSlots(g.vm, 1);
 	wrenGetVariable(g.vm, "main", "Main", 0);

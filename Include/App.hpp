@@ -190,18 +190,26 @@ namespace GASandbox
 		static bool SfxInitialize(const sAppConfig& config);
 		static void SfxShutdown();
 
-		static bool ScriptInitialize(const sAppConfig& config);
-		static void ScriptShutdown();
+		static void SfxUpdate(f64 dt);
 
-		static void ScriptCollectGarbage();
-		static size_type ScriptBytesAllocated();
+		static bool SfxWriteSample(f32 sample);
+		static bool SfxReadSample(f32& sampleOut);
+		static size_type SfxSampleCount();
+		static void SfxClearSamples();
 
-		static bool ScriptIsPaused();
-		static void ScriptTogglePaused();
+		static bool CodeInitialize(const sAppConfig& config);
+		static void CodeShutdown();
 
-		static void ScriptUpdate(f64 dt);
-		static void ScriptRender();
-		static void ScriptNetcode(bool server, u32 client, eNetEvent event, u16 peer, u32 channel, u32 packet);
+		static void CodeCollectGarbage();
+		static size_type CodeBytesAllocated();
+
+		static bool CodeIsPaused();
+		static void CodeTogglePaused();
+
+		static void CodeUpdate(f64 dt);
+		static void CodeRender();
+		static void CodeNetcode(bool server, u32 client, eNetEvent event, u16 peer, u32 channel, u32 packet);
+		static f32 CodeAudio(f64 sampleRate, f64 dt);
 
 		static void Reload(const sAppConfig& config);
 		static void WinReload();
@@ -209,7 +217,7 @@ namespace GASandbox
 		static void GuiReload();
 		static void NetReload();
 		static void SfxReload();
-		static void WrenReload();
+		static void CodeReload();
 
 		static void Update(f64 dt);
 		static void Render();
@@ -377,6 +385,10 @@ namespace GASandbox
 		static void GuiEndChild();
 
 		// Audio
+		static void SfxBindCallback();
+		static void SfxUnbindCallback();
+		static bool SfxIsCallbackBound();
+
 		static u32 SfxLoadAudio(cstring filepath);
 		static void SfxDestroyAudio(u32 audio);
 

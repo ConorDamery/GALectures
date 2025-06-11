@@ -221,7 +221,7 @@ void App::Shutdown()
 {
 	FileShutdown();
 
-	ScriptShutdown();
+	CodeShutdown();
 
 	NetShutdown();
 	SfxShutdown();
@@ -236,7 +236,7 @@ void App::Shutdown()
 
 void App::Update(f64 dt)
 {
-	ScriptCollectGarbage();
+	CodeCollectGarbage();
 	WinPollEvents();
 	NetPollEvents();
 
@@ -250,12 +250,20 @@ void App::Update(f64 dt)
 		g.time = std::fmodf(g.time, 1.f);
 	}
 
-	ScriptUpdate(dt);
+	CodeUpdate(dt);
+	SfxUpdate(dt);
 }
 
 void App::Render()
 {
-	GlViewport(0, 0, WinWidth(), WinHeight());
+	i32 w = WinWidth(), h = WinHeight();
+	if (w == 0 || h == 0)
+	{
+		WinSwapBuffers();
+		return;
+	}
+
+	GlViewport(0, 0, w, h);
 	GlClear(0, 0, 0, 1, 1, 0, eGlClearFlags::ALL);
 
 	GuiWinNewFrame();
@@ -276,7 +284,7 @@ void App::Render()
 		ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse);
 
 	ImGui::SetWindowFontScale(g.fontSize);
-	ScriptRender();
+	CodeRender();
 	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::PopStyleVar(2);
@@ -381,10 +389,10 @@ void App::GuiRender()
 		if (ImGui::MenuItem("Reload"))
 			QueueReload();
 
-		if (ImGui::MenuItem(ScriptIsPaused() ? "Play" : "Pause"))
-			ScriptTogglePaused();
+		if (ImGui::MenuItem(CodeIsPaused() ? "Play" : "Pause"))
+			CodeTogglePaused();
 
-		const size_type bytesAllocated = ScriptBytesAllocated();
+		const size_type bytesAllocated = CodeBytesAllocated();
 		ImGui::Text(" |  v%s  | %5.0f fps | %6.2f ms | %6.2f mb", VERSION_STR, g.fps, g.spf * 1000, bytesAllocated / 100000.f);
 		ImGui::EndMainMenuBar();
 	}
@@ -511,8 +519,8 @@ void App::Reload(const sAppConfig& config)
 	LOGD("App reloading ...");
 
 	// Reload wren vm
-	ScriptShutdown();
-	ScriptInitialize(config);
+	CodeShutdown();
+	CodeInitialize(config);
 
 	// Reload subsystems
 	WinReload();
@@ -554,7 +562,7 @@ void App::Reload(const sAppConfig& config)
 	const auto& current = index[g.currentIndex];
 	CodeParseFile(current.name.c_str(), current.path.c_str());
 
-	WrenReload();
+	CodeReload();
 	
 	LOGD("App reloaded.");
 }

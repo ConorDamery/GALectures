@@ -1,3 +1,4 @@
+Assets/ProcSfx/main.wren
 Assets/GNum/main.wren
 Assets/PGA2/main.wren
 Assets/PGA3/main.wren

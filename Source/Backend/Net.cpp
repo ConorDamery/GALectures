@@ -177,7 +177,7 @@ bool App::NetInitialize(const sAppConfig& config)
         return false;
     }
 
-    g.netcodeFn = App::ScriptNetcode;
+    g.netcodeFn = App::CodeNetcode;
     return true;
 }
 
