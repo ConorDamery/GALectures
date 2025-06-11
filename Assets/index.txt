@@ -1,4 +1,3 @@
-Assets/ProcSfx/main.wren
 Assets/GNum/main.wren
 Assets/PGA2/main.wren
 Assets/PGA3/main.wren
@@ -6,3 +5,5 @@ Assets/GA/main.wren
 Assets/Physics2/main.wren
 Assets/Net/main.wren
 Assets/Skinning/main.wren
+Assets/ProcSfx/main.wren
+Assets/Game/main.wren

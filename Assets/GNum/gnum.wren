@@ -66,6 +66,8 @@ class Complex {
     arg { i.atan(r) }
 
     exp { Complex.new(i.cos, i.sin) * r.exp }
+    static exp(a) { Complex.new(a.cos, a.sin) }
+    
     log { Complex.new(magnitude.log, arg) }
 
     pow(b) {

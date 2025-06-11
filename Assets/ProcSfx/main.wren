@@ -7,7 +7,6 @@ class Osc {
         _phase = 0
         _normPhase = 0
         _z = Complex.new(1, 0)
-        _inc = Complex.new(1, 0)
     }
 
     freq { _freq }
@@ -27,11 +26,7 @@ class Osc {
     update(dt) {
         var pi2 = 2 * Num.pi
         var angle = _freq * pi2 * dt
-        _inc = Complex.new(angle.cos, angle.sin)
-        _z = _z * _inc
-
-        //_phase = _z.arg
-        //_normPhase = _phase / Num.pi
+        _z = _z * Complex.exp(angle)
         _phase = (_phase + angle) % pi2
         _normPhase = _phase / pi2
     }
@@ -191,7 +186,7 @@ class Demo5 {
 // Entry point
 class Main {
     static init() {
-        __vol = 1
+        __vol = 0.5
         __curr = 0
         __demos = [
             Demo1.new(),

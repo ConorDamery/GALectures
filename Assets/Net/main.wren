@@ -60,15 +60,15 @@ class Player {
 
 		var dx = 0
 		var dy = 0
-		if (App.winKey(App.winKeyW)) {
+		if (App.winKey(App.eWinKeyW)) {
 			dy = dy + 1
-		} else if (App.winKey(App.winKeyS)) {
+		} else if (App.winKey(App.eWinKeyS)) {
 			dy = dy - 1
 		}
 
-		if (App.winKey(App.winKeyA)) {
+		if (App.winKey(App.eWinKeyA)) {
 			dx = dx - 1
-		} else if (App.winKey(App.winKeyD)) {
+		} else if (App.winKey(App.eWinKeyD)) {
 			dx = dx + 1
 		}
 
@@ -122,7 +122,7 @@ class Player {
 class State {
 	construct new() {
 		if (!App.isHeadless) {
-			_shader = App.glLoadShader("Assets/Common/vertex2.glsl")
+			_shader = App.glLoadShader("Assets/PGA2/vertex2.glsl")
 
 			var model = App.glLoadModel("Assets/Common/Models/Box.glb")
 

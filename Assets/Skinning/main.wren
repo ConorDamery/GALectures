@@ -80,7 +80,7 @@ class Handle {
 
 class State {
 	construct new() {
-		_shader = App.glLoadShader("Assets/Common/vertex2.glsl")
+		_shader = App.glLoadShader("Assets/PGA2/vertex2.glsl")
 
 		_vshader = App.glLoadShader("Assets/Skinning/skinning.glsl")
 		var img = App.glLoadImage("Assets/App/GASandbox.png", true)

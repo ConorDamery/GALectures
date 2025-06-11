@@ -3,7 +3,7 @@ import "physics2" for World, Vec2, Body
 
 class State {
 	construct new() {
-		_shader = App.glLoadShader("Assets/Common/vertex2.glsl")
+		_shader = App.glLoadShader("Assets/PGA2/vertex2.glsl")
         _camScale = 10
 		_timeScale = 1
 		_timeReverse = false
