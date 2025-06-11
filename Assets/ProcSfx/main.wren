@@ -1,21 +1,39 @@
 import "app" for App
+import "gnum" for Complex
 
 class Osc {
     construct new(freq) {
         _freq = freq
         _phase = 0
+        _normPhase = 0
+        _z = Complex.new(1, 0)
+        _inc = Complex.new(1, 0)
     }
 
     freq { _freq }
-    freq=(v) {_freq = v }
+    freq=(v) { _freq = v }
 
     phase { _phase }
-    phase=(v) {_phase = v }
+    normPhase { _normPhase }
 
-    sin(dt) {
-        var out = _phase.sin
-        _phase = (_phase + _freq * 2 * Num.pi * dt) % (2 * Num.pi)
-        return out
+    sin { _z.i }
+    cos { _z.r }
+    complex { _z }
+    
+    square { _phase < Num.pi ? 1 : -1 }
+    saw { 2 * _normPhase - 1 }
+    triangle { (_normPhase < 0.5) ? (4 * _normPhase - 1) : (3 - 4 * _normPhase) }
+
+    update(dt) {
+        var pi2 = 2 * Num.pi
+        var angle = _freq * pi2 * dt
+        _inc = Complex.new(angle.cos, angle.sin)
+        _z = _z * _inc
+
+        //_phase = _z.arg
+        //_normPhase = _phase / Num.pi
+        _phase = (_phase + angle) % pi2
+        _normPhase = _phase / pi2
     }
 }
 
@@ -26,7 +44,8 @@ class Demo1 {
         _osc2 = Osc.new(442.0)
     }
 
-    update(dt) {}
+    update(dt) {
+    }
 
     render() {
         if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
@@ -38,10 +57,11 @@ class Demo1 {
     }
 
     audio(sampleRate, dt) {
-        return (_osc1.sin(dt) + _osc2.sin(dt)) * 0.5
+        _osc1.update(dt)
+        _osc2.update(dt)
+        return (_osc1.sin + _osc2.sin) * 0.5
     }
 }
-
 
 // Demo 2 - Square Wave with PWM
 class Demo2 {
@@ -50,7 +70,8 @@ class Demo2 {
         _lfo = Osc.new(0.5)
     }
 
-    update(dt) {}
+    update(dt) {
+    }
 
     render() {
         if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
@@ -62,10 +83,11 @@ class Demo2 {
     }
 
     audio(sampleRate, dt) {
-        var duty = 0.3 + 0.2 * _lfo.sin(dt)  // LFO modulates pulse width
-        var t = _osc.phase / (2 * Num.pi)   // normalized phase in [0, 1)
-        var out = (t < duty) ? 1 : -1
-        _osc.sin(dt)  // advance phase, discard output
+        _lfo.update(dt)
+        _osc.update(dt)
+
+        var duty = 0.3 + 0.2 * _lfo.sin
+        var out = (_osc.normPhase < duty) ? 1 : -1
         return out * 0.3
     }
 }
@@ -77,7 +99,8 @@ class Demo3 {
         _mod = Osc.new(5.0)
     }
 
-    update(dt) {}
+    update(dt) {
+    }
 
     render() {
         if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
@@ -89,8 +112,11 @@ class Demo3 {
     }
 
     audio(sampleRate, dt) {
-        var modSignal = _mod.sin(dt) * 0.5 + 0.5
-        return _carrier.sin(dt) * modSignal * 0.4
+        _carrier.update(dt)
+        _mod.update(dt)
+
+        var modSignal = _mod.sin * 0.5 + 0.5
+        return _carrier.sin * modSignal * 0.4
     }
 }
 
@@ -105,8 +131,7 @@ class Demo4 {
         _clickLevel = 0.4
     }
 
-    update(dt) {
-    }
+    update(dt) {}
 
     render() {
         if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
@@ -143,7 +168,8 @@ class Demo5 {
         _scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88]
     }
 
-    update(dt) {}
+    update(dt) {
+    }
 
     render() {
         if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
@@ -156,8 +182,9 @@ class Demo5 {
     audio(sampleRate, dt) {
         var index = ((_time * _speed) % _scale.count).floor
         _osc.freq = _scale[index]
+        _osc.update(dt)
         _time = _time + dt
-        return _osc.sin(dt) * 0.3
+        return _osc.sin * 0.3
     }
 }
 

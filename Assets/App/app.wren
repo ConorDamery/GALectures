@@ -4,39 +4,46 @@ class App {
     // Application
     // ==============================
 
-	// TODO
+	// Waits for the specified amount of time.
+	//
+	// @param ms (u32) The number of milliseconds to wait.
 	foreign static wait(ms)
 
-	// TODO
+	// Checks if the application is running in headless mode.
+	//
+	// @return (bool) `true` if running headless, `false` otherwise.
 	foreign static isHeadless
 
 	// ==============================
     // Window
     // ==============================
 
-	static winModeWindowed { 0 }
-	static winModeBorderless { 0 }
-	static winModeFullscreen { 0 }
+	// eWinMode : i32 - Window Mode Constants
 
-	// TODO
+	static eWinModeWindowed { 0 }
+	static eWinModeBorderless { 0 }
+	static eWinModeFullscreen { 0 }
+
+	// Sets the window display mode.
+	//
+	// @param mode (eWinMode) The desired window mode (e.g., windowed, fullscreen, borderless).
 	foreign static winMode(mode)
 
-    // Cursor is visible and can move freely (default behavior).
-    static winCursorNormal { 0x00034001 }
+	// eWinCursor : i32 - Window Cursor Mode Constants
 
-    // Cursor is hidden when inside the window but still active.
-    static winCursorHidden { 0x00034002 }
+    static eWinCursorNormal { 0x00034001 } // Cursor is visible and can move freely (default behavior).
+    static eWinCursorHidden { 0x00034002 } // Cursor is hidden when inside the window but still active.
+    static eWinCursorDisabled { 0x00034003 } // Cursor is disabled and locked to the window (useful for FPS controls).
+	static eWinCursorCaptured { 0x00034004 } // ???
 
-    // Cursor is disabled and locked to the window (useful for FPS controls).
-    static winCursorDisabled { 0x00034003 }
+	// Sets the mouse cursor mode.
+	//
+	// @param cursor (eWinCursor) The desired cursor mode.
+	foreign static winCursor(cursor)
 
-	// ???
-	static winCursorCaptured { 0x00034004 }
-
-	// TODO
-	foreign static winCursor(mode)
-
-	// TODO
+	// Enables or disables the window always-on-top behavior.
+	//
+	// @param enabled (bool) `true` to keep the window on top, `false` otherwise.
 	foreign static winAlwaysOnTop(enabled)
 
     // The width of the application window in pixels.
@@ -93,176 +100,174 @@ class App {
     // Closes the application window.
     foreign static winClose()
 
-    // Mouse Button Constants
+    // eWinButton : i32 - Mouse Button Constants
 
-	static winButton1 { 0 }
-	static winButton2 { 1 }
-	static winButton3 { 2 }
-	static winButton4 { 3 }
-	static winButton5 { 4 }
-	static winButton6 { 5 }
-	static winButton7 { 6 }
-	static winButton8 { 7 }
-	static winButtonLast { 7 }
-	static winButtonLeft { winButton1 }
-	static winButtonRight { winButton2 }
-	static winButtonMiddle { winButton3 }
+	static eWinButton1 { 0 }
+	static eWinButton2 { 1 }
+	static eWinButton3 { 2 }
+	static eWinButton4 { 3 }
+	static eWinButton5 { 4 }
+	static eWinButton6 { 5 }
+	static eWinButton7 { 6 }
+	static eWinButton8 { 7 }
+	static eWinButtonLast { 7 }
+	static eWinButtonLeft { eWinButton1 }
+	static eWinButtonRight { eWinButton2 }
+	static eWinButtonMiddle { eWinButton3 }
 
-    // Keyboard Key Constants
+    // eWinKey : i32 - Keyboard Key Constants
 
-	static winKeySpace { 32 }
-	static winKeyApostrophe { 39 }
-	static winKeyComma { 44 }
-	static winKeyMinus { 45 }
-	static winKeyPeriod { 46 }
-	static winKeySlash { 47 }
-	static winKey0 { 48 }
-	static winKey1 { 49 }
-	static winKey2 { 50 }
-	static winKey3 { 51 }
-	static winKey4 { 52 }
-	static winKey5 { 53 }
-	static winKey6 { 54 }
-	static winKey7 { 55 }
-	static winKey8 { 56 }
-	static winKey9 { 57 }
-	static winKeySemicolon { 59 }
-	static winKeyEqual { 61 }
-	static winKeyA { 65 }
-	static winKeyB { 66 }
-	static winKeyC { 67 }
-	static winKeyD { 68 }
-	static winKeyE { 69 }
-	static winKeyF { 70 }
-	static winKeyG { 71 }
-	static winKeyH { 72 }
-	static winKeyI { 73 }
-	static winKeyJ { 74 }
-	static winKeyK { 75 }
-	static winKeyL { 76 }
-	static winKeyM { 77 }
-	static winKeyN { 78 }
-	static winKeyO { 79 }
-	static winKeyP { 80 }
-	static winKeyQ { 81 }
-	static winKeyR { 82 }
-	static winKeyS { 83 }
-	static winKeyT { 84 }
-	static winKeyU { 85 }
-	static winKeyV { 86 }
-	static winKeyW { 87 }
-	static winKeyX { 88 }
-	static winKeyY { 89 }
-	static winKeyZ { 90 }
-	static winKeyLeftBracket { 91 }
-	static winKeyBackslash { 92 }
-	static winKeyRightBracket { 93 }
-	static winKeyGraveAccent { 96 }
-	static winKeyWorld1 { 161 }
-	static winKeyWorld2 { 162 }
+	static eWinKeySpace { 32 }
+	static eWinKeyApostrophe { 39 }
+	static eWinKeyComma { 44 }
+	static eWinKeyMinus { 45 }
+	static eWinKeyPeriod { 46 }
+	static eWinKeySlash { 47 }
+	static eWinKey0 { 48 }
+	static eWinKey1 { 49 }
+	static eWinKey2 { 50 }
+	static eWinKey3 { 51 }
+	static eWinKey4 { 52 }
+	static eWinKey5 { 53 }
+	static eWinKey6 { 54 }
+	static eWinKey7 { 55 }
+	static eWinKey8 { 56 }
+	static eWinKey9 { 57 }
+	static eWinKeySemicolon { 59 }
+	static eWinKeyEqual { 61 }
+	static eWinKeyA { 65 }
+	static eWinKeyB { 66 }
+	static eWinKeyC { 67 }
+	static eWinKeyD { 68 }
+	static eWinKeyE { 69 }
+	static eWinKeyF { 70 }
+	static eWinKeyG { 71 }
+	static eWinKeyH { 72 }
+	static eWinKeyI { 73 }
+	static eWinKeyJ { 74 }
+	static eWinKeyK { 75 }
+	static eWinKeyL { 76 }
+	static eWinKeyM { 77 }
+	static eWinKeyN { 78 }
+	static eWinKeyO { 79 }
+	static eWinKeyP { 80 }
+	static eWinKeyQ { 81 }
+	static eWinKeyR { 82 }
+	static eWinKeyS { 83 }
+	static eWinKeyT { 84 }
+	static eWinKeyU { 85 }
+	static eWinKeyV { 86 }
+	static eWinKeyW { 87 }
+	static eWinKeyX { 88 }
+	static eWinKeyY { 89 }
+	static eWinKeyZ { 90 }
+	static eWinKeyLeftBracket { 91 }
+	static eWinKeyBackslash { 92 }
+	static eWinKeyRightBracket { 93 }
+	static eWinKeyGraveAccent { 96 }
+	static eWinKeyWorld1 { 161 }
+	static eWinKeyWorld2 { 162 }
 
-	static winKeyEscape { 256 }
-	static winKeyEnter { 257 }
-	static winKeyTab { 258 }
-	static winKeyBackspace { 259 }
-	static winKeyInsert { 260 }
-	static winKeyDelete { 261 }
-	static winKeyRight { 262 }
-	static winKeyLeft { 263 }
-	static winKeyDown { 264 }
-	static winKeyUp { 265 }
-	static winKeyPageUp { 266 }
-	static winKeyPageDown { 267 }
-	static winKeyHome { 268 }
-	static winKeyEnd { 269 }
-	static winKeyCapsLock { 280 }
-	static winKeyScrollLock { 281 }
-	static winKeyNumLock { 282 }
-	static winKeyPrintScreen { 283 }
-	static winKeyPause { 284 }
-	static winKeyF1 { 290 }
-	static winKeyF2 { 291 }
-	static winKeyF3 { 292 }
-	static winKeyF4 { 293 }
-	static winKeyF5 { 294 }
-	static winKeyF6 { 295 }
-	static winKeyF7 { 296 }
-	static winKeyF8 { 297 }
-	static winKeyF9 { 298 }
-	static winKeyF10 { 299 }
-	static winKeyF11 { 300 }
-	static winKeyF12 { 301 }
-	static winKeyF13 { 302 }
-	static winKeyF14 { 303 }
-	static winKeyF15 { 304 }
-	static winKeyF16 { 305 }
-	static winKeyF17 { 306 }
-	static winKeyF18 { 307 }
-	static winKeyF19 { 308 }
-	static winKeyF20 { 309 }
-	static winKeyF21 { 310 }
-	static winKeyF22 { 311 }
-	static winKeyF23 { 312 }
-	static winKeyF24 { 313 }
-	static winKeyF25 { 314 }
-	static winKeyKp0 { 320 }
-	static winKeyKp1 { 321 }
-	static winKeyKp2 { 322 }
-	static winKeyKp3 { 323 }
-	static winKeyKp4 { 324 }
-	static winKeyKp5 { 325 }
-	static winKeyKp6 { 326 }
-	static winKeyKp7 { 327 }
-	static winKeyKp8 { 328 }
-	static winKeyKp9 { 329 }
-	static winKeyKpDecimal { 330 }
-	static winKeyKpDivide { 331 }
-	static winKeyKpMultiply { 332 }
-	static winKeyKpSubtract { 333 }
-	static winKeyKpAdd { 334 }
-	static winKeyKpEnter { 335 }
-	static winKeyKpEqual { 336 }
-	static winKeyLeftShift { 340 }
-	static winKeyLeftControl { 341 }
-	static winKeyLeftAlt { 342 }
-	static winKeyLeftSuper { 343 }
-	static winKeyRightShift { 344 }
-	static winKeyRightControl { 345 }
-	static winKeyRightAlt { 346 }
-	static winKeyRightSuper { 347 }
-	static winKeyMenu { 348 }
+	static eWinKeyEscape { 256 }
+	static eWinKeyEnter { 257 }
+	static eWinKeyTab { 258 }
+	static eWinKeyBackspace { 259 }
+	static eWinKeyInsert { 260 }
+	static eWinKeyDelete { 261 }
+	static eWinKeyRight { 262 }
+	static eWinKeyLeft { 263 }
+	static eWinKeyDown { 264 }
+	static eWinKeyUp { 265 }
+	static eWinKeyPageUp { 266 }
+	static eWinKeyPageDown { 267 }
+	static eWinKeyHome { 268 }
+	static eWinKeyEnd { 269 }
+	static eWinKeyCapsLock { 280 }
+	static eWinKeyScrollLock { 281 }
+	static eWinKeyNumLock { 282 }
+	static eWinKeyPrintScreen { 283 }
+	static eWinKeyPause { 284 }
+	static eWinKeyF1 { 290 }
+	static eWinKeyF2 { 291 }
+	static eWinKeyF3 { 292 }
+	static eWinKeyF4 { 293 }
+	static eWinKeyF5 { 294 }
+	static eWinKeyF6 { 295 }
+	static eWinKeyF7 { 296 }
+	static eWinKeyF8 { 297 }
+	static eWinKeyF9 { 298 }
+	static eWinKeyF10 { 299 }
+	static eWinKeyF11 { 300 }
+	static eWinKeyF12 { 301 }
+	static eWinKeyF13 { 302 }
+	static eWinKeyF14 { 303 }
+	static eWinKeyF15 { 304 }
+	static eWinKeyF16 { 305 }
+	static eWinKeyF17 { 306 }
+	static eWinKeyF18 { 307 }
+	static eWinKeyF19 { 308 }
+	static eWinKeyF20 { 309 }
+	static eWinKeyF21 { 310 }
+	static eWinKeyF22 { 311 }
+	static eWinKeyF23 { 312 }
+	static eWinKeyF24 { 313 }
+	static eWinKeyF25 { 314 }
+	static eWinKeyKp0 { 320 }
+	static eWinKeyKp1 { 321 }
+	static eWinKeyKp2 { 322 }
+	static eWinKeyKp3 { 323 }
+	static eWinKeyKp4 { 324 }
+	static eWinKeyKp5 { 325 }
+	static eWinKeyKp6 { 326 }
+	static eWinKeyKp7 { 327 }
+	static eWinKeyKp8 { 328 }
+	static eWinKeyKp9 { 329 }
+	static eWinKeyKpDecimal { 330 }
+	static eWinKeyKpDivide { 331 }
+	static eWinKeyKpMultiply { 332 }
+	static eWinKeyKpSubtract { 333 }
+	static eWinKeyKpAdd { 334 }
+	static eWinKeyKpEnter { 335 }
+	static eWinKeyKpEqual { 336 }
+	static eWinKeyLeftShift { 340 }
+	static eWinKeyLeftControl { 341 }
+	static eWinKeyLeftAlt { 342 }
+	static eWinKeyLeftSuper { 343 }
+	static eWinKeyRightShift { 344 }
+	static eWinKeyRightControl { 345 }
+	static eWinKeyRightAlt { 346 }
+	static eWinKeyRightSuper { 347 }
+	static eWinKeyMenu { 348 }
 
-    // Gamepad Button Constants
+    // eWinPad : i32 - Gamepad Button & Axis Constants
 
-	static winPadA { 0 }
-	static winPadB { 1 }
-	static winPadX { 2 }
-	static winPadY { 3 }
-	static winPadLeftBumper { 4 }
-	static winPadRightBumper { 5 }
-	static winPadBack { 6 }
-	static winPadStart { 7 }
-	static winPadGuide { 8 }
-	static winPadLeftThumb { 9 }
-	static winPadRightThumb { 10 }
-	static winPadDpadUp { 11 }
-	static winPadDpadRight { 12 }
-	static winPadDpadDown { 13 }
-	static winPadDpadLeft { 14 }
-	static winPadLast { 14 }
-	static winPadCross { 0 }
-	static winPadCircle { 1 }
-	static winPadSquare { 2 }
-	static winPadTriangle { 3 }
+	static eWinPadA { 0 }
+	static eWinPadB { 1 }
+	static eWinPadX { 2 }
+	static eWinPadY { 3 }
+	static eWinPadLeftBumper { 4 }
+	static eWinPadRightBumper { 5 }
+	static eWinPadBack { 6 }
+	static eWinPadStart { 7 }
+	static eWinPadGuide { 8 }
+	static eWinPadLeftThumb { 9 }
+	static eWinPadRightThumb { 10 }
+	static eWinPadDpadUp { 11 }
+	static eWinPadDpadRight { 12 }
+	static eWinPadDpadDown { 13 }
+	static eWinPadDpadLeft { 14 }
+	static eWinPadLast { 14 }
+	static eWinPadCross { 0 }
+	static eWinPadCircle { 1 }
+	static eWinPadSquare { 2 }
+	static eWinPadTriangle { 3 }
 
-    // Gamepad Axis Constants
-
-	static winPadLeftX { 0 }
-	static winPadLeftY { 1 }
-	static winPadRightX { 2 }
-	static winPadRightY { 3 }
-	static winPadLeftTrigger { 4 }
-	static winPadRightTrigger { 5 }
+	static eWinPadLeftX { 0 }
+	static eWinPadLeftY { 1 }
+	static eWinPadRightX { 2 }
+	static eWinPadRightY { 3 }
+	static eWinPadLeftTrigger { 4 }
+	static eWinPadRightTrigger { 5 }
 
     // ==============================
     // Graphics

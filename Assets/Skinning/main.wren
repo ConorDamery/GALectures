@@ -59,7 +59,7 @@ class Handle {
 		_isOver = mp.x > -s*0.05 && mp.x < s*0.05 && mp.y > -s*0.05 && mp.y < s*0.05
 
 		if (__sel == null && _isOver &&
-			App.winButton(App.winButtonLeft)) {
+			App.winButton(App.eWinButtonLeft)) {
 			__sel = this
 		}
 
@@ -69,7 +69,7 @@ class Handle {
 			var t = Motor2.new(1, -0.5 * mp.x, -0.5 * mp.y, 0)
 			lm = lm * t * r
 
-			if (!App.winButton(App.winButtonLeft)) {
+			if (!App.winButton(App.eWinButtonLeft)) {
 				__sel = null
 			}
 		}

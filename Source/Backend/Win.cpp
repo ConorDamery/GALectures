@@ -124,7 +124,7 @@ void App::WinReload()
 		[](sCodeVM* vm)
 		{
 			CodeEnsureSlots(vm, 1);
-			WinCursor(CodeGetSlotInt(vm, 1));
+			WinCursor((eWinCursor)CodeGetSlotInt(vm, 1));
 		});
 
 	CodeBindMethod("app", "App", true, "winAlwaysOnTop(_)",
@@ -284,9 +284,9 @@ void App::WinMode(eWinMode mode)
 	}
 }
 
-void App::WinCursor(i32 cursor)
+void App::WinCursor(eWinCursor cursor)
 {
-	glfwSetInputMode(g.window, GLFW_CURSOR, cursor);
+	glfwSetInputMode(g.window, GLFW_CURSOR, (i32)cursor);
 }
 
 void App::WinAlwaysOnTop(bool enabled)

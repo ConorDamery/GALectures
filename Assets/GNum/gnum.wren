@@ -63,7 +63,7 @@ class Complex {
     ~ { Complex.new(r, -i) }
     norm { r * r + i * i }
     magnitude { norm.sqrt }
-    arg { i.atan2(r) }
+    arg { i.atan(r) }
 
     exp { Complex.new(i.cos, i.sin) * r.exp }
     log { Complex.new(magnitude.log, arg) }

@@ -246,7 +246,7 @@ namespace GASandbox
 		static void* WinGetProcAddress(cstring procname);
 
 		static void WinMode(eWinMode mode);
-		static void WinCursor(i32 cursor);
+		static void WinCursor(eWinCursor cursor);
 		static void WinAlwaysOnTop(bool enabled);
 
 		static i32 WinWidth();

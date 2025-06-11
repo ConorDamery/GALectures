@@ -44,7 +44,7 @@ class State {
     }
 
 	update(dt) {
-		if (App.winButton(App.winButtonRight)) {
+		if (App.winButton(App.eWinButtonRight)) {
 			//_planet.x = _camScale * State.mouseX
 			//_planet.y = _camScale * State.mouseY
 		}

@@ -34,13 +34,13 @@ class State {
 		_mx = App.winMouseX
 		_my = App.winMouseY
 
-		if (App.winButton(App.winButtonRight)) {
-			App.winCursor(App.winCursorDisabled)
+		if (App.winButton(App.eWinButtonRight)) {
+			App.winCursor(App.eWinCursorDisabled)
 			_camry = _camry - dmx * _lookSpeed
 			_camrx = _camrx + dmy * _lookSpeed
 			_camrx = _camrx > 89 ? 89 : _camrx < -89 ? -89 : _camrx
 		} else {
-			App.winCursor(App.winCursorNormal)
+			App.winCursor(App.eWinCursorNormal)
 		}
 
 		var rx = PGA.e23.exp_r(0.5 * _camrx * Num.pi / 180.0)
@@ -48,9 +48,9 @@ class State {
 		var r = rx * ry
 
 		var move = Direction.new(
-			(App.winKey(App.winKeyD) ? 1 : 0) + (App.winKey(App.winKeyA) ? -1 : 0),
-			(App.winKey(App.winKeyE) ? 1 : 0) + (App.winKey(App.winKeyQ) ? -1 : 0),
-			(App.winKey(App.winKeyW) ? 1 : 0) + (App.winKey(App.winKeyS) ? -1 : 0)
+			(App.winKey(App.eWinKeyD) ? 1 : 0) + (App.winKey(App.eWinKeyA) ? -1 : 0),
+			(App.winKey(App.eWinKeyE) ? 1 : 0) + (App.winKey(App.eWinKeyQ) ? -1 : 0),
+			(App.winKey(App.eWinKeyW) ? 1 : 0) + (App.winKey(App.eWinKeyS) ? -1 : 0)
 		)
 		move = r >> move.normalized
 		_campx = _campx + move.x * dt * _moveSpeed
