@@ -42,6 +42,7 @@ struct AppGlobal
 
 	int currentIndex{ 0 };
 
+	bool breakpoint{ false };
 	bool reload{ true };
 	bool headless{ false };
 
@@ -171,6 +172,11 @@ void App::LogClear()
 void App::Wait(u32 ms)
 {
 	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+void App::Breakpoint(bool cond)
+{
+	g.breakpoint = cond;
 }
 
 bool App::IsHeadless()

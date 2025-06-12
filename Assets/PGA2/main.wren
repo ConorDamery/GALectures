@@ -1,9 +1,9 @@
 import "app" for App
-import "pga2" for Line2, Point2, Rotor2, Translator2, Motor2, MVec2
+import "pga2" for Line2, Point2, Rotor2, Trans2, Motor2, MVec2
 
 class Cam {
 	construct new() {
-		_t = Translator2.new(0, 0)
+		_t = Trans2.new(0, 0)
 		_s = 2
 		_m = Motor2.new()
 	}
@@ -47,7 +47,7 @@ class Handle {
 
 	update(s, mx, my, dt) {
 		if (__sel == null &&
-			App.winButton(App.winButtonLeft) &&
+			App.winButton(App.eWinButtonLeft) &&
 			isOver(s, mx, my)) {
 			__sel = this
 		}
@@ -56,7 +56,7 @@ class Handle {
 			x = mx
 			y = my
 
-			if (!App.winButton(App.winButtonLeft)) {
+			if (!App.winButton(App.eWinButtonLeft)) {
 				__sel = null
 			}
 		}
@@ -65,24 +65,25 @@ class Handle {
 
 class State {
 	construct new() {
-		_shader = App.glLoadShader("Assets/Common/vertex2.glsl")
+		_shader = App.glLoadShader("Assets/PGA2/vertex2.glsl")
 
 		_camScale = 2
 		_camX = 0
 		_camY = 0
-		_mx = _camScale * Util.winMouseX
-		_my = _camScale * Util.winMouseY
+		_mx = _camScale * State.winMouseX
+		_my = _camScale * State.winMouseY
 
 		_a = Handle.new(-1, -1)
 		_b = Handle.new(-1, 1)
 		_c = Handle.new(1, 1)
+		_d = Handle.new(1, 0)
 
-		_handles = [_a, _b, _c]
+		_handles = [_a, _b, _c, _d]
     }
 
 	update(dt) {
-		var mx = _camScale * Util.winMouseX
-		var my = _camScale * Util.winMouseY
+		var mx = _camScale * State.winMouseX
+		var my = _camScale * State.winMouseY
 		var dmx = _mx - mx
 		var dmy = _my - my
 		_mx = mx
@@ -92,7 +93,7 @@ class State {
 			i.update(_camScale, mx, my, dt)
 		}
 
-		if (Handle.sel == null && App.winButton(App.winButtonLeft)) {
+		if (Handle.sel == null && App.winButton(App.eWinButtonLeft)) {
 			//_camX = _camX + 
 		}
 	}
@@ -109,40 +110,38 @@ class State {
 		App.glSetUniform("Proj")
 		App.glSetVec4f(_camX, _camY, App.winWidth / App.winHeight, _camScale)
 
-        Util.glDrawGrid(10, 10, 0.5, 10, App.glGray)
+        State.glDrawGrid(10, 10, 0.5, 10, App.glGray)
 
 		var a = Point2.new(_a.x, _a.y, 1)
 		var b = Point2.new(_b.x, _b.y, 1)
 		var c = Point2.new(_c.x, _c.y, 1)
+		var d = Point2.new(_d.x, _d.y, 1)
+
+		var l = Line2.new(-0.5, 1, 1)
+
+		var m = c & a
+		var n = l ^ m
+
+		var r = m * l
+		System.print(r.type)
+
+		var t = r>>b
+		t.glDraw(0xFFFFFFFF)
 
 		App.glBegin(true, true, 1, 1)
 		App.glAddVertex(a.x, a.y, 0.1, 0x5F00FF00)
 		App.glAddVertex(b.x, b.y, 0.1, 0x5F00FF00)
 		App.glAddVertex(c.x, c.y, 0.1, 0x5F00FF00)
 		App.glEnd(App.glTriangles)
-
-		var l = Line2.new(-0.5, 1, 1)
-
-		var m = c & a
-		var d = l ^ m
-
-		//var d = m ^ Line2.new(1, 0, 0)
-		//var p = Point2.new(0, 0, 1).proj(m)
-		//var mp = (p + d).normalized
-
-		//a.guiInspect("a")
-		//c.guiInspect("c")
-		//m.guiInspect("m")
-		d.guiInspect("d")
-		//p.guiInspect("p")
-		//mp.guiInspect("mp")
-
+		
 		a.glDraw(0xFF00FF00)
 		b.glDraw(0xFF00FF00)
 		c.glDraw(0xFF00FF00)
+		d.glDraw(0xFF0000FF)
+
 		l.glDraw(0xFF00FFFF)
 		m.glDraw(0xFFFFFFFF)
-		d.glDraw(0xFFFFFF00)
+		n.glDraw(0xFFFFFF00)
 	}
 
 	static winMouseX { (App.winWidth / App.winHeight) * ((2 * App.winMouseX / App.winWidth) - 1) }

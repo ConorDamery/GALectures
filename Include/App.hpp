@@ -232,6 +232,7 @@ namespace GASandbox
 
 		static f64 GetTime();
 		static void Wait(u32 ms);
+		static void Breakpoint(bool cond);
 		static bool IsHeadless();
 
 		static size_type Hash(cstring str);
