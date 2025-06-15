@@ -946,14 +946,24 @@ class Motor2 {
     }
 
     // Inner product
-	// Outer product
+	
+    // Outer product
+
 	// Sandwich product
     >>(b) {
+        // Old: 30 mul 9 add
+        // Op: 16 mul 8 add
+        // Aff: 6 mul 4 add
+        // Proj: 9 mul 6 add
 		if (b is Point2) {
+            var s_sq = s*s
+            var e12_sq = e12*e12
+            var e12_s = e12*s
+            var s_sq_n_e12_sq = s_sq-e12_sq
             return Point2.new(
-                -(2*b.e12*e01*s+2*b.e12*e02*e12+b.e20*e12*e12-2*b.e01*e12*s-b.e20*s*s),
-                b.e01*s*s+2*b.e12*e01*e12-b.e01*e12*e12-2*b.e12*e02*s-2*b.e20*e12*s,
-                b.e12*e12*e12+b.e12*s*s
+                b.e20*s_sq_n_e12_sq + 2*(b.e01*e12_s - b.e12*(e01*s + e02*e12)),
+                b.e01*s_sq_n_e12_sq - 2*(b.e20*e12_s + b.e12*(e02*s - e01*e12)),
+                b.e12*(s_sq + e12_sq)
             )
 		}
 
