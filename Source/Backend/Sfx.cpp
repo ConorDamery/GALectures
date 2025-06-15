@@ -34,7 +34,12 @@ struct SfxChannel
 {
     f32 volume{ 1.0f };
     bool active{ true };
-    list<SfxInstance> instances;
+    list<SfxInstance> instances{};
+
+    SfxChannel() = default;
+    SfxChannel(f32 volume, bool active)
+        : volume(volume), active(active)
+    {}
 };
 
 struct SfxGlobal

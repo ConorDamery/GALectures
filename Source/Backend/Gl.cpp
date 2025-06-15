@@ -10,6 +10,8 @@
 #include <cgltf.h>
 
 #include <sstream>
+#include <cstring>
+#include <stdexcept>
 
 using namespace GASandbox;
 
@@ -17,6 +19,11 @@ struct GlImage
 {
 	i32 w{ 0 }, h{ 0 }, c{ 0 };
 	u8* data{ nullptr };
+
+	GlImage() = default;
+	GlImage(i32 w, i32 h, i32 c, u8* data)
+		: w(w), h(h), c(c), data(data)
+	{}
 };
 
 struct GlAnim
@@ -54,17 +61,18 @@ struct GlNode
 
 struct GlVertex
 {
-	// Used for main position data
-	f32 pos[4] = { 0, 0, 0, 0 };
+    array<f32,4> pos = {0,0,0,0};
+    array<u32,2> col = {0,0};
+    array<u32,2> idx = {0,0};
+    array<f32,8> v = {0,0,0,0,0,0,0,0};
 
-	// Used for nomalized uint values (typical for color)
-	u32 col[2] = { 0, 0 };
-
-	// Used for unnormalized uint values (typical for indexing)
-	u32 idx[2] = { 0, 0 };
-
-	// Extra floats for anything else
-	f32 v[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    GlVertex() = default;
+    GlVertex(const array<f32,4>& pos,
+             const array<u32,2>& col,
+             const array<u32,2>& idx,
+             const array<f32,8>& v)
+        : pos(pos), col(col), idx(idx), v(v)
+    {}
 };
 
 struct GlGlobal
@@ -105,7 +113,7 @@ const T& gl_get(const list<T>& vec, u32 handle)
 	return vec[handle - 1];
 }
 
-#if _DEBUG
+#ifdef _DEBUG
 static cstring opengl_source(GLenum source)
 {
 	switch (source)
@@ -175,7 +183,7 @@ bool App::GlInitialize(const sAppConfig& config)
 		return false;
 	}
 
-#if _DEBUG
+#ifdef _DEBUG
 	i32 flags;
 	glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
 	if (flags & GL_CONTEXT_FLAG_DEBUG_BIT)
@@ -244,8 +252,11 @@ void App::GlReload()
 	g.textures.clear();
 
 	// Graphics API
-#define SCRIPT_ARGS_ARR(l, s, n, p, t) p l[n]; for (u8 i = 0; i < n; ++i) l[i] = CodeGetSlot##t##(vm, s + i + 1);
-
+	#define GET_SLOT_FUNC(t) CodeGetSlot##t
+	#define SCRIPT_ARGS_ARR(l, s, n, p, t) \
+  			p l[n]; \
+  			for (u8 i = 0; i < n; ++i) l[i] = GET_SLOT_FUNC(t)(vm, s + i + 1);
+	
 	CodeBindMethod("app", "App", true, "glViewport(_,_,_,_)",
 		[](sCodeVM* vm)
 		{
@@ -579,6 +590,12 @@ void App::GuiGlRender()
 {
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+	GLenum err;
+	while ((err = glGetError()) != GL_NO_ERROR)
+	{
+		LOGE("OpenGL Error: 0x%X", err);
+	}
 }
 
 static GLuint opengl_load_shader(cstring vsrc, cstring fsrc)
@@ -917,18 +934,18 @@ static void gltf_extract_animation_data(const cgltf_animation& animation)
 
 u32 App::GlLoadModel(cstring filepath)
 {
-#if _DEBUG
+#ifdef _DEBUG
 	string pathStr = PROJECT_PATH;
 	pathStr += filepath;
 	cstring path = pathStr.c_str();
 #else
-	CString path = filepath;
+	cstring path = filepath;
 #endif
 
 	auto data = gltf_load(path);
 	if (data == nullptr)
 	{
-		throw std::exception("Failed to load model!");
+		throw std::runtime_error("Failed to load model!");
 		return 0;
 	}
 

@@ -86,7 +86,7 @@ sFileInfo App::FileGetInfo(cstring filepath)
 
 cstring App::FilePath(cstring filepath)
 {
-#if _DEBUG
+#ifdef _DEBUG
 	thread_local string pathStr{};
 	pathStr = PROJECT_PATH + string(filepath);
 	return pathStr.c_str();

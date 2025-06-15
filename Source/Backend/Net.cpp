@@ -3,6 +3,7 @@
 #define ENET_IMPLEMENTATION
 #include <enet.h>
 
+#include <cstring>
 #include <thread>
 #include <random>
 #include <chrono>
@@ -326,7 +327,7 @@ void App::NetStartServer(cstring ip, u32 port, u32 peerCount, u32 channelLimit)
 
     ENetAddress address{};
 
-    if (std::strcmp(ip, "any") == 0)
+    if (strcmp(ip, "any") == 0)
         address.host = ENET_HOST_ANY;
     else
         enet_address_set_host(&address, ip);

@@ -5,6 +5,7 @@
 #include <misc/cpp/imgui_stdlib.h>
 
 #include <iostream>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <fstream>
@@ -13,6 +14,7 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <thread>
 #include <mutex>
 #include <chrono>
 #include <ctime>
@@ -86,11 +88,14 @@ void App::Log(bool verbose, cstring file, i32 line, cstring func, u32 color, cst
 	va_list args;
 	va_start(args, format);
 
+	va_list args_copy;
+	va_copy(args_copy, args);
+
 	// Determine the size of the formatted string
-	int size = std::vsnprintf(nullptr, 0, format, args);
+	int size = std::vsnprintf(nullptr, 0, format, args_copy);
 	if (size < 0)
 	{
-		va_end(args);
+		va_end(args_copy);
 		throw std::runtime_error("Error during formatting.");
 	}
 
@@ -137,7 +142,7 @@ void App::Log(bool verbose, cstring file, i32 line, cstring func, u32 color, cst
 		log.message = buffer;
 	}
 
-#if _DEBUG
+#ifdef _DEBUG
 	std::cout << log.message << std::endl;
 #else
 	// Write to file immediately
@@ -253,7 +258,7 @@ void App::Update(f64 dt)
 		g.fps = g.frames / g.time;
 		g.spf = g.time / g.frames;
 		g.frames = 1;
-		g.time = std::fmodf(g.time, 1.f);
+		g.time = std::fmod(g.time, 1.f);
 	}
 
 	CodeUpdate(dt);

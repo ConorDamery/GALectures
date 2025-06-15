@@ -4,10 +4,17 @@
 #include <cstddef>
 #include <cstdlib>
 #include <string>
+#include <array>
 #include <vector>
 #include <unordered_map>
 
 // Macros
+#ifndef _DEBUG
+  #ifndef NDEBUG
+    #define _DEBUG
+  #endif
+#endif
+
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
@@ -59,6 +66,9 @@ namespace GASandbox
 	using cstring = const char*;
 	using string = std::string;
 
+	template <typename T, size_type N>
+	using array = std::array<T, N>;
+
 	template <typename T>
 	using list = std::vector<T>;
 
@@ -78,6 +88,8 @@ namespace GASandbox
 	};
 
 	// Window
+	typedef void (*fWinGlProc)(void);
+
 	enum struct eWinMode { WINDOWED = 0, UNDECORATED = 1, BORDERLESS = 2, FULLSCREEN = 3 };
 
 	enum struct eWinCursor : i32
@@ -244,7 +256,7 @@ namespace GASandbox
 		static void FileSave(cstring filepath, const string& src);
 
 		// Window
-		static void* WinGetProcAddress(cstring procname);
+		static fWinGlProc WinGetProcAddress(cstring procname);
 
 		static void WinMode(eWinMode mode);
 		static void WinCursor(eWinCursor cursor);

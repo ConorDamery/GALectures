@@ -18,7 +18,7 @@ static WinGlobal g{};
 
 static void glfw_error_callback(int i, cstring c)
 {
-	LOGE("GLFW Error [%s]: ", c);
+	LOGE("GLFW Error [%d]: %s", i, c);
 }
 
 bool App::WinInitialize(const sAppConfig& config)
@@ -93,7 +93,7 @@ bool App::WinInitialize(const sAppConfig& config)
 		icon.height = App::GlImageHeight(img);
 		icon.pixels = App::GlImageData(img);
 
-		glfwSetWindowIcon(g.window, 1, &icon);
+		//glfwSetWindowIcon(g.window, 1, &icon);
 		App::GlDestroyImage(img);
 	}
 	else
@@ -241,7 +241,7 @@ f64 App::GetTime()
 	return glfwGetTime();
 }
 
-void* App::WinGetProcAddress(cstring procname)
+fWinGlProc App::WinGetProcAddress(cstring procname)
 {
 	return glfwGetProcAddress(procname);
 }

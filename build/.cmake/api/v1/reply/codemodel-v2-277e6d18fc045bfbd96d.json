@@ -1,0 +1,451 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.22"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				},
+				{
+					"build" : "ThirdParty",
+					"childIndexes" : 
+					[
+						2,
+						3,
+						4,
+						5,
+						7,
+						9
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-ThirdParty-Debug-a29567a51ddf8bd8c0e2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.22"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "ThirdParty",
+					"targetIndexes" : 
+					[
+						5,
+						7,
+						17,
+						20
+					]
+				},
+				{
+					"build" : "ThirdParty/filesystem",
+					"jsonFile" : "directory-ThirdParty.filesystem-Debug-4a0bb6756c28a35d0e25.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.7.2"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 1,
+					"source" : "ThirdParty/filesystem"
+				},
+				{
+					"build" : "ThirdParty/cereal",
+					"jsonFile" : "directory-ThirdParty.cereal-Debug-c10d55b66c9dc35b4832.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 2,
+					"source" : "ThirdParty/cereal"
+				},
+				{
+					"build" : "ThirdParty/miniaudio",
+					"jsonFile" : "directory-ThirdParty.miniaudio-Debug-828a8add09d541c1eeef.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 3,
+					"source" : "ThirdParty/miniaudio",
+					"targetIndexes" : 
+					[
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16
+					]
+				},
+				{
+					"build" : "ThirdParty/klein",
+					"childIndexes" : 
+					[
+						6
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-ThirdParty.klein-Debug-32fc90c180f8bf4f05d3.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.15"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 4,
+					"source" : "ThirdParty/klein"
+				},
+				{
+					"build" : "ThirdParty/klein/sym",
+					"jsonFile" : "directory-ThirdParty.klein.sym-Debug-3e82e16b372e25bbf36f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.15"
+					},
+					"parentIndex" : 5,
+					"projectIndex" : 4,
+					"source" : "ThirdParty/klein/sym",
+					"targetIndexes" : 
+					[
+						8,
+						18
+					]
+				},
+				{
+					"build" : "ThirdParty/glfw",
+					"childIndexes" : 
+					[
+						8
+					],
+					"jsonFile" : "directory-ThirdParty.glfw-Debug-26c63a8ac8bc0fef7541.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.4"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 5,
+					"source" : "ThirdParty/glfw"
+				},
+				{
+					"build" : "ThirdParty/glfw/src",
+					"jsonFile" : "directory-ThirdParty.glfw.src-Debug-c1c7ccd50eca83371c23.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.4"
+					},
+					"parentIndex" : 7,
+					"projectIndex" : 5,
+					"source" : "ThirdParty/glfw/src",
+					"targetIndexes" : 
+					[
+						6,
+						19
+					]
+				},
+				{
+					"build" : "ThirdParty/enet",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-ThirdParty.enet-Debug-b47378ab7685088caa94.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.0"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 6,
+					"source" : "ThirdParty/enet",
+					"targetIndexes" : 
+					[
+						2,
+						3,
+						4
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					],
+					"directoryIndexes" : 
+					[
+						0,
+						1
+					],
+					"name" : "GASandbox",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						5,
+						7,
+						17,
+						20
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						2
+					],
+					"name" : "ghcfilesystem,",
+					"parentIndex" : 0
+				},
+				{
+					"directoryIndexes" : 
+					[
+						3
+					],
+					"name" : "cereal",
+					"parentIndex" : 0
+				},
+				{
+					"directoryIndexes" : 
+					[
+						4
+					],
+					"name" : "miniaudio",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						5,
+						6
+					],
+					"name" : "klein",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						8,
+						18
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						7,
+						8
+					],
+					"name" : "GLFW",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						6,
+						19
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						9
+					],
+					"name" : "enet",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						2,
+						3,
+						4
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "GASandbox::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-GASandbox-Debug-27f1aafaea840ae3bca0.json",
+					"name" : "GASandbox",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "GASandboxLib::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-GASandboxLib-Debug-860ca2e1e44f11a76be5.json",
+					"name" : "GASandboxLib",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 9,
+					"id" : "enet_static::@3dcde9d7d5533d02db83",
+					"jsonFile" : "target-enet_static-Debug-270c580a065131741f60.json",
+					"name" : "enet_static",
+					"projectIndex" : 6
+				},
+				{
+					"directoryIndex" : 9,
+					"id" : "enet_test::@3dcde9d7d5533d02db83",
+					"jsonFile" : "target-enet_test-Debug-56f30632437261f55f25.json",
+					"name" : "enet_test",
+					"projectIndex" : 6
+				},
+				{
+					"directoryIndex" : 9,
+					"id" : "enet_test_extra_peers::@3dcde9d7d5533d02db83",
+					"jsonFile" : "target-enet_test_extra_peers-Debug-85bb4b335df298c84b30.json",
+					"name" : "enet_test_extra_peers",
+					"projectIndex" : 6
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "glad::@54439f0f49e30ae3c46f",
+					"jsonFile" : "target-glad-Debug-061f3b8a8e9d358fea6e.json",
+					"name" : "glad",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 8,
+					"id" : "glfw::@b8609d2a923f90592f00",
+					"jsonFile" : "target-glfw-Debug-d68794670c412b31af3f.json",
+					"name" : "glfw",
+					"projectIndex" : 5
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "imgui::@54439f0f49e30ae3c46f",
+					"jsonFile" : "target-imgui-Debug-2e3a3e96d69fef5db105.json",
+					"name" : "imgui",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "klein_shell::@c034d648e5e42d815c94",
+					"jsonFile" : "target-klein_shell-Debug-f063ba4a58c255c7a963.json",
+					"name" : "klein_shell",
+					"projectIndex" : 4
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "miniaudio::@c6640c8cb59085a46048",
+					"jsonFile" : "target-miniaudio-Debug-0772ef80572fb32eca64.json",
+					"name" : "miniaudio",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "miniaudio_channel_combiner_node::@c6640c8cb59085a46048",
+					"jsonFile" : "target-miniaudio_channel_combiner_node-Debug-f5810b6166bbfd8fc4df.json",
+					"name" : "miniaudio_channel_combiner_node",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "miniaudio_channel_separator_node::@c6640c8cb59085a46048",
+					"jsonFile" : "target-miniaudio_channel_separator_node-Debug-6bdb8cd19eb9424b290a.json",
+					"name" : "miniaudio_channel_separator_node",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "miniaudio_libopus::@c6640c8cb59085a46048",
+					"jsonFile" : "target-miniaudio_libopus-Debug-2055c5be44f3e1757e60.json",
+					"name" : "miniaudio_libopus",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "miniaudio_libvorbis::@c6640c8cb59085a46048",
+					"jsonFile" : "target-miniaudio_libvorbis-Debug-92717eddd06a46f9c650.json",
+					"name" : "miniaudio_libvorbis",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "miniaudio_ltrim_node::@c6640c8cb59085a46048",
+					"jsonFile" : "target-miniaudio_ltrim_node-Debug-9a7836d8af3fb393d7fb.json",
+					"name" : "miniaudio_ltrim_node",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "miniaudio_reverb_node::@c6640c8cb59085a46048",
+					"jsonFile" : "target-miniaudio_reverb_node-Debug-527c0f070248b971e3c9.json",
+					"name" : "miniaudio_reverb_node",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "miniaudio_vocoder_node::@c6640c8cb59085a46048",
+					"jsonFile" : "target-miniaudio_vocoder_node-Debug-9f59dc87975257886363.json",
+					"name" : "miniaudio_vocoder_node",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "stb::@54439f0f49e30ae3c46f",
+					"jsonFile" : "target-stb-Debug-e563f13bdfa3c734f7ac.json",
+					"name" : "stb",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "symlib::@c034d648e5e42d815c94",
+					"jsonFile" : "target-symlib-Debug-1304eda51a2c6e8cb750.json",
+					"name" : "symlib",
+					"projectIndex" : 4
+				},
+				{
+					"directoryIndex" : 8,
+					"id" : "update_mappings::@b8609d2a923f90592f00",
+					"jsonFile" : "target-update_mappings-Debug-0149cb8941a54a46936b.json",
+					"name" : "update_mappings",
+					"projectIndex" : 5
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "wren::@54439f0f49e30ae3c46f",
+					"jsonFile" : "target-wren-Debug-a9a154f712bb030622ad.json",
+					"name" : "wren",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/mike/Github/GALectures/build",
+		"source" : "/home/mike/Github/GALectures"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 4
+	}
+}

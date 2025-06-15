@@ -37,9 +37,9 @@ static size_type wren_method_hash(cstring moduleName, cstring className, bool is
 
 static WrenForeignMethodFn wren_bind_method(WrenVM* vm, cstring moduleName, cstring className, bool isStatic, cstring signature)
 {
-	if (std::strcmp(moduleName, "random") == 0)
+	if (strcmp(moduleName, "random") == 0)
 		return nullptr;
-	if (std::strcmp(moduleName, "meta") == 0)
+	if (strcmp(moduleName, "meta") == 0)
 		return nullptr;
 
 	const size_type hash = wren_method_hash(moduleName, className, isStatic, signature);
@@ -71,8 +71,8 @@ static WrenForeignClassMethods wren_bind_class(WrenVM* vm, cstring moduleName, c
 	methods.allocate = nullptr;
 	methods.finalize = nullptr;
 
-	if (std::strcmp(moduleName, "random") == 0) return methods;
-	if (std::strcmp(moduleName, "meta") == 0) return methods;
+	if (strcmp(moduleName, "random") == 0) return methods;
+	if (strcmp(moduleName, "meta") == 0) return methods;
 
 	const size_type hash = wren_class_hash(moduleName, className);
 	methods.allocate = wren_allocate(hash);
