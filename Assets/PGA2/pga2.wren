@@ -910,6 +910,7 @@ class Motor2 {
             )
 
         } else if (b is Motor2) {
+            // 12 mul 8 add
             return Motor2.new(
                 s*b.s - e12*b.e12,
                 e01*b.s + e12*b.e02 + s*b.e01 - e02*b.e12,
