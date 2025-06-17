@@ -26,38 +26,34 @@ class Cam {
 }
 
 class Handle {
-	construct new(x, y) {
-		_x = x
-		_y = y
-		__sel = null
+	construct new(p) {
+		_p = p
 	}
 
-	x { _x }
-	y { _y }
+	p { _p }
+	p=(v) { _p = v }
 
-	x=(v) { _x = v }
-	y=(v) { _y = v }
-
-	static sel { __sel }  
+	static sel { __sel }
+	static sel=(v) { __sel = v }
 
 	isOver(s, mx, my) {
-		return (mx > x - s*0.05 && mx < x + s*0.05 &&
-			 	my > y - s*0.05 && my < y + s*0.05)
+		return (mx > p.x - s*0.05 && mx < p.x + s*0.05 &&
+			 	my > p.y - s*0.05 && my < p.y + s*0.05)
 	}
 
 	update(s, mx, my, dt) {
-		if (__sel == null &&
+		if (Handle.sel == null &&
 			App.winButton(App.eWinButtonLeft) &&
 			isOver(s, mx, my)) {
-			__sel = this
+			Handle.sel = this
 		}
 
-		if (__sel == this) {
-			x = mx
-			y = my
+		if (Handle.sel == this) {
+			p.x = mx
+			p.y = my
 
 			if (!App.winButton(App.eWinButtonLeft)) {
-				__sel = null
+				Handle.sel = null
 			}
 		}
 	}
@@ -73,12 +69,16 @@ class State {
 		_mx = _camScale * State.winMouseX
 		_my = _camScale * State.winMouseY
 
-		_a = Handle.new(-1, -1)
-		_b = Handle.new(-1, 1)
-		_c = Handle.new(1, 1)
-		_d = Handle.new(1, 0)
+		_a = Handle.new(Point2.new(0, 0, 1))
+		_b = Handle.new(Point2.new(-1, 1, 1))
+		_c = Handle.new(Point2.new(1, 1, 1))
+		_d = Handle.new(Point2.new(1, 0, 1))
 
-		_handles = [_a, _b, _c, _d]
+		_e = Handle.new(Point2.new(-1, -1, 1))
+		_f = Handle.new(Point2.new(1, 0, 1))
+		_g = Handle.new(Point2.new(1, 1, 1))
+
+		_handles = [_a, _b, _c, _d, _e, _f, _g]
     }
 
 	update(dt) {
@@ -101,6 +101,11 @@ class State {
 	render() {
 		if (App.guiBeginChild("Settings", 500, App.guiContentAvailHeight() - 150)) {
 			_camScale = App.guiFloat("Cam Scale", _camScale, 1, 10)
+			App.guiSeparator("Points")
+			_a.p.guiInspect("a")
+			_b.p.guiInspect("b")
+			_c.p.guiInspect("c")
+			_d.p.guiInspect("d")
 		}
 		App.guiEndChild()
 
@@ -112,38 +117,51 @@ class State {
 
         State.glDrawGrid(10, 10, 0.5, 10, App.glGray)
 
-		var a = Point2.new(_a.x, _a.y, 1)
-		var b = Point2.new(_b.x, _b.y, 1)
-		var c = Point2.new(_c.x, _c.y, 1)
-		var d = Point2.new(_d.x, _d.y, 1)
+		var a = _a.p
+		var b = _b.p
+		var c = _c.p
+		var d = _d.p
 
-		var l = Line2.new(-0.5, 1, 1)
+		a.glDraw(0xFFFF0000)
+		b.glDraw(0xFFFF0000)
+		c.glDraw(0xFFFF0000)
+		d.glDraw(0xFFFF0000)
 
-		var m = c & a
-		var n = l ^ m
+		var l1 = a & b
+		var l2 = c & d
 
-		var r = m * l
-		//System.print(r.type)
-		r.glDraw(0xFFFF00FF)
+		l1.guiInspect("l1")
+		l2.guiInspect("l2")
 
-		var t = l>>b
-		t.glDraw(0xFFFFFFFF)
-		t.guiInspect("t")
+		l1.glDraw(0xFF00FFFF)
+		l2.glDraw(0xFFFFFFFF)
+
+		var n = l1 ^ l2
+
+		n.glDraw(0xFFFFFF00)
+
+		var m = l1 * l2
+		//m.glDraw(0xFFFF00FF)
 
 		App.glBegin(true, true, 1, 1)
-		App.glAddVertex(a.x, a.y, 0.1, 0x5F00FF00)
-		App.glAddVertex(b.x, b.y, 0.1, 0x5F00FF00)
-		App.glAddVertex(c.x, c.y, 0.1, 0x5F00FF00)
-		App.glEnd(App.glTriangles)
-		
-		a.glDraw(0xFF00FF00)
-		b.glDraw(0xFF00FF00)
-		c.glDraw(0xFF00FF00)
-		d.glDraw(0xFF0000FF)
 
-		l.glDraw(0xFF00FFFF)
-		m.glDraw(0xFFFFFFFF)
-		n.glDraw(0xFFFFFF00)
+		var e = _e.p
+		var f = _f.p
+		var g = _g.p
+		App.glAddVertex(e.x, e.y, 0.1, 0x5F00FF00)
+		App.glAddVertex(f.x, f.y, 0.1, 0x5F00FF00)
+		App.glAddVertex(g.x, g.y, 0.1, 0x5F00FF00)
+
+		e = m>>e
+		f = m>>f
+		g = m>>g
+		if (e is Point2 && f is Point2 && g is Point2) {
+			App.glAddVertex(e.x, e.y, 0.1, 0x5F0000FF)
+			App.glAddVertex(f.x, f.y, 0.1, 0x5F0000FF)
+			App.glAddVertex(g.x, g.y, 0.1, 0x5F0000FF)
+		}
+		
+		App.glEnd(App.glTriangles)
 	}
 
 	static winMouseX { (App.winWidth / App.winHeight) * ((2 * App.winMouseX / App.winWidth) - 1) }

@@ -3,6 +3,7 @@ import "app" for App
 // Special thanks to enki and his GAmphetamine codegen!
 // See: https://enki.ws/ganja.js/examples/coffeeshop.html
 
+// The Line class represents the vector: Ae₀ + Be₁ + Ce₂
 class Line2 {
     construct new(e0, e1, e2) {
         _e0 = e0
@@ -84,7 +85,7 @@ class Line2 {
         Fiber.abort("Subtraction not supported for: %(type.name) * %(b.type.name)")
     }
 
-    // Geometric & scalar product
+    // Geometric product
     *(b) {
         if (b is Num) {
             return Line2.new(
@@ -401,12 +402,7 @@ class Line2 {
     involute { -this }
 
     // Equality
-    ==(b) {
-        if (b is Line2) {
-            return e0 == b.e0 && e1 == b.e1 && e2 == b.e2
-        }
-        return false
-    }
+    ==(b) { mvec == b }
     !=(b) { !(this == b) }
 
     glSetUniform(name) {
@@ -440,6 +436,7 @@ class Line2 {
     toString { "[%(e0)e0 + %(e1)e1 + %(e2)e2]" }
 }
 
+// The point class represents the vector: Ae₀₂ + Be₀₁ + Ce₁₂
 class Point2 {
     construct new(e20, e01, e12) {
         _e20 = e20
@@ -833,12 +830,7 @@ class Point2 {
     involute { this.copy }
 
     // Equality
-    ==(b) {
-        if (b is Point2) {
-            return e20 == b.e20 && e01 == b.e01 && e12 == b.e12
-        }
-        return false
-    }
+    ==(b) { mvec == b }
     !=(b) { !(this == b) }
 
     glSetUniform(name) {
@@ -871,6 +863,7 @@ class Point2 {
     toString { "[%(e20)e20 + %(e01)e01 + %(e12)e12]" }
 }
 
+// The rotor class represents the vector: A + Be₁₂
 class Rotor2 {
     construct new(s, e12) {
         _s = s
@@ -1237,6 +1230,9 @@ class Rotor2 {
         Fiber.abort("Left contraction not supported for: %(type.name) * %(b.type.name)")
     }
 
+    // Regressive product
+    &(b) { !(!this ^ !b) }
+
     // Reverse operator
     ~ { Rotor2.new(s, -e12) }
 
@@ -1275,12 +1271,7 @@ class Rotor2 {
     involute { this.copy }
 
     // Equality
-    ==(b) {
-        if (b is Rotor2) {
-            return s == b.s && e12 == b.e12
-        }
-        return false
-    }
+    ==(b) { mvec == b }
     !=(b) { !(this == b) }
 
     glSetUniform(name) {
@@ -1307,6 +1298,7 @@ class Rotor2 {
     toString { "[%(s) + %(e12)e12]" }
 }
 
+// The trans(lator) class represents the vector: 1 + Ae₀₁ + Be₀₂
 class Trans2 {
     construct new(e01, e02) {
         _e01 = e01
@@ -1558,6 +1550,9 @@ class Trans2 {
         Fiber.abort("Sandwich not supported for: %(type.name) * %(b.type.name)")
 	}
 
+    // Regressive product
+    &(b) { !(!this ^ !b) }
+
     // Reverse operator
     ~ { Trans2.new(-e01, -e02) }
 
@@ -1596,12 +1591,7 @@ class Trans2 {
     involute { this.copy }
 
     // Equality
-    ==(b) {
-        if (b is Trans2) {
-            return e01 == b.e01 && e02 == b.e02
-        }
-        return false
-    }
+    ==(b) { mvec == b }
     !=(b) { !(this == b) }
 
     glSetUniform(name) {
@@ -1628,6 +1618,7 @@ class Trans2 {
     toString { "[1 + %(e01)e01 + %(e02)e02]" }
 }
 
+// The motor class represents the vector: A + Be₀₁ + Ce₀₂ + De₁₂
 class Motor2 {
     construct new(s, e01, e02, e12) {
         _s = s
@@ -1656,47 +1647,69 @@ class Motor2 {
     dy=(v) { _e02 = v }
     z=(v) { _e12 = v }
 
-    // Geometric & scalar product
+    // Geometric product
     *(b) {
         if (b is Num) {
             return Motor2.new(
-                s * b,
-                e12 * b,
-                e20 * b,
-                e01 * b
+                s * b, e12 * b,
+                e20 * b, e01 * b
             )
 
         } else if (b is Motor2) {
             // 12 mul 8 add
             return Motor2.new(
-                s*b.s - e12*b.e12,
-                e01*b.s + e12*b.e02 + s*b.e01 - e02*b.e12,
-                e01*b.e12 + e02*b.s + s*b.e02 - e12*b.e01,
-                e12*b.s + s*b.e12
+                b.s*s-b.e12*e12,
+                b.e01*s+b.e02*e12+b.s*e01-b.e12*e02,
+                b.e02*s+b.e12*e01+b.s*e02-b.e01*e12,
+                b.e12*s+b.s*e12
+            ).reduce
+
+        } else if (b is Line2) {
+            return MVec2.new(
+                0,
+                b.e0*s+b.e1*e01+b.e2*e02,
+                b.e1*s+b.e2*e12,
+                b.e2*s-b.e1*e12,
+                0, 0, 0,
+                b.e0*e12+b.e2*e01-b.e1*e02
             ).reduce
 
         } else if (b is Point2) {
             return Motor2.new(
-                -e12,
-                b.e20*e12 + s*b.e01 - e02,
-                b.e20*s - e12*b.e01 + e01,
-                s
+                -b.e12*e12,
+                b.e01*s-b.e12*e02-b.e20*e12,
+                b.e12*e01-b.e01*e12-b.e20*s,
+                b.e12*s
             ).reduce
 
         } else if (b is Rotor2) {
             return Motor2.new(
-                s*b.s - e12*b.e12,
-                e01*b.s - e02*b.e12,
-                e01*b.e12 + e02*b.s,
-                e12*b.s + s*b.e12
+                b.s*s-b.e12*e12,
+                b.s*e01-b.e12*e02,
+                b.e12*e01+b.s*e02,
+                b.e12*s+b.s*e12
             ).reduce
 
         } else if (b is Trans2) {
             return Motor2.new(
                 s,
-                e01+e12*b.e02 + s*b.e01,
-                e02+s*b.e02 - e12*b.e01,
+                b.e01*s+b.e02*e12+e01,
+                b.e02*s+e02-b.e01*e12,
                 e12
+            ).reduce
+
+        // TODO: PScalar2
+
+        } else if (b is MVec2) {
+            return MVec2.new(
+                b.s*s-b.e12*e12,
+                b.e0*s+b.e1*e01+b.e2*e02-b.e012*e12,
+                b.e1*s+b.e2*e12,
+                b.e2*s-b.e1*e12,
+                b.e01*s+b.e02*e12+b.s*e01-b.e12*e02,
+                b.e02*s+b.e12*e01+b.s*e02-b.e01*e12,
+                b.e12*s+b.s*e12,
+                b.e0*e12+b.e012*s+b.e2*e01-b.e1*e02
             ).reduce
         }
 
@@ -1704,16 +1717,154 @@ class Motor2 {
     }
 
     // Inner product
+    |(b) {
+        if (b is Num) {
+            return this * b
+
+        } else if (b is Motor2) {
+            return Motor2.new(
+                b.s*s-b.e12*e12,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s+b.s*e12
+            ).reduce
+
+        } else if (b is Line2) {
+            return Line2.new(
+                b.e0*s+b.e1*e01+b.e2*e02,
+                b.e1*s+b.e2*e12,
+                b.e2*s-b.e1*e12
+            )
+
+        } else if (b is Point2) {
+            return Motor2.new(
+                -b.e12*e12,
+                b.e01*s,
+                -b.e20*s,
+                b.e12*s
+            ).reduce
+
+        } else if (b is Rotor2) {
+            return Motor2.new(
+                b.s*s-b.e12*e12,
+                b.s*e01,
+                b.s*e02,
+                b.e12*s+b.s*e12
+            ).reduce
+
+        } else if (b is Trans2) {
+            return Motor2.new(
+                s,
+                b.e01*s+e01,
+                b.e02*s+e02,
+                e12
+            ).reduce
+
+        // TODO: PScalar2
+
+        } else if (b is MVec2) {
+            return MVec2.new(
+                b.s*s-b.e12*e12,
+                b.e0*s+b.e1*e01+b.e2*e02-b.e012*e12,
+                b.e1*s+b.e2*e12,
+                b.e2*s-b.e1*e12,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s+b.s*e12,
+                b.e012*s
+            ).reduce
+        }
+
+        Fiber.abort("Inner product not supported for: %(type.name) * %(b.type.name)")
+    }
 	
     // Outer product
+    ^(b) {
+        if (b is Num) {
+            return this * b
+
+        } else if (b is Motor2) {
+            return Motor2.new(
+                b.s*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s+b.s*e12
+            ).reduce
+
+        } else if (b is Line2) {
+            return MVec2.new(
+                0,
+                b.e0*s, b.e1*s, b.e2*s,
+                0, 0, 0,
+                b.e0*e12+b.e2*e01-b.e1*e02
+            ).reduce
+
+        } else if (b is Point2) {
+            return Point2.new(
+                b.e20*s,
+                b.e01*s,
+                b.e12*s
+            )
+
+        } else if (b is Rotor2) {
+            return Motor2.new(
+                b.s*s,
+                b.s*e01,
+                b.s*e02,
+                b.e12*s+b.s*e12
+            ).reduce
+
+        } else if (b is Trans2) {
+            return Motor2.new(
+                s,
+                b.e01*s+e01,
+                b.e02*s+e02,
+                e12
+            ).reduce
+
+        // TODO: PScalar2
+
+        } else if (b is MVec2) {
+            return MVec2.new(
+                b.s*s,
+                b.e0*s,
+                b.e1*s,
+                b.e2*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s+b.s*e12,
+                b.e0*e12+b.e012*s+b.e2*e01-b.e1*e02
+            ).reduce
+        }
+
+        Fiber.abort("Outer product not supported for: %(type.name) * %(b.type.name)")
+    }
 
 	// Sandwich product
     >>(b) {
-        // Old: 30 mul 9 add
-        // Op: 16 mul 8 add
-        // Aff: 6 mul 4 add
-        // Proj: 9 mul 6 add
-		if (b is Point2) {
+        if (b is Num) {
+            return b*e12*e12+b*s*s
+
+        } else if (b is Motor2) {
+            return Motor2.new(
+                b.s*e12*e12+b.s*s*s,
+                b.e01*s*s+2*b.e02*e12*s+2*b.e12*e01*e12-b.e01*e12*e12-2*b.e12*e02*s,
+                b.e02*s*s+2*b.e12*e01*s+2*b.e12*e02*e12-2*b.e01*e12*s-b.e02*e12*e12,
+                b.e12*e12*e12+b.e12*s*s
+            ).reduce
+
+        } else if (b is Line2) {
+            return Line2.new(
+                b.e0*e12*e12+b.e0*s*s+2*b.e1*e01*s+2*b.e2*e01*e12+2*b.e2*e02*s-2*b.e1*e02*e12,
+                b.e1*s*s+2*b.e2*e12*s-b.e1*e12*e12,
+                b.e2*s*s-2*b.e1*e12*s-b.e2*e12*e12
+            )
+
+        } else if (b is Point2) {
+            // Old: 30 mul 9 add
+            // Op: 16 mul 8 add
+            // Aff: 6 mul 4 add
+            // Proj: 9 mul 6 add
             var s_sq = s*s
             var e12_sq = e12*e12
             var e12_s = e12*s
@@ -1723,13 +1874,92 @@ class Motor2 {
                 b.e01*s_sq_n_e12_sq - 2*(b.e20*e12_s + b.e12*(e02*s - e01*e12)),
                 b.e12*(s_sq + e12_sq)
             )
-		}
+
+        } else if (b is Rotor2) {
+            return Motor2.new(
+                b.s*e12*e12+b.s*s*s,
+                2*b.e12*e01*e12-2*b.e12*e02*s,
+                2*b.e12*e01*s+2*b.e12*e02*e12,
+                b.e12*e12*e12+b.e12*s*s
+            ).reduce
+
+        } else if (b is Trans2) {
+            return Trans2.new(
+                b.e01*s*s+2*b.e02*e12*s-b.e01*e12*e12,
+                b.e02*s*s-2*b.e01*e12*s-b.e02*e12*e12,
+                e12*e12+s*s
+            )
+
+        // TODO: PScalar2
+
+        } else if (b is MVec2) {
+            return MVec2.new(
+                b.s*e12*e12+b.s*s*s,
+                b.e0*e12*e12+b.e0*s*s+2*b.e1*e01*s+2*b.e2*e01*e12+2*b.e2*e02*s-2*b.e1*e02*e12,
+                b.e1*s*s+2*b.e2*e12*s-b.e1*e12*e12,
+                b.e2*s*s-2*b.e1*e12*s-b.e2*e12*e12,
+                b.e01*s*s+2*b.e02*e12*s+2*b.e12*e01*e12-b.e01*e12*e12-2*b.e12*e02*s,
+                b.e02*s*s+2*b.e12*e01*s+2*b.e12*e02*e12-2*b.e01*e12*s-b.e02*e12*e12,
+                b.e12*e12*e12+b.e12*s*s,
+                b.e012*e12*e12+b.e012*s*s
+            ).reduce
+        }
 
         Fiber.abort("Sandwich not supported for: %(type.name) * %(b.type.name)")
 	}
 
 	// Left contraction
-    <<(b) {}
+    <<(b) {
+        if (b is Num) {
+            return b*s
+
+        } else if (b is Motor2) {
+            return Motor2.new(
+                b.s*s-b.e12*e12,
+                b.e01*s,
+                b.e02*s,
+                b.e12*s
+            ).reduce
+
+        } else if (b is Line2) {
+            return b * s
+
+        } else if (b is Point2) {
+            return Motor2.new(
+                -b.e12*e12,
+                b.e01*s,
+                -b.e20*s,
+                b.e12*s
+            ).reduce
+
+        } else if (b is Rotor2) {
+            return Rotor2.new(
+                b.s*s-b.e12*e12,
+                b.e12*s
+            )
+
+        } else if (b is Trans2) {
+            return Trans2.new(
+                b.e01*s, b.e02*s, s
+            )
+
+        // TODO: PScalar2
+
+        } else if (b is MVec2) {
+            return MVec2.new(
+                b.s*s-b.e12*e12,
+                b.e0*s-b.e012*e12,
+                b.e1*s, b.e2*s,
+                b.e01*s, b.e02*s, b.e12*s,
+                b.e012*s
+            ).reduce
+        }
+
+        Fiber.abort("Left contraction not supported for: %(type.name) * %(b.type.name)")
+    }
+
+    // Regressive product
+    &(b) { !(!this ^ !b) }
 
 	// Reverse operator
     ~ { Motor2.new(s, -e01, -e02, -e12) }
@@ -1741,12 +1971,26 @@ class Motor2 {
     grade(i) { mvec.grade(i) }
 
 	// Normalization
+    norm_sq { s*s + e12*e12 }
+    normalized {
+        var n = this.norm_sq
+        if (n == 0) {
+            return Motor2.new(0, 0, 0, 0)
+        } else {
+            n = 1 / n.sqrt
+            return this * n
+        }
+    }
+
 	// Exponentiation
 	// Logarithm
 
-    sqrt {  }
+    // Equality
+    ==(b) { mvec == b }
+    !=(b) { !(this == b) }
 
     // Utility
+    copy { Motor2.new(s, e01, e02, e12) }
     mvec { MVec2.new(s, 0, 0, 0, e01, e02, e12, 0) }
     reduce { mvec.reduce }
 
@@ -1758,7 +2002,7 @@ class Motor2 {
     // Debug
     glDraw(color) {
         Line2.new(0, 1, 0).glDraw(color)
-        Line2.new(0, 0, 1).glDraw(color)
+        Line2.new(0, s, e12).glDraw(color)
     }
 
     guiInspect(name) {
@@ -1778,6 +2022,7 @@ class Motor2 {
     toString { "[%(s) + %(e01)e01 + %(e02)e02 + %(e12)e12]" }
 }
 
+// The pseudo-scalar class represents the vector: Ae₀₁₂
 class PScalar2 {
     construct new(e012) {
         _e012 = e012
@@ -1789,6 +2034,7 @@ class PScalar2 {
     toString { "[%(e012)e012]" }
 }
 
+// The full multivector class represents: A + Be₀ + Ce₁ + De₂ + Ee₀₁ + Fe₀₂ + Ge₁₂ + He₀₁₂
 class MVec2 {
     construct new(s, e0, e1, e2, e01, e02, e12, e012) {
         _s = s
@@ -1819,13 +2065,12 @@ class MVec2 {
     e12=(v) { _e12 = v }
     e012=(v) { _e012 = v }
 
-    * (b) {
+    // Geometric product
+    *(b) {
         if (b is Num) {
             return MVec2.new(
-                s * b,
-                e0 * b, e1 * b, e2 * b,
-                e01 * b, e02 * b, e12 * b,
-                e012 * b
+                s * b, e0 * b, e1 * b, e2 * b,
+                e01 * b, e02 * b, e12 * b, e012 * b
             )
 
         } else if(b is MVec2) {
@@ -1901,9 +2146,312 @@ class MVec2 {
             ).reduce
         }
 
+        // TODO: PScalar2
+
         Fiber.abort("Geometric product not supported for: %(type.name) * %(b.type.name)")
     }
 
+    // Geometric product
+    |(b) {
+        if (b is Num) {
+            return this * b
+
+        } else if(b is MVec2) {
+            return MVec2.new(
+                b.e1*e1+b.e2*e2+b.s*s-b.e12*e12,
+                b.e0*s+b.e1*e01+b.e2*e02+b.s*e0-b.e01*e1-b.e012*e12-b.e02*e2-b.e12*e012,
+                b.e1*s+b.e2*e12+b.s*e1-b.e12*e2,
+                b.e12*e1+b.e2*s+b.s*e2-b.e1*e12,
+                b.e01*s+b.e012*e2+b.e2*e012+b.s*e01,
+                b.e02*s+b.s*e02-b.e012*e1-b.e1*e012,
+                b.e12*s+b.s*e12,
+                b.e012*s+b.s*e012
+            ).reduce
+
+        } else if(b is Line2) {
+            return MVec2.new(
+                b.e1*e1+b.e2*e2,
+                b.e0*s+b.e1*e01+b.e2*e02,
+                b.e1*s+b.e2*e12,
+                b.e2*s-b.e1*e12,
+                b.e2*e012,
+                -b.e1*e012,
+                0, 0
+            ).reduce
+
+        } else if(b is Point2) {
+            return MVec2.new(
+                -b.e12*e12,
+                b.e20*e2-b.e01*e1-b.e12*e012,
+                -b.e12*e2, b.e12*e1,
+                b.e01*s, -b.e20*s, b.e12*s,
+                0
+            ).reduce
+
+        } else if(b is Trans2) {
+            return MVec2.new(
+                s,
+                e0-b.e01*e1-b.e02*e2,
+                e1, e2,
+                b.e01*s+e01,
+                b.e02*s+e02,
+                e12, e012
+            ).reduce
+
+        } else if(b is Rotor2) {
+            return MVec2.new(
+                b.s*s-b.e12*e12,
+                b.s*e0-b.e12*e012,
+                b.s*e1-b.e12*e2,
+                b.e12*e1+b.s*e2,
+                b.s*e01,
+                b.s*e02,
+                b.e12*s+b.s*e12,
+                b.s*e012
+            ).reduce
+
+        } else if(b is Motor2) {
+            return MVec2.new(
+                b.s*s-b.e12*e12,
+                b.s*e0-b.e01*e1-b.e02*e2-b.e12*e012,
+                b.s*e1-b.e12*e2,
+                b.e12*e1+b.s*e2,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s+b.s*e12,
+                b.s*e012
+            ).reduce
+        }
+
+        // TODO: PScalar2
+
+        Fiber.abort("Inner product not supported for: %(type.name) * %(b.type.name)")
+    }
+
+    // Outer product
+    ^(b) {
+        if (b is Num) {
+            return this*b
+
+        } else if(b is MVec2) {
+            return MVec2.new(
+                b.s*s,
+                b.e0*s+b.s*e0,
+                b.e1*s+b.s*e1,
+                b.e2*s+b.s*e2,
+                b.e01*s+b.e1*e0+b.s*e01-b.e0*e1,
+                b.e02*s+b.e2*e0+b.s*e02-b.e0*e2,
+                b.e12*s+b.e2*e1+b.s*e12-b.e1*e2,
+                b.e0*e12+b.e01*e2+b.e012*s+b.e12*e0+b.e2*e01+b.s*e012-b.e02*e1-b.e1*e02
+            ).reduce
+
+        } else if(b is Line2) {
+            return MVec2.new(
+                0, b.e0*s,
+                b.e1*s,
+                b.e2*s,
+                b.e1*e0-b.e0*e1,
+                b.e2*e0-b.e0*e2,
+                b.e2*e1-b.e1*e2,
+                b.e0*e12+b.e2*e01-b.e1*e02
+            ).reduce
+
+        } else if(b is Point2) {
+            return MVec2.new(
+                0, 0, 0, 0,
+                b.e01*s, -b.e20*s, b.e12*s,
+                b.e01*e2+b.e12*e0+b.e20*e1
+            ).reduce
+
+        } else if(b is Trans2) {
+            return MVec2.new(
+                s, e0, e1, e2,
+                b.e01*s+e01,
+                b.e02*s+e02,
+                e12,
+                b.e01*e2+e012-b.e02*e1
+            ).reduce
+
+        } else if(b is Rotor2) {
+            return MVec2.new(
+                b.s*s, b.s*e0, b.s*e1, b.s*e2,
+                b.s*e01, b.s*e02,
+                b.e12*s+b.s*e12,
+                b.e12*e0+b.s*e012
+            ).reduce
+
+        } else if(b is Motor2) {
+            return MVec2.new(
+                b.s*s, b.s*e0, b.s*e1, b.s*e2,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s+b.s*e12,
+                b.e01*e2+b.e12*e0+b.s*e012-b.e02*e1
+            ).reduce
+        }
+
+        // TODO: PScalar2
+
+        Fiber.abort("Outer product not supported for: %(type.name) * %(b.type.name)")
+    }
+
+    // Sandwich product
+    >>(b) {
+        if (b is Num) {
+            return MVec2.new(
+                b*e1*e1+b*e12*e12+b*e2*e2+b*s*s,
+                2*b*e0*s+2*b*e01*e1+2*b*e012*e12+2*b*e02*e2,
+                2*b*e1*s+2*b*e12*e2,
+                2*b*e2*s-2*b*e1*e12,
+                0, 0, 0, 0
+            )
+
+        } else if(b is MVec2) {
+            return MVec2.new(
+                2*b.e1*e1*s+2*b.e2*e1*e12+2*b.e2*e2*s+b.s*e1*e1+b.s*e12*e12+b.s*e2*e2+b.s*s*s-2*b.e1*e12*e2,
+                b.e0*e12*e12+b.e0*s*s+2*b.e1*e0*e1+2*b.e1*e01*s+2*b.e2*e0*e2+2*b.e2*e01*e12+2*b.e2*e012*e1+2*b.e2*e02*s+2*b.s*e0*s+2*b.s*e01*e1+2*b.s*e012*e12+2*b.s*e02*e2-b.e0*e1*e1-b.e0*e2*e2-2*b.e1*e012*e2-2*b.e1*e02*e12,
+                b.e1*e1*e1+b.e1*s*s+2*b.e2*e1*e2+2*b.e2*e12*s+2*b.s*e1*s+2*b.s*e12*e2-b.e1*e12*e12-b.e1*e2*e2,
+                2*b.e1*e1*e2+b.e2*e2*e2+b.e2*s*s+2*b.s*e2*s-2*b.e1*e12*s-b.e2*e1*e1-b.e2*e12*e12-2*b.s*e1*e12,
+                b.e01*e2*e2+b.e01*s*s+2*b.e012*e2*s+2*b.e02*e12*s+2*b.e12*e0*e2+2*b.e12*e01*e12-b.e01*e1*e1-b.e01*e12*e12-2*b.e012*e1*e12-2*b.e02*e1*e2-2*b.e12*e012*e1-2*b.e12*e02*s,
+                b.e02*e1*e1+b.e02*s*s+2*b.e12*e01*s+2*b.e12*e02*e12-2*b.e01*e1*e2-2*b.e01*e12*s-2*b.e012*e1*s-2*b.e012*e12*e2-b.e02*e12*e12-b.e02*e2*e2-2*b.e12*e0*e1-2*b.e12*e012*e2,
+                b.e12*e12*e12+b.e12*s*s-b.e12*e1*e1-b.e12*e2*e2,
+                2*b.e01*e1*e12+2*b.e01*e2*s+b.e012*e1*e1+b.e012*e12*e12+b.e012*e2*e2+b.e012*s*s+2*b.e02*e12*e2+2*b.e12*e0*s+2*b.e12*e012*e12-2*b.e02*e1*s-2*b.e12*e01*e1-2*b.e12*e02*e2
+            ).reduce
+
+        } else if(b is Line2) {
+            return MVec2.new(
+                2*b.e1*e1*s+2*b.e2*e1*e12+2*b.e2*e2*s-2*b.e1*e12*e2,
+                b.e0*e12*e12+b.e0*s*s+2*b.e1*e0*e1+2*b.e1*e01*s+2*b.e2*e0*e2+2*b.e2*e01*e12+2*b.e2*e012*e1+2*b.e2*e02*s-b.e0*e1*e1-b.e0*e2*e2-2*b.e1*e012*e2-2*b.e1*e02*e12,
+                b.e1*e1*e1+b.e1*s*s+2*b.e2*e1*e2+2*b.e2*e12*s-b.e1*e12*e12-b.e1*e2*e2,
+                2*b.e1*e1*e2+b.e2*e2*e2+b.e2*s*s-2*b.e1*e12*s-b.e2*e1*e1-b.e2*e12*e12,
+                0, 0, 0, 0
+            ).reduce
+
+        } else if(b is Point2) {
+            return MVec2.new(
+                0, 0, 0, 0,
+                b.e01*e2*e2+b.e01*s*s+2*b.e12*e0*e2+2*b.e12*e01*e12+2*b.e20*e1*e2-b.e01*e1*e1-b.e01*e12*e12-2*b.e12*e012*e1-2*b.e12*e02*s-2*b.e20*e12*s,
+                2*b.e12*e01*s+2*b.e12*e02*e12+b.e20*e12*e12+b.e20*e2*e2-2*b.e01*e1*e2-2*b.e01*e12*s-2*b.e12*e0*e1-2*b.e12*e012*e2-b.e20*e1*e1-b.e20*s*s,
+                b.e12*e12*e12+b.e12*s*s-b.e12*e1*e1-b.e12*e2*e2,
+                2*b.e01*e1*e12+2*b.e01*e2*s+2*b.e12*e0*s+2*b.e12*e012*e12+2*b.e20*e1*s-2*b.e12*e01*e1-2*b.e12*e02*e2-2*b.e20*e12*e2
+            ).reduce
+
+        } else if(b is Trans2) {
+            return MVec2.new(
+                e1*e1+e12*e12+e2*e2+s*s,
+                2*e0*s+2*e01*e1+2*e012*e12+2*e02*e2,
+                2*e1*s+2*e12*e2,
+                2*e2*s-2*e1*e12,
+                b.e01*e2*e2+b.e01*s*s+2*b.e02*e12*s-b.e01*e1*e1-b.e01*e12*e12-2*b.e02*e1*e2,
+                b.e02*e1*e1+b.e02*s*s-2*b.e01*e1*e2-2*b.e01*e12*s-b.e02*e12*e12-b.e02*e2*e2,
+                2*b.e01*e1*e12+2*b.e01*e2*s+2*b.e02*e12*e2-2*b.e02*e1*s,
+                0
+            ).reduce
+
+        } else if(b is Rotor2) {
+            return MVec2.new(
+                b.s*e1*e1+b.s*e12*e12+b.s*e2*e2+b.s*s*s,
+                2*b.s*e0*s+2*b.s*e01*e1+2*b.s*e012*e12+2*b.s*e02*e2,
+                2*b.s*e1*s+2*b.s*e12*e2,
+                2*b.s*e2*s-2*b.s*e1*e12,
+                2*b.e12*e0*e2+2*b.e12*e01*e12-2*b.e12*e012*e1-2*b.e12*e02*s,
+                2*b.e12*e01*s+2*b.e12*e02*e12-2*b.e12*e0*e1-2*b.e12*e012*e2,
+                b.e12*e12*e12+b.e12*s*s-b.e12*e1*e1-b.e12*e2*e2,
+                2*b.e12*e0*s+2*b.e12*e012*e12-2*b.e12*e01*e1-2*b.e12*e02*e2
+            ).reduce
+
+        } else if(b is Motor2) {
+            return MVec2.new(
+                b.s*e1*e1+b.s*e12*e12+b.s*e2*e2+b.s*s*s,
+                2*b.s*e0*s+2*b.s*e01*e1+2*b.s*e012*e12+2*b.s*e02*e2,
+                2*b.s*e1*s+2*b.s*e12*e2,
+                2*b.s*e2*s-2*b.s*e1*e12,
+                b.e01*e2*e2+b.e01*s*s+2*b.e02*e12*s+2*b.e12*e0*e2+2*b.e12*e01*e12-b.e01*e1*e1-b.e01*e12*e12-2*b.e02*e1*e2-2*b.e12*e012*e1-2*b.e12*e02*s,
+                b.e02*e1*e1+b.e02*s*s+2*b.e12*e01*s+2*b.e12*e02*e12-2*b.e01*e1*e2-2*b.e01*e12*s-b.e02*e12*e12-b.e02*e2*e2-2*b.e12*e0*e1-2*b.e12*e012*e2,
+                b.e12*e12*e12+b.e12*s*s-b.e12*e1*e1-b.e12*e2*e2,
+                2*b.e01*e1*e12+2*b.e01*e2*s+2*b.e02*e12*e2+2*b.e12*e0*s+2*b.e12*e012*e12-2*b.e02*e1*s-2*b.e12*e01*e1-2*b.e12*e02*e2
+            ).reduce
+        }
+
+        // TODO: PScalar2
+
+        Fiber.abort("Sandwich product not supported for: %(type.name) * %(b.type.name)")
+    }
+
+    // Left contraction
+    <<(b) {
+        if (b is Num) {
+            return b*s
+
+        } else if(b is MVec2) {
+            return MVec2.new(
+                b.e1*e1+b.e2*e2+b.s*s-b.e12*e12,
+                b.e0*s-b.e01*e1-b.e012*e12-b.e02*e2,
+                b.e1*s-b.e12*e2,
+                b.e12*e1+b.e2*s,
+                b.e01*s+b.e012*e2,
+                b.e02*s-b.e012*e1,
+                b.e12*s,
+                b.e012*s
+            ).reduce
+
+        } else if(b is Line2) {
+            return MVec2.new(
+                b.e1*e1+b.e2*e2,
+                b.e0*s, b.e1*s, b.e2*s,
+                0, 0, 0, 0
+            ).reduce
+
+        } else if(b is Point2) {
+            return MVec2.new(
+                -b.e12*e12,
+                b.e20*e2-b.e01*e1,
+                -b.e12*e2, b.e12*e1,
+                b.e01*s, -b.e20*s, b.e12*s,
+                0
+            ).reduce
+
+        } else if(b is Trans2) {
+            return MVec2.new(
+                s,
+                -b.e01*e1-b.e02*e2, 0, 0,
+                b.e01*s, b.e02*s, 0,
+                0
+            ).reduce
+
+        } else if(b is Rotor2) {
+            return MVec2.new(
+                b.s*s-b.e12*e12,
+                0, -b.e12*e2, b.e12*e1,
+                0, 0, b.e12*s,
+                0
+            ).reduce
+
+        } else if(b is Motor2) {
+            return MVec2.new(
+                b.s*s-b.e12*e12,
+                -b.e01*e1-b.e02*e2,
+                -b.e12*e2, b.e12*e1,
+                b.e01*s, b.e02*s, b.e12*s,
+                0
+            ).reduce
+        }
+
+        // TODO: PScalar2
+
+        Fiber.abort("Left contraction not supported for: %(type.name) * %(b.type.name)")
+    }
+
+    // Regressive product
+    &(b) { !(!this ^ !b) }
+
+	// Reverse operator
+    ~ { Motor2.new(s, -e01, -e02, -e12) }
+
+	// Dual operator
+    ! { MVec2.new(0, e12, -e02, e01, 0, 0, 0, s) }
+
+	// Grade selection
     grade(i) {
         if (i == 0) {
             return s
@@ -1916,6 +2464,30 @@ class MVec2 {
         }
     }
 
+	// Normalization
+    norm_sq { 0 }
+    normalized { null }
+
+	// Exponentiation
+	// Logarithm
+
+    // Equality
+    ==(b) {
+        if (!(b is Num) && !(b is Line2) && !(b is Point2) && !(b is Rotor2) && !(b is Trans2) && !(b is Motor2) && !(b is PScalar2)) {
+            return false
+        }
+        var t = b is Num ? MVec2.new(b, 0, 0, 0, 0, 0, 0, 0) : b.mvec
+        return
+            s == t.s &&
+            e0 == t.e0 && e1 == t.e1 && e2 == t.e2 &&
+            e01 == t.e01 && e02 == t.e02 && e12 == t.e12 &&
+            e012 == t.e012
+    }
+    !=(b) { !(this == b) }
+
+    // Utility
+    copy { MVec2.new(s, e0, e1, e2, e01, e02, e12, e012) }
+    mvec { this }
     reduce {
         var sbm = 0 // scalar bitmask
         sbm = sbm | (s    == 0 ? 0 : 0x01)
@@ -1937,10 +2509,13 @@ class MVec2 {
             return Trans2.new(e01, e02, s)
         } else if (sbm & 0x71 != 0 && sbm & 0x8E == 0) {
             return Motor2.new(s, e01, e02, e12)
+        } else if (sbm & 0x80 != 0 && sbm & 0x7F == 0) {
+            return PScalar2.new(e012)
         }
         return this
     }
 
+    // Debug
     toString { "[%(s) + %(e0)e0 + %(e1)e1 + %(e2)e2 + %(e01)e01 + %(e02)e02 + %(e12)e12 + %(e012)e012]" }
 }
 
