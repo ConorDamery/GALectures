@@ -123,10 +123,12 @@ class State {
 		var n = l ^ m
 
 		var r = m * l
-		System.print(r.type)
+		//System.print(r.type)
+		r.glDraw(0xFFFF00FF)
 
-		var t = r>>b
+		var t = l>>b
 		t.glDraw(0xFFFFFFFF)
+		t.guiInspect("t")
 
 		App.glBegin(true, true, 1, 1)
 		App.glAddVertex(a.x, a.y, 0.1, 0x5F00FF00)
