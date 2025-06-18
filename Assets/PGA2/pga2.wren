@@ -42,7 +42,7 @@ class Line2 {
             return MVec2.new(b.s, e0, e1, e2, 0, 0, b.e12, 0).reduce
 
         } else if (b is Trans2) {
-            return MVec2.new(1, e0, e1, e2, b.e01, b.e02, 0, 0).reduce
+            return MVec2.new(b.s, e0, e1, e2, b.e01, b.e02, 0, 0).reduce
 
         } else if (b is Motor2) {
             return MVec2.new(b.s, e0, e1, e2, b.e01, b.e02, b.e12, 0).reduce
@@ -71,7 +71,7 @@ class Line2 {
             return MVec2.new(-b.s, e0, e1, e2, 0, 0, -b.e12, 0).reduce
 
         } else if (b is Trans2) {
-            return MVec2.new(1, e0, e1, e2, -b.e01, -b.e02, 0, 0).reduce
+            return MVec2.new(-b.s, e0, e1, e2, -b.e01, -b.e02, 0, 0).reduce
 
         } else if (b is Motor2) {
             return MVec2.new(-b.s, e0, e1, e2, -b.e01, -b.e02, -b.e12, 0).reduce
@@ -123,22 +123,34 @@ class Line2 {
         } else if (b is Trans2) {
             return MVec2.new(
                 0,
-                -b.e01*e1 - b.e02*e2,
-                -e2, e1,
+                b.s*e0-b.e01*e1-b.e02*e2,
+                b.s*e1, b.s*e2,
                 0, 0, 0,
-                b.e01*e2 + e0 - b.e02*e1
+                b.e01*e2-b.e02*e1
             ).reduce
-
-        // TODO: PScalar2
 
         } else if (b is Motor2) {
             return MVec2.new(
                 0,
-                b.s*e0 - b.e01*e1 - b.e02*e2,
-                b.s*e1 - b.e12*e2,
-                b.e12*e1 + b.s*e2,
+                b.s*e0-b.e01*e1-b.e02*e2,
+                b.s*e1-b.e12*e2,
+                b.e12*e1+b.s*e2,
                 0, 0, 0,
-                b.e01*e2 + b.e12*e0 - b.e02*e1
+                b.e01*e2+b.e12*e0-b.e02*e1
+            ).reduce
+
+        // TODO: PScalar2
+
+        } else if (b is MVec2) {
+            return MVec2.new(
+                b.e1*e1+b.e2*e2,
+                b.s*e0-b.e01*e1-b.e02*e2,
+                b.s*e1-b.e12*e2,
+                b.e12*e1+b.s*e2,
+                b.e012*e2+b.e1*e0-b.e0*e1,
+                b.e2*e0-b.e0*e2-b.e012*e1,
+                b.e2*e1-b.e1*e2,
+                b.e01*e2+b.e12*e0-b.e02*e1
             ).reduce
         }
 
@@ -169,8 +181,8 @@ class Line2 {
 
         } else if (b is Trans2) {
             return Line2.new(
-                e0-b.e01*e1-b.e02*e2,
-                e1, e2
+                b.s*e0-b.e01*e1-b.e02*e2,
+                b.s*e1, b.s*e2
             )
             
         } else if (b is Motor2) {
@@ -223,8 +235,10 @@ class Line2 {
 
         } else if (b is Trans2) {
             return MVec2.new(
-                0, e0, e1, e2,
-                0, 0, 0, b.e01*e2-b.e02*e1
+                0,
+                b.s*e0, b.s*e1, b.s*e2,
+                0, 0, 0,
+                b.e01*e2-b.e02*e1
             ).reduce
 
         } else if (b is Motor2) {
@@ -281,9 +295,9 @@ class Line2 {
 
         } else if (b is Trans2) {
             return Trans2.new(
+                b.s*e1*e1+b.s*e2*e2,
                 b.e01*e2*e2-b.e01*e1*e1-2*b.e02*e1*e2,
-                b.e02*e1*e1-2*b.e01*e1*e2-b.e02*e2*e2,
-                e1*e1+e2*e2
+                b.e02*e1*e1-2*b.e01*e1*e2-b.e02*e2*e2
             )
 
         } else if (b is Motor2) {
@@ -481,12 +495,12 @@ class Point2 {
 
         } else if (b is Trans2) {
             return Motor2.new(
-                1, e01+b.e01, -e20+b.e02, e12
+                b.s, e01+b.e01, -e20+b.e02, e12
             ).reduce
 
         } else if (b is Motor2) {
             return Motor2.new(
-                1, e01+b.e01, -e20+b.e02, e12+b.e12
+                b.s, e01+b.e01, -e20+b.e02, e12+b.e12
             ).reduce
 
         // TODO: PScalar2
@@ -519,12 +533,12 @@ class Point2 {
 
         } else if (b is Trans2) {
             return Motor2.new(
-                1, e01-b.e01, -e20-b.e02, e12
+                -b.s, e01-b.e01, -e20-b.e02, e12
             ).reduce
 
         } else if (b is Motor2) {
             return Motor2.new(
-                1, e01-b.e01, -e20-b.e02, e12-b.e12
+                -b.s, e01-b.e01, -e20-b.e02, e12-b.e12
             ).reduce
 
         // TODO: PScalar2
@@ -570,12 +584,11 @@ class Point2 {
             ).reduce
 
         } else if (b is Trans2) {
-            return Motor2.new(
-                -e12,
-                b.e02*e12 + e20,
-                e01 - b.e01*e12,
-                0
-            ).reduce
+            return Point2.new(
+                b.e01*e12+b.s*e20,
+                b.e02*e12+b.s*e01,
+                b.s*e12
+            )
 
         } else if (b is Motor2) {
             return Motor2.new(
@@ -627,7 +640,7 @@ class Point2 {
             ).reduce
 
         } else if (b is Trans2) {
-            return this.copy
+            return this * b.s
 
         } else if (b is Motor2) {
             return Motor2.new(
@@ -673,7 +686,7 @@ class Point2 {
             return this * b.s
 
         } else if (b is Trans2) {
-            return this.copy
+            return this * b.s
 
         } else if (b is Motor2) {
             return this * b.s
@@ -722,9 +735,9 @@ class Point2 {
 
         } else if (b is Trans2) {
             return Trans2.new(
+                b.s*e12*e12,
                 -b.e01*e12*e12,
-                -b.e02*e12*e12,
-                e12*e12
+                -b.e02*e12*e12
             )
 
         } else if (b is Motor2) {
@@ -897,7 +910,7 @@ class Rotor2 {
             return Motor2.new(s, b.e01, -b.e20, e12+b.e12).reduce
             
         } else if (b is Trans2) {
-            return Motor2.new(s+1, b.e01, b.e02, e12).reduce
+            return Motor2.new(s+b.s, b.e01, b.e02, e12).reduce
             
         } else if (b is Motor2) {
             return Motor2.new(s+b.s, b.e01, b.e02, e12+b.e12).reduce
@@ -926,7 +939,7 @@ class Rotor2 {
             return Motor2.new(s, -b.e01, b.e20, e12-b.e12).reduce
             
         } else if (b is Trans2) {
-            return Motor2.new(s-1, -b.e01, -b.e02, e12).reduce
+            return Motor2.new(s-b.s, -b.e01, -b.e02, e12).reduce
             
         } else if (b is Motor2) {
             return Motor2.new(s-b.s, -b.e01, -b.e02, e12-b.e12).reduce
@@ -973,10 +986,10 @@ class Rotor2 {
 
         } else if (b is Trans2) {
             return Motor2.new(
-                s,
+                b.s*s,
                 b.e01*s+b.e02*e12,
                 b.e02*s-b.e01*e12,
-                e12
+                b.s*e12
             ).reduce
 
         } else if (b is Motor2) {
@@ -1033,10 +1046,10 @@ class Rotor2 {
 
         } else if (b is Trans2) {
             return Motor2.new(
-                s,
+                b.s*s,
                 b.e01*s,
                 b.e02*s,
-                e12
+                b.s*e12
             ).reduce
 
         } else if (b is Motor2) {
@@ -1085,10 +1098,10 @@ class Rotor2 {
 
         } else if (b is Trans2) {
             return Motor2.new(
-                s,
+                b.s*s,
                 b.e01*s,
                 b.e02*s,
-                e12
+                b.s*e12
             ).reduce
 
         } else if (b is Motor2) {
@@ -1144,9 +1157,9 @@ class Rotor2 {
 
 		} else if (b is Trans2) {
             return Trans2.new(
+                b.s*e12*e12+b.s*s*s,
                 b.e01*s*s+2*b.e02*e12*s-b.e01*e12*e12,
-                b.e02*s*s-2*b.e01*e12*s-b.e02*e12*e12,
-                e12*e12+s*s
+                b.e02*s*s-2*b.e01*e12*s-b.e02*e12*e12
             )
 
         } else if (b is Motor2) {
@@ -1199,9 +1212,9 @@ class Rotor2 {
 
 		} else if (b is Trans2) {
             return Trans2.new(
+                bb.s*s,
                 b.e01*s,
-                b.e02*s,
-                s
+                b.e02*s
             )
 
         } else if (b is Motor2) {
@@ -1300,89 +1313,143 @@ class Rotor2 {
 
 // The trans(lator) class represents the vector: 1 + Ae₀₁ + Be₀₂
 class Trans2 {
-    construct new(e01, e02) {
+    construct new(s, e01, e02) {
+        _s = s
         _e01 = e01
         _e02 = e02
     }
 
-    construct new(e01, e02, s) {
-        if (s == 0) {
-            Fiber.abort("Attempting to create a translator with 0 scalar!")
-        }
-        s = s == 1 ? 1 : 1 / s
-        _e01 = e01 * s
-        _e02 = e02 * s
-    }
-
     // GA notation
+    s { _s }
     e01 { _e01 }
     e02 { _e02 }
+    s=(v) { _s = v }
     e01=(v) { _e01 = v }
     e02=(v) { _e02 = v }
 
     // Classic notation
+    w { _s }
     dx { _e01 }
     dy { _e02 }
+    w=(v) { _s = v }
     dx=(v) { _e01 = v }
     dy=(v) { _e02 = v }
+
+    // Addition
+    +(b) {
+        if (b is Num) {
+            return Trans2.new(s+b, e01, e02)
+            
+        } else if (b is Rotor2) {
+            return Motor2.new(s+b.s, e01, e02, b.e12).reduce
+            
+        } else if (b is Line2) {
+            return MVec2.new(s, b.e0, b.e1, b.e2, e01, e02, 0, 0).reduce
+            
+        } else if (b is Point2) {
+            return Motor2.new(s, e01+b.e01, e02-b.e20, b.e12).reduce
+            
+        } else if (b is Trans2) {
+            return Trans2.new(s+b.s, e01+b.e01, e02+b.e02).reduce
+            
+        } else if (b is Motor2) {
+            return Motor2.new(s+b.s, e01+b.e01, e02+b.e02, b.e12).reduce
+
+        // TODO: PScalar2
+            
+        } else if (b is MVec2) {
+            return MVec2.new(s+b.s, b.e0, b.e1, b.e2, e01+b.e01, e02+b.e02, b.e12, b.e012).reduce
+        }
+
+        Fiber.abort("Addition not supported for: %(type.name) * %(b.type.name)")
+    }
+
+    // Subtraction
+    -(b) {
+        if (b is Num) {
+            return Trans2.new(s-b, e01, e02)
+            
+        } else if (b is Rotor2) {
+            return Motor2.new(s-b.s, e01, e02, -b.e12).reduce
+            
+        } else if (b is Line2) {
+            return MVec2.new(s, -b.e0, -b.e1, -b.e2, e01, e02, 0, 0).reduce
+            
+        } else if (b is Point2) {
+            return Motor2.new(s, e01-b.e01, e02+b.e20, -b.e12).reduce
+            
+        } else if (b is Trans2) {
+            return Trans2.new(s-b.s, e01-b.e01, e02-b.e02).reduce
+            
+        } else if (b is Motor2) {
+            return Motor2.new(s-b.s, e01-b.e01, e02-b.e02, -b.e12).reduce
+
+        // TODO: PScalar2
+            
+        } else if (b is MVec2) {
+            return MVec2.new(s-b.s, -b.e0, -b.e1, -b.e2, e01-b.e01, e02-b.e02, -b.e12, -b.e012).reduce
+        }
+
+        Fiber.abort("Subtraction not supported for: %(type.name) * %(b.type.name)")
+    }
 
     // Geometric product
     *(b) {
         if (b is Num) {
             return Trans2.new(
-                e01 * b, e02 * b, b
+                s * b, e01 * b, e02 * b, b
             )
 
         } else if (b is Trans2) {
             return Trans2.new(
-                b.e01+e01,
-                b.e02+e02
+                b.s*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02
             )
 
         } else if (b is Line2) {
             return MVec2.new(
                 0,
-                b.e0+b.e1*e01+b.e2*e02,
-                b.e1, b.e2,
+                b.e0*s+b.e1*e01+b.e2*e02,
+                b.e1*s, b.e2*s,
                 0, 0, 0,
                 b.e2*e01-b.e1*e02
             ).reduce
 
         } else if (b is Point2) {
             return Point2.new(
-                -(b.e12*e01-b.e20),
-                b.e01-b.e12*e02,
-                b.e12
+                b.e20*s-b.e12*e01,
+                b.e01*s-b.e12*e02,
+                b.e12*s
             )
 
         } else if (b is Rotor2) {
             return Motor2.new(
-                b.s,
+                b.s*s,
                 b.s*e01-b.e12*e02,
                 b.e12*e01+b.s*e02,
-                b.e12
+                b.e12*s
             ).reduce
 
         } else if (b is Motor2) {
             return Motor2.new(
-                b.s,
-                b.e01+b.s*e01 - b.e12*e02,
-                b.e02+b.e12*e01 + b.s*e02,
-                b.e12
+                b.s*s,
+                b.e01*s+b.s*e01-b.e12*e02,
+                b.e02*s+b.e12*e01+b.s*e02,
+                b.e12*s
             ).reduce
 
         // TODO: PScalar2
 
         } else if (b is MVec2) {
             return MVec2.new(
-                b.s,
-                b.e0+b.e1*e01+b.e2*e02,
-                b.e1,
-                b.e2,
-                b.e01+b.s*e01-b.e12*e02,
-                b.e02+b.e12*e01+b.s*e02,
-                b.e12,
-                b.e012+b.e2*e01-b.e1*e02
+                b.s*s,
+                b.e0*s+b.e1*e01+b.e2*e02,
+                b.e1*s, b.e2*s,
+                b.e01*s+b.s*e01-b.e12*e02,
+                b.e02*s+b.e12*e01+b.s*e02,
+                b.e12*s,
+                b.e012*s+b.e2*e01-b.e1*e02
             ).reduce
         }
 
@@ -1396,47 +1463,47 @@ class Trans2 {
 
         } else if (b is Trans2) {
             return Trans2.new(
-                b.e01+e01,
-                b.e02+e02
+                b.s*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02
             )
 
         } else if (b is Line2) {
             return Line2.new(
-                b.e0+b.e1*e01+b.e2*e02,
-                b.e1, b.e2
+                b.e0*s+b.e1*e01+b.e2*e02,
+                b.e1*s, b.e2*s
             )
 
         } else if (b is Point2) {
-            return b.copy
+            return b * s
 
         } else if (b is Rotor2) {
             return Motor2.new(
-                b.s,
+                b.s*s,
                 b.s*e01,
                 b.s*e02,
-                b.e12
+                b.e12*s
             ).reduce
 
         } else if (b is Motor2) {
             return Motor2.new(
-                b.s,
-                b.e01+b.s*e01,
-                b.e02+b.s*e02,
-                b.e12
+                b.s*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s
             ).reduce
 
         // TODO: PScalar2
 
         } else if (b is MVec2) {
             return MVec2.new(
-                b.s,
-                b.e0+b.e1*e01+b.e2*e02,
-                b.e1,
-                b.e2,
-                b.e01+b.s*e01,
-                b.e02+b.s*e02,
-                b.e12,
-                b.e012
+                b.s*s,
+                b.e0*s+b.e1*e01+b.e2*e02,
+                b.e1*s, b.e2*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s,
+                b.e012*s
             ).reduce
         }
 
@@ -1450,46 +1517,48 @@ class Trans2 {
 
         } else if (b is Trans2) {
             return Trans2.new(
-                b.e01+e01,
-                b.e02+e02
+                b.s*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02
             )
 
         } else if (b is Line2) {
             return MVec2.new(
                 0,
-                b.e0, b.e1, b.e2,
+                b.e0*s, b.e1*s, b.e2*s,
                 0, 0, 0,
                 b.e2*e01-b.e1*e02
             ).reduce
 
         } else if (b is Point2) {
-            return b.copy
+            return b * s
 
         } else if (b is Rotor2) {
             return Motor2.new(
-                b.s,
+                b.s*s,
                 b.s*e01,
                 b.s*e02,
-                b.e12
+                b.e12*s
             ).reduce
 
         } else if (b is Motor2) {
             return Motor2.new(
-                b.s,
-                b.e01+b.s*e01,
-                b.e02+b.s*e02,
-                b.e12
+                b.s*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s
             ).reduce
 
         // TODO: PScalar2
 
         } else if (b is MVec2) {
             return MVec2.new(
-                b.s, b.e0, b.e1, b.e2,
-                b.e01+b.s*e01,
-                b.e02+b.s*e02,
-                b.e12,
-                b.e012+b.e2*e01-b.e1*e02
+                b.s*s,
+                b.e0*s, b.e1*s, b.e2*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.e12*s,
+                b.e012*s+b.e2*e01-b.e1*e02
             ).reduce
         }
 
@@ -1499,51 +1568,56 @@ class Trans2 {
     // Sandwich product
     >>(b) {
         if (b is Num) {
-            return b
+            return b*s*s
 
         } else if (b is Trans2) {
-            return b.copy
+            return Trans2.new(
+                b.s*s*s,
+                b.e01*s*s,
+                b.e02*s*s
+            )
 
         } else if (b is Line2) {
             return Line2.new(
-                b.e0+2*b.e1*e01+2*b.e2*e02,
-                b.e1, b.e2
+                b.e0*s*s+2*b.e1*e01*s+2*b.e2*e02*s,
+                b.e1*s*s, b.e2*s*s
             )
 
         } else if (b is Point2) {
             return Point2.new(
-                -(2*b.e12*e01-b.e20),
-                b.e01-2*b.e12*e02,
-                b.e12
+                b.e20*s*s-2*b.e12*e01*s,
+                b.e01*s*s-2*b.e12*e02*s,
+                b.e12*s*s
             )
 
         } else if (b is Rotor2) {
             return Motor2.new(
-                b.s,
-                -2*b.e12*e02,
-                2*b.e12*e01,
-                b.e12
+                b.s*s*s,
+                -2*b.e12*e02*s,
+                2*b.e12*e01*s,
+                b.e12*s*s
             ).reduce
 
         } else if (b is Motor2) {
             return Motor2.new(
-                b.s,
-                b.e01-2*b.e12*e02,
-                b.e02+2*b.e12*e01,
-                b.e12
+                b.s*s*s,
+                b.e01*s*s-2*b.e12*e02*s,
+                b.e02*s*s+2*b.e12*e01*s,
+                b.e12*s*s
             ).reduce
 
         // TODO: PScalar2
 
         } else if (b is MVec2) {
             return MVec2.new(
-                b.s,
-                b.e0+2*b.e1*e01+2*b.e2*e02,
-                b.e1, b.e2,
-                b.e01-2*b.e12*e02,
-                b.e02+2*b.e12*e01,
-                b.e12,
-                b.e012
+                b.s*s*s,
+                b.e0*s*s+2*b.e1*e01*s+2*b.e2*e02*s,
+                b.e1*s*s,
+                b.e2*s*s,
+                b.e01*s*s-2*b.e12*e02*s,
+                b.e02*s*s+2*b.e12*e01*s,
+                b.e12*s*s,
+                b.e012*s*s
             ).reduce
         }
 
@@ -1584,8 +1658,8 @@ class Trans2 {
     log {} // TOOD
 
     // Utility
-    copy { Trans2.new(e01, e02) }
-    mvec { MVec2.new(0, 0, 0, 0, e01, e02, 0, 0) }
+    copy { Trans2.new(s, e01, e02) }
+    mvec { MVec2.new(s, 0, 0, 0, e01, e02, 0, 0) }
 
     conjugate { -this }
     involute { this.copy }
@@ -1596,7 +1670,7 @@ class Trans2 {
 
     glSetUniform(name) {
         App.glSetUniform(name)
-        App.glSetVec2f(e01, e02)
+        App.glSetVec3f(s, e01, e02)
     }
 
     // Debug
@@ -1606,8 +1680,10 @@ class Trans2 {
     }
 
     guiInspect(name) {
-        App.guiPushItemWidth(App.guiContentAvailWidth() / 3)
+        App.guiPushItemWidth(App.guiContentAvailWidth() / 4)
         App.guiText("%(name): ")
+        App.guiSameLine()
+        s = App.guiFloat("s##%(name)", s)
         App.guiSameLine()
         e20 = App.guiFloat("e01##%(name)", e01)
         App.guiSameLine()
@@ -1615,7 +1691,7 @@ class Trans2 {
         App.guiPopItemWidth()
     }
 
-    toString { "[1 + %(e01)e01 + %(e02)e02]" }
+    toString { "[%(s) + %(e01)e01 + %(e02)e02]" }
 }
 
 // The motor class represents the vector: A + Be₀₁ + Ce₀₂ + De₁₂
@@ -1646,6 +1722,64 @@ class Motor2 {
     dx=(v) { _e01 = v }
     dy=(v) { _e02 = v }
     z=(v) { _e12 = v }
+
+    // Addition
+    +(b) {
+        if (b is Num) {
+            return Motor2.new(s+b, e01, e02, e12)
+            
+        } else if (b is Rotor2) {
+            return Motor2.new(s+b.s, e01, e02, e12+b.e12).reduce
+            
+        } else if (b is Line2) {
+            return MVec2.new(s, b.e0, b.e1, b.e2, e01, e02, e12, 0).reduce
+            
+        } else if (b is Point2) {
+            return Motor2.new(s, e01+b.e01, e02-b.e20, e12+b.e12).reduce
+            
+        } else if (b is Trans2) {
+            return Motor2.new(s+b.s, e01+b.e01, e02+b.e02, e12).reduce
+            
+        } else if (b is Motor2) {
+            return Motor2.new(s+b.s, e01+b.e01, e02+b.e02, e12+b.e12).reduce
+
+        // TODO: PScalar2
+            
+        } else if (b is MVec2) {
+            return MVec2.new(s+b.s, b.e0, b.e1, b.e2, e01+b.e01, e02+b.e02, e12+b.e12, b.e012).reduce
+        }
+
+        Fiber.abort("Addition not supported for: %(type.name) * %(b.type.name)")
+    }
+
+    // Subtraction
+    -(b) {
+        if (b is Num) {
+            return Motor2.new(s-b, e01, e02, e12)
+            
+        } else if (b is Rotor2) {
+            return Motor2.new(s-b.s, e01, e02, e12-b.e12).reduce
+            
+        } else if (b is Line2) {
+            return MVec2.new(s, -b.e0, -b.e1, -b.e2, e01, e02, e12, 0).reduce
+            
+        } else if (b is Point2) {
+            return Motor2.new(s, e01-b.e01, e02+b.e20, e12-b.e12).reduce
+            
+        } else if (b is Trans2) {
+            return Motor2.new(s-b.s, e01-b.e01, e02-b.e02, e12).reduce
+            
+        } else if (b is Motor2) {
+            return Motor2.new(s-b.s, e01-b.e01, e02-b.e02, e12-b.e12).reduce
+
+        // TODO: PScalar2
+            
+        } else if (b is MVec2) {
+            return MVec2.new(s-b.s, -b.e0, -b.e1, -b.e2, e01-b.e01, e02-b.e02, e12-b.e12, -b.e012).reduce
+        }
+
+        Fiber.abort("Subtraction not supported for: %(type.name) * %(b.type.name)")
+    }
 
     // Geometric product
     *(b) {
@@ -1692,10 +1826,10 @@ class Motor2 {
 
         } else if (b is Trans2) {
             return Motor2.new(
-                s,
-                b.e01*s+b.e02*e12+e01,
-                b.e02*s+e02-b.e01*e12,
-                e12
+                b.s*s,
+                b.e01*s+b.e02*e12+b.s*e01,
+                b.e02*s+b.s*e02-b.e01*e12,
+                b.s*e12
             ).reduce
 
         // TODO: PScalar2
@@ -1754,10 +1888,10 @@ class Motor2 {
 
         } else if (b is Trans2) {
             return Motor2.new(
-                s,
-                b.e01*s+e01,
-                b.e02*s+e02,
-                e12
+                b.s*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.s*e12
             ).reduce
 
         // TODO: PScalar2
@@ -1816,10 +1950,10 @@ class Motor2 {
 
         } else if (b is Trans2) {
             return Motor2.new(
-                s,
-                b.e01*s+e01,
-                b.e02*s+e02,
-                e12
+                b.s*s,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.s*e12
             ).reduce
 
         // TODO: PScalar2
@@ -1885,9 +2019,9 @@ class Motor2 {
 
         } else if (b is Trans2) {
             return Trans2.new(
+                b.s*e12*e12+b.s*s*s,
                 b.e01*s*s+2*b.e02*e12*s-b.e01*e12*e12,
-                b.e02*s*s-2*b.e01*e12*s-b.e02*e12*e12,
-                e12*e12+s*s
+                b.e02*s*s-2*b.e01*e12*s-b.e02*e12*e12
             )
 
         // TODO: PScalar2
@@ -1940,7 +2074,7 @@ class Motor2 {
 
         } else if (b is Trans2) {
             return Trans2.new(
-                b.e01*s, b.e02*s, s
+                b.s*s, b.e01*s, b.e02*s
             )
 
         // TODO: PScalar2
@@ -2047,6 +2181,7 @@ class MVec2 {
         _e012 = e012
     }
 
+    // GA notation
     s { _s }
     e0 { _e0 }
     e1 { _e1 }
@@ -2064,6 +2199,64 @@ class MVec2 {
     e02=(v) { _e02 = v }
     e12=(v) { _e12 = v }
     e012=(v) { _e012 = v }
+
+    // Addition
+    +(b) {
+        if (b is Num) {
+            return MVec2.new(s+b, e0, e1, e2, e01, e02, e12, e012).reduce
+            
+        } else if (b is Rotor2) {
+            return MVec2.new(s+b.s, e0, e1, e2, e01, e02, e12+b.e12, e012).reduce
+            
+        } else if (b is Line2) {
+            return MVec2.new(s, e0+b.e0, e1+b.e1, e2+b.e2, e01, e02, e12, e012).reduce
+            
+        } else if (b is Point2) {
+            return MVec2.new(s, e0, e1, e2, e01+b.e01, e02-b.e20, e12+b.e12, e012).reduce
+            
+        } else if (b is Trans2) {
+            return MVec2.new(s+b.s, e0, e1, e2, e01+b.e01, e02+b.e02, e12, e012).reduce
+            
+        } else if (b is Motor2) {
+            return MVec2.new(s+b.s, e0, e1, e2, e01+b.e01, e02+b.e02, e12+b.e12, e012).reduce
+
+        // TODO: PScalar2
+            
+        } else if (b is MVec2) {
+            return MVec2.new(s+b.s, e0+b.e0, e1+b.e1, e2+b.e2, e01+b.e01, e02+b.e02, e12+b.e12, e012+b.e012).reduce
+        }
+
+        Fiber.abort("Addition not supported for: %(type.name) * %(b.type.name)")
+    }
+
+    // Subtraction
+    -(b) {
+        if (b is Num) {
+            return MVec2.new(s-b, e0, e1, e2, e01, e02, e12, e012).reduce
+            
+        } else if (b is Rotor2) {
+            return MVec2.new(s-b.s, e0, e1, e2, e01, e02, e12-b.e12, e012).reduce
+            
+        } else if (b is Line2) {
+            return MVec2.new(s, e0-b.e0, e1-b.e1, e2-b.e2, e01, e02, e12, e012).reduce
+            
+        } else if (b is Point2) {
+            return MVec2.new(s, e0, e1, e2, e01-b.e01, e02+b.e20, e12-b.e12, e012).reduce
+            
+        } else if (b is Trans2) {
+            return MVec2.new(s-b.s, e0, e1, e2, e01-b.e01, e02-b.e02, e12, e012).reduce
+            
+        } else if (b is Motor2) {
+            return MVec2.new(s-b.s, e0, e1, e2, e01-b.e01, e02-b.e02, e12-b.e12, e012).reduce
+
+        // TODO: PScalar2
+            
+        } else if (b is MVec2) {
+            return MVec2.new(s-b.s, e0-b.e0, e1-b.e1, e2-b.e2, e01-b.e01, e02-b.e02, e12-b.e12, e012-b.e012).reduce
+        }
+
+        Fiber.abort("Subtraction not supported for: %(type.name) * %(b.type.name)")
+    }
 
     // Geometric product
     *(b) {
@@ -2111,14 +2304,13 @@ class MVec2 {
 
         } else if(b is Trans2) {
             return MVec2.new(
-                -b.e12*e12,
-                -b.e01*e1-b.e02*e2-b.e12*e012,
-                -b.e12*e2,
-                b.e12*e1,
-                b.e01*s+b.e02*e12-b.e12*e02,
-                b.e02*s+b.e12*e01-b.e01*e12,
-                b.e12*s,
-                b.e01*e2+b.e12*e0-b.e02*e1
+                b.s*s,
+                b.s*e0-b.e01*e1-b.e02*e2,
+                b.s*e1, b.s*e2,
+                b.e01*s+b.e02*e12+b.s*e01,
+                b.e02*s+b.s*e02-b.e01*e12,
+                b.s*e12,
+                b.e01*e2+b.s*e012-b.e02*e1
             ).reduce
 
         } else if(b is Rotor2) {
@@ -2190,12 +2382,13 @@ class MVec2 {
 
         } else if(b is Trans2) {
             return MVec2.new(
-                s,
-                e0-b.e01*e1-b.e02*e2,
-                e1, e2,
-                b.e01*s+e01,
-                b.e02*s+e02,
-                e12, e012
+                b.s*s,
+                b.s*e0-b.e01*e1-b.e02*e2,
+                b.s*e1, b.s*e2,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.s*e12,
+                b.s*e012
             ).reduce
 
         } else if(b is Rotor2) {
@@ -2265,11 +2458,12 @@ class MVec2 {
 
         } else if(b is Trans2) {
             return MVec2.new(
-                s, e0, e1, e2,
-                b.e01*s+e01,
-                b.e02*s+e02,
-                e12,
-                b.e01*e2+e012-b.e02*e1
+                b.s*s,
+                b.s*e0, b.s*e1, b.s*e2,
+                b.e01*s+b.s*e01,
+                b.e02*s+b.s*e02,
+                b.s*e12,
+                b.e01*e2+b.s*e012-b.e02*e1
             ).reduce
 
         } else if(b is Rotor2) {
@@ -2338,14 +2532,13 @@ class MVec2 {
 
         } else if(b is Trans2) {
             return MVec2.new(
-                e1*e1+e12*e12+e2*e2+s*s,
-                2*e0*s+2*e01*e1+2*e012*e12+2*e02*e2,
-                2*e1*s+2*e12*e2,
-                2*e2*s-2*e1*e12,
+                b.s*e1*e1+b.s*e12*e12+b.s*e2*e2+b.s*s*s,
+                2*b.s*e0*s+2*b.s*e01*e1+2*b.s*e012*e12+2*b.s*e02*e2,
+                2*b.s*e1*s+2*b.s*e12*e2,
+                2*b.s*e2*s-2*b.s*e1*e12,
                 b.e01*e2*e2+b.e01*s*s+2*b.e02*e12*s-b.e01*e1*e1-b.e01*e12*e12-2*b.e02*e1*e2,
                 b.e02*e1*e1+b.e02*s*s-2*b.e01*e1*e2-2*b.e01*e12*s-b.e02*e12*e12-b.e02*e2*e2,
-                2*b.e01*e1*e12+2*b.e01*e2*s+2*b.e02*e12*e2-2*b.e02*e1*s,
-                0
+                2*b.e01*e1*e12+2*b.e01*e2*s+2*b.e02*e12*e2-2*b.e02*e1*s
             ).reduce
 
         } else if(b is Rotor2) {
@@ -2413,7 +2606,7 @@ class MVec2 {
 
         } else if(b is Trans2) {
             return MVec2.new(
-                s,
+                b.s*s,
                 -b.e01*e1-b.e02*e2, 0, 0,
                 b.e01*s, b.e02*s, 0,
                 0
@@ -2506,7 +2699,7 @@ class MVec2 {
         } else if (sbm & 0x41 != 0 && sbm & 0xBE == 0) {
             return Rotor2.new(s, e12)
         } else if (sbm & 0x31 != 0 && sbm & 0xCE == 0) {
-            return Trans2.new(e01, e02, s)
+            return Trans2.new(s, e01, e02)
         } else if (sbm & 0x71 != 0 && sbm & 0x8E == 0) {
             return Motor2.new(s, e01, e02, e12)
         } else if (sbm & 0x80 != 0 && sbm & 0x7F == 0) {
