@@ -265,10 +265,11 @@ class Line2 {
             )
 
         } else if (b is Point2) {
+            // Huh, codegen broke for this? Had to flip the sign of e01 instead of e20
             return Point2.new(
-                -(2*b.e20*e2*e2-2*b.e01*e1*e2-2*b.e12*e0*e1-b.e20),
-                b.e01+2*b.e12*e0*e2+2*b.e20*e1*e2-2*b.e01*e1*e1,
-                b.e12-2*b.e12*e1*e1-2*b.e12*e2*e2
+                b.e20*e2*e2-2*b.e01*e1*e2-2*b.e12*e0*e1-b.e20*e1*e1,
+                -(b.e01*e2*e2+2*b.e12*e0*e2+2*b.e20*e1*e2-b.e01*e1*e1),
+                -b.e12*e1*e1-b.e12*e2*e2
             )
 
         } else if (b is Rotor2) {
