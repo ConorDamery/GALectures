@@ -140,8 +140,7 @@ class State {
 
 		n.glDraw(0xFFFFFF00)
 
-		var m = l1 * l2
-		App.guiText(m.type.toString)
+		var m = l1.normalized// * l2
 		//m.glDraw(0xFFFF00FF)
 
 		App.glBegin(true, true, 1, 1)
