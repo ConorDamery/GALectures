@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstdlib>
+#include <type_traits>
+#include <tuple>
 #include <string>
 #include <array>
 #include <vector>
@@ -48,6 +50,7 @@
 
 namespace GASandbox
 {
+	// Aliases
 	using u8 = uint8_t;
 	using u16 = uint16_t;
 	using u32 = uint32_t;
@@ -66,6 +69,9 @@ namespace GASandbox
 	using cstring = const char*;
 	using string = std::string;
 
+	template <typename... T>
+	using tuple = std::tuple<T...>;
+
 	template <typename T, size_type N>
 	using array = std::array<T, N>;
 
@@ -74,6 +80,135 @@ namespace GASandbox
 
 	template <typename K, typename V>
 	using hashmap = std::unordered_map<K, V>;
+
+	// Traits
+	namespace meta
+	{
+		template<typename...>
+		using void_type = void;
+
+		using false_type = std::false_type;
+		using true_type = std::true_type;
+
+		template <bool B, typename T = void>
+		using enable_if = std::enable_if<B, T>;
+
+		template <bool B, typename T = void>
+		using enable_if_t = typename enable_if<B, T>::type;
+
+		template <typename T>
+		using is_enum = std::is_enum<T>;
+
+		template <typename T, typename Enable = void>
+		struct underlying_type;
+
+		template <typename T>
+		struct underlying_type<T, enable_if_t<is_enum<T>::value>>
+		{
+			using type = typename std::underlying_type<T>::type;
+		};
+
+		template <typename T>
+		struct underlying_type<T, enable_if_t<!is_enum<T>::value>>
+		{
+			using type = void;
+		};
+
+		template <typename T>
+		using underlying_type_t = typename underlying_type<T>::type;
+
+		template<typename T, T... Ints>
+		struct integer_sequence
+		{
+			using value_type = T;
+			static constexpr size_type size() { return sizeof...(Ints); }
+		};
+
+		template<size_type... Ints>
+		using index_sequence = integer_sequence<size_type, Ints...>;
+
+		template<typename T, size_type N, T... Is>
+		struct make_integer_sequence : make_integer_sequence<T, N - 1, N - 1, Is...> {};
+
+		template<typename T, T... Is>
+		struct make_integer_sequence<T, 0, Is...> : integer_sequence<T, Is...> {};
+
+		template<size_type N>
+		using make_index_sequence = make_integer_sequence<size_type, N>;
+
+		template<typename... T>
+		using index_sequence_for = make_index_sequence<sizeof...(T)>;
+
+		template<class T>
+		using remove_reference_t = typename std::remove_reference<T>::type;
+
+		template<size_type I, class T>
+		using tuple_element_t = typename std::tuple_element<I, T>::type;
+
+		template< class T >
+		using decay_t = typename std::decay<T>::type;
+
+		template<class F>
+		struct function_traits;
+
+		// function pointer
+		template<class R, class... Args>
+		struct function_traits<R(*)(Args...)> : public function_traits<R(Args...)> {};
+
+		// member function pointer
+		template<class C, class R, class... Args>
+		struct function_traits<R(C::*)(Args...)> : public function_traits<R(Args...)> {};
+
+		// const member function pointer
+		template<class C, class R, class... Args>
+		struct function_traits<R(C::*)(Args...) const> : public function_traits<R(Args...)> {};
+
+		template<class R, class... Args>
+		struct function_traits<R(Args...)>
+		{
+			using return_type = R;
+
+			static constexpr size_type arity = sizeof...(Args);
+
+			template <size_type N>
+			struct argument
+			{
+				static_assert(N < arity, "Invalid parameter index.");
+				using type = tuple_element_t<N, tuple<Args...>>;
+			};
+
+			template<size_type N>
+			using argument_t = typename argument<N>::type;
+		};
+
+		template<typename... Args>
+		struct parameter_pack_traits
+		{
+			static constexpr size_type count = sizeof...(Args);
+
+			template<size_type N>
+			struct parameter
+			{
+				static_assert(N < count, "Invalid parameter index");
+				using type = tuple_element_t<N, tuple<Args...>>;
+			};
+
+			template<size_type N>
+			using parameter_t = typename parameter<N>::type;
+		};
+
+		template<typename T>
+		struct identity { using type = T; };
+
+		template<typename T>
+		T&& forward(typename identity<T>::type&& param)
+		{
+			return static_cast<typename identity<T>::type&&>(param);
+		}
+
+		template<typename Dst>
+		Dst implicit_cast(typename identity<Dst>::type t) { return t; }
+	}
 
 	// File
 	struct sFileInfo
@@ -146,6 +281,20 @@ namespace GASandbox
 		fCodeFinalizer finalize;
 	};
 
+	struct sCodeModuleSource
+	{
+		char moduleName[64]{};
+		cstring moduleSource{ nullptr };
+	};
+
+	struct sCodeClassInfo
+	{
+		char moduleName[64]{};
+		char className[64]{};
+		u32 typeId{ 0 };
+		sCodeHandle handle{ nullptr };
+	};
+
 	// Application
 	struct sAppConfig
 	{
@@ -159,17 +308,19 @@ namespace GASandbox
 	class App
 	{
 	private:
-		static bool Configure(int argc, char** args, sAppConfig& config);
+		static bool Configure(i32 argc, char** args, sAppConfig& config);
 
 		static bool Initialize(const sAppConfig& config);
 		static void Shutdown();
 
+		// File
 		static bool FileInitialize(const sAppConfig& config);
 		static void FileShutdown();
 
 		static const list<sFileInfo>& FileGetIndex();
 		static const list<sFileInfo>& FileGetManifest();
 
+		// Window
 		static bool WinInitialize(const sAppConfig& config);
 		static void WinShutdown();
 
@@ -177,9 +328,11 @@ namespace GASandbox
 		static void WinSwapBuffers();
 		static bool WinShouldClose();
 
+		// Graphics
 		static bool GlInitialize(const sAppConfig& config);
 		static void GlShutdown();
 
+		// Gui
 		static bool GuiInitialize(const sAppConfig& config);
 		static void GuiShutdown();
 
@@ -196,9 +349,11 @@ namespace GASandbox
 		static void GuiResetStyle();
 		static void GuiRender();
 
+		// Net
 		static bool NetInitialize(const sAppConfig& config);
 		static void NetShutdown();
 
+		// Audio
 		static bool SfxInitialize(const sAppConfig& config);
 		static void SfxShutdown();
 
@@ -209,6 +364,7 @@ namespace GASandbox
 		static size_type SfxSampleCount();
 		static void SfxClearSamples();
 
+		// Code
 		static bool CodeInitialize(const sAppConfig& config);
 		static void CodeShutdown();
 
@@ -223,6 +379,7 @@ namespace GASandbox
 		static void CodeNetcode(bool server, u32 client, eNetEvent event, u16 peer, u32 channel, u32 packet);
 		static f32 CodeAudio(f64 sampleRate, f64 dt);
 
+		// Application
 		static void Reload(const sAppConfig& config);
 		static void WinReload();
 		static void GlReload();
@@ -235,7 +392,7 @@ namespace GASandbox
 		static void Render();
 
 	public:
-		static int Run(int argc, char** args);
+		static i32 Run(i32 argc, char** args);
 
 		// Util
 		static void QueueReload();
@@ -250,6 +407,7 @@ namespace GASandbox
 		static size_type Hash(cstring str);
 		static size_type Hash(const string& str);
 
+		// File
 		static sFileInfo FileGetInfo(cstring filepath);
 		static cstring FilePath(cstring filepath);
 		static string FileLoad(cstring filepath);
@@ -449,41 +607,658 @@ namespace GASandbox
 		static void CodeParseFile(cstring moduleName, cstring filepath);
 		static void CodeParseSource(cstring moduleName, cstring source);
 
-		static void CodeBindClass(cstring moduleName, cstring className, sCodeClass scriptClass);
-		static void CodeBindMethod(cstring moduleName, cstring className, bool isStatic, cstring signature, fCodeMethod scriptMethod);
+		static void CodeBeginModule(cstring moduleName);
+		static cstring CodeGetCurrentModule();
+		static void CodeEndModule();
 
-		static void CodeEnsureSlots(sCodeVM vm, i32 count);
-		static void CodeGetVariable(sCodeVM vm, cstring moduleName, cstring className, i32 slot);
+		static void CodeBeginClass(cstring className, u32 typeId);
+		static cstring CodeGetCurrentClass();
+		static void CodeEndClass();
 
-		static bool CodeGetSlotBool(sCodeVM vm, i32 slot);
-		static u32 CodeGetSlotUInt(sCodeVM vm, i32 slot);
-		static i32 CodeGetSlotInt(sCodeVM vm, i32 slot);
-		static f32 CodeGetSlotFloat(sCodeVM vm, i32 slot);
-		static f64 CodeGetSlotDouble(sCodeVM vm, i32 slot);
-		static cstring CodeGetSlotString(sCodeVM vm, i32 slot);
-		static cstring CodeGetSlotBytes(sCodeVM vm, i32 slot, i32* length);
-		static void* CodeGetSlotObject(sCodeVM vm, i32 slot);
+		static const sCodeClassInfo& GetClassInfo(u32 typeId);
+		static void CodeSetClass(sCodeVM vm, i32 slot, u32 typeId);
 
-		template <typename T>
-		static T* CodeGetSlotObjectT(sCodeVM vm, i32 slot)
+		template<typename T>
+		void CodeSetClass(sCodeVM vm, i32 slot)
 		{
-			return (T*)CodeGetSlotObject(vm, slot);
+			SetClass(vm, slot, Type<T>::Id());
 		}
 
-		static void CodeSetSlotBool(sCodeVM vm, i32 slot, bool value);
-		static void CodeSetSlotUInt(sCodeVM vm, i32 slot, u32 value);
-		static void CodeSetSlotInt(sCodeVM vm, i32 slot, i32 value);
-		static void CodeSetSlotFloat(sCodeVM vm, i32 slot, f32 value);
-		static void CodeSetSlotDouble(sCodeVM vm, i32 slot, f64 value);
-		static void CodeSetSlotString(sCodeVM vm, i32 slot, cstring str);
-		//static void* GetSlotObject(sScriptVM* vm, i32 slot);
-		//static CString GetSlotBytes(sScriptVM* vm, i32 slot, i32* length);
-		static void* CodeSetSlotNewObject(sCodeVM vm, i32 slot, i32 classSlot, size_type size);
+		template <typename T>
+		void CodeBeginClass(cstring className);
+
+		template <typename T, typename U = std::underlying_type_t<T>>
+		void CodeBeginEnum(cstring className);
+
+		static void CodeBindConstructor(cstring signature, fCodeMethod func);
+		static void CodeBindDestructor(fCodeFinalizer func);
+
+		template<typename T, typename... Args, size_type... Index>
+		void CodeConstruct(sCodeVM vm, void* memory, meta::index_sequence<Index...>);
+
+		template<typename T, typename... Args>
+		void CodeAllocate(sCodeVM vm);
+
+		template<typename T>
+		void CodeFinalize(void* data);
+
+		template <typename T, typename... Args>
+		void CodeBindConstructor(cstring signature);
 
 		template <typename T>
-		static T* CodeSetSlotNewObjectT(sCodeVM vm, i32 slot, i32 classSlot)
+		void CodeBindDestructor();
+
+		static void CodeBindFunction(bool isStatic, cstring signature, fCodeMethod func);
+
+		template<typename Fn, Fn F>
+		void CodeBindFunction(bool isStatic, cstring signature);
+
+		template<typename T, typename U, U T::* Field>
+		void CodeBindGetter(cstring signature);
+
+		template<typename T, typename U, U T::* Field>
+		void CodeBindSetter(cstring signature);
+
+		template <typename T, T Val>
+		void CodeBindEnumVal(cstring signature);
+
+		// Getters
+		static bool CodeGetSlotBool(sCodeVM vm, i32 slot);
+		static u8 CodeGetSlotU8(sCodeVM vm, i32 slot);
+		static u16 CodeGetSlotU16(sCodeVM vm, i32 slot);
+		static u32 CodeGetSlotU32(sCodeVM vm, i32 slot);
+		static u64 CodeGetSlotU64(sCodeVM vm, i32 slot);
+		static i8 CodeGetSlotI8(sCodeVM vm, i32 slot);
+		static i16 CodeGetSlotI16(sCodeVM vm, i32 slot);
+		static i32 CodeGetSlotI32(sCodeVM vm, i32 slot);
+		static i64 CodeGetSlotI64(sCodeVM vm, i32 slot);
+		static f32 CodeGetSlotF32(sCodeVM vm, i32 slot);
+		static f64 CodeGetSlotF64(sCodeVM vm, i32 slot);
+		static cstring CodeGetSlotString(sCodeVM vm, i32 slot);
+		static void* CodeGetSlotObject(sCodeVM vm, i32 slot);
+		static sCodeHandle CodeGetSlotHandle(sCodeVM vm, i32 slot);
+
+		static i32 CodeGetListCount(sCodeVM vm, i32 slot);
+		static void CodeGetListElement(sCodeVM vm, i32 listSlot, i32 index, i32 elementSlot);
+
+		template <typename T>
+		T CodeGetSlotArg(sCodeVM vm, i32 slot);
+
+		// Setters
+		static void CodeSetSlotBool(sCodeVM vm, i32 slot, bool value);
+		static void CodeSetSlotU8(sCodeVM vm, i32 slot, u8 value);
+		static void CodeSetSlotU16(sCodeVM vm, i32 slot, u16 value);
+		static void CodeSetSlotU32(sCodeVM vm, i32 slot, u32 value);
+		static void CodeSetSlotU64(sCodeVM vm, i32 slot, u64 value);
+		static void CodeSetSlotI8(sCodeVM vm, i32 slot, i8 value);
+		static void CodeSetSlotI16(sCodeVM vm, i32 slot, i16 value);
+		static void CodeSetSlotI32(sCodeVM vm, i32 slot, i32 value);
+		static void CodeSetSlotI64(sCodeVM vm, i32 slot, i64 value);
+		static void CodeSetSlotF32(sCodeVM vm, i32 slot, f32 value);
+		static void CodeSetSlotF64(sCodeVM vm, i32 slot, f64 value);
+		static void CodeSetSlotString(sCodeVM vm, i32 slot, cstring text);
+		static void* CodeSetSlotNewObject(sCodeVM vm, i32 slot, i32 classSlot, size_type size);
+		static void CodeSetSlotHandle(sCodeVM vm, i32 slot, sCodeHandle handle);
+
+		static void CodeSetSlotNewList(sCodeVM vm, i32 slot);
+		static void CodeSetListElement(sCodeVM vm, i32 listSlot, i32 index, i32 elementSlot);
+		static void CodeInsertInList(sCodeVM vm, i32 listSlot, i32 index, i32 elementSlot);
+
+		template <typename T>
+		void CodeSetSlotArg(sCodeVM vm, i32 slot, T&& val);
+
+		// Script handles
+		static sCodeHandle CodeMakeCallHandle(sCodeVM vm, cstring signature);
+		static sCodeHandle CodeMakeClassHandle(sCodeVM vm, cstring moduleName, cstring className);
+		static void CodeReleaseHandle(sCodeVM vm, sCodeHandle handle);
+		static u64 CodeGetHandleValue(sCodeHandle handle);
+
+		static void CodeEnsureSlots(sCodeVM vm, i32 numSlots);
+		static void CodeCallFunction(sCodeVM vm, sCodeHandle handle);
+	};
+
+	// Code template API inspired by: https://github.com/Nelarius/wrenpp
+
+	template<typename T>
+	struct CodeArg;
+
+#define CODE_PRIM_ARG(Type, GetFunc, SetFunc)																								\
+	template<> struct CodeArg<Type>																											\
+	{																																		\
+		static Type Get(sCodeVM vm, i32 slot) { return App::Code##GetFunc(vm, slot); }														\
+		static void Set(sCodeVM vm, i32 slot, Type val) { App::Code##SetFunc(vm, slot, val); }												\
+	};																																		\
+	template<> struct CodeArg<Type&> { static void Set(sCodeVM vm, i32 slot, Type val) { CodeArg<Type>::Set(vm, slot, val); } };			\
+	template<> struct CodeArg<const Type&> { static void Set(sCodeVM vm, i32 slot, Type val) { CodeArg<Type>::Set(vm, slot, val); } };
+
+	// Basic types
+	CODE_PRIM_ARG(bool, GetSlotBool, SetSlotBool)
+	CODE_PRIM_ARG(u8, GetSlotU8, SetSlotU8)
+	CODE_PRIM_ARG(u16, GetSlotU16, SetSlotU16)
+	CODE_PRIM_ARG(u32, GetSlotU32, SetSlotU32)
+	CODE_PRIM_ARG(u64, GetSlotU64, SetSlotU64)
+	CODE_PRIM_ARG(i8, GetSlotI8, SetSlotI8)
+	CODE_PRIM_ARG(i16, GetSlotI16, SetSlotI16)
+	CODE_PRIM_ARG(i32, GetSlotI32, SetSlotI32)
+	CODE_PRIM_ARG(i64, GetSlotI64, SetSlotI64)
+	CODE_PRIM_ARG(f32, GetSlotF32, SetSlotF32)
+	CODE_PRIM_ARG(f64, GetSlotF64, SetSlotF64)
+
+	// String support
+	CODE_PRIM_ARG(cstring, GetSlotString, SetSlotString)
+
+	/*template<size_type N>
+	struct CodeArg<CString<N>>
+	{
+		static CString<N> Get(sCodeVM vm, i32 slot) { return App::CodeGetSlotString(vm, slot); }
+		static void Set(sCodeVM vm, i32 slot, CString<N> val) { App::CodeSetSlotString(vm, slot, val.c_str()); }
+	};
+	template<size_type N>
+	struct CodeArg<CString<N>&>
+	{
+		static void Set(sCodeVM vm, i32 slot, CString<N> val) { CodeArg<cstring>::Set(vm, slot, val); }
+	};
+	template<size_type N>
+	struct CodeArg<const CString<N>&>
+	{
+		static void Set(sCodeVM vm, i32 slot, CString<N> val) { CodeArg<cstring>::Set(vm, slot, val); }
+	};*/
+
+	// Containers support
+	//template<class T, size_type Size>
+	//struct CodeArgArray
+	//{
+	//	static Array<T, Size> Get(sCodeVM vm, i32 slot)
+	//	{
+	//		Array<T, Size> val;
+	//		i32 count = CodeArg<void*>::CodeGetListCount(vm, slot);
+	//		ENGINE_ASSERT(Size == count, "List does not match size of array!");
+	//		for (i32 i; i < count; i++)
+	//		{
+	//			CodeArg<void*>::CodeGetListElement(vm, slot, i, 0);
+	//			val[i] = CodeArg<T>::Get(vm, 0);
+	//		}
+	//		return val;
+	//	}
+	//
+	//	//static void Set(sCodeVM vm, i32 slot, const Array<f32, Size>& val)
+	//	//{
+	//	//	new (CodeArg<void*>::Set(vm, slot, slot, sizeof(CodeObjPtr<T>))) CodeObjPtr<T>(val);
+	//	//}
+	//};
+	//
+	//template<class T, size_type Size>
+	//struct CodeArg<Array<T, Size>>
+	//{
+	//	static Array<T, Size> Get(sCodeVM vm, i32 slot) { return CodeArgArray<T, Size>::Get(vm, slot); }
+	//};
+	//
+	//template<class T, size_type Size>
+	//struct CodeArg<Array<T, Size>&>
+	//{
+	//	static Array<T, Size> Get(sCodeVM vm, i32 slot) { return CodeArgArray<T, Size>::Get(vm, slot); }
+	//};
+	//
+	//template <class T, size_type Size>
+	//struct CodeArg<const Array<T, Size>&>
+	//{
+	//	static Array<T, Size> Get(sCodeVM vm, i32 slot) { return CodeArgArray<T, Size>::Get(vm, slot); }
+	//};
+
+	template<class T>
+	struct CodeArgList
+	{
+		static list<T> Get(sCodeVM vm, i32 slot)
 		{
-			return (T*)CodeSetSlotNewObject(vm, slot, classSlot, sizeof(T));
+			App::CodeEnsureSlots(vm, slot + 2);
+
+			list<T> val;
+			i32 count = App::CodeGetListCount(vm, slot);
+			val.resize(count);
+			for (i32 i; i < count; i++)
+			{
+				App::CodeGetListElement(vm, slot, i, slot + 1);
+				val[i] = CodeArg<T>::Get(vm, slot + 1);
+			}
+			return val;
+		}
+
+		static void Set(sCodeVM vm, i32 slot, const list<T>& val)
+		{
+			App::CodeSetSlotNewList(vm, slot);
+			for (const auto& v : val)
+			{
+				CodeArg<T>::Set(vm, slot + 1, v);
+				App::CodeInsertInList(vm, slot, -1, slot + 1);
+			}
 		}
 	};
+
+	template<class T>
+	struct CodeArg<list<T>>
+	{
+		static list<T> Get(sCodeVM vm, i32 slot) { return CodeArgList<T>::Get(vm, slot); }
+		static void Set(sCodeVM vm, i32 slot, const list<T>& val) { return CodeArgList<T>::Set(vm, slot, val); }
+	};
+
+	template<class T>
+	struct CodeArg<list<T>&>
+	{
+		static list<T> Get(sCodeVM vm, i32 slot) { return CodeArgList<T>::Get(vm, slot); }
+		static void Set(sCodeVM vm, i32 slot, const list<T>& val) { return CodeArgList<T>::Set(vm, slot, val); }
+	};
+
+	template <class T>
+	struct CodeArg<const list<T>&>
+	{
+		static list<T> Get(sCodeVM vm, i32 slot) { return CodeArgList<T>::Get(vm, slot); }
+		static void Set(sCodeVM vm, i32 slot, const list<T>& val) { return CodeArgList<T>::Set(vm, slot, val); }
+	};
+
+	// Base class for script objects
+	struct CodeObj
+	{
+		virtual ~CodeObj() = default;
+		virtual void* Ptr() = 0;
+	};
+
+	// Values live within VM
+	template<typename T>
+	struct CodeObjVal : public CodeObj
+	{
+		explicit CodeObjVal() : obj() {}
+		static ~CodeObjVal() { static_cast<T*>(Ptr())->~T(); }
+		void* Ptr() override { return &obj; }
+		typename std::aligned_storage<sizeof(T), alignof(T)>::type obj;
+	};
+
+	// Pointers live within host
+	template<typename T>
+	struct CodeObjPtr : public CodeObj
+	{
+		explicit CodeObjPtr(T* obj) : obj{ obj } {}
+		static ~CodeObjPtr() = default;
+		void* Ptr() override { return obj; }
+		T* obj;
+	};
+
+	template<typename T>
+	struct CodeArg
+	{
+		static T Get(sCodeVM vm, i32 slot)
+		{
+			CodeObj* obj = static_cast<CodeObj*>(App::CodeGetSlotObject(vm, slot));
+			return *static_cast<T*>(obj->Ptr());
+		}
+
+		static void Set(sCodeVM vm, i32 slot, T val)
+		{
+			App::CodeSetClass<T>(vm, slot);
+			CodeObj* obj = new (App::CodeSetSlotNewObject(vm, slot, slot, sizeof(CodeObjVal<T>))) CodeObjVal<T>();
+			new (obj->Ptr()) T(val);
+		}
+	};
+
+	template<typename T>
+	struct CodeArg<T&>
+	{
+		static T& Get(sCodeVM vm, i32 slot)
+		{
+			CodeObj* obj = static_cast<CodeObj*>(App::CodeGetSlotObject(vm, slot));
+			return *static_cast<T*>(obj->Ptr());
+		}
+
+		static void Set(sCodeVM vm, i32 slot, T& val)
+		{
+			App::CodeSetClass<T>(vm, slot);
+			new (App::CodeSetSlotNewObject(vm, slot, slot, sizeof(CodeObjPtr<T>))) CodeObjPtr<T>(&val);
+		}
+	};
+
+	template<typename T>
+	struct CodeArg<const T&>
+	{
+		static const T& Get(sCodeVM vm, i32 slot)
+		{
+			CodeObj* obj = static_cast<CodeObj*>(App::CodeGetSlotObject(vm, slot));
+			return *static_cast<T*>(obj->Ptr());
+		}
+
+		static void Set(sCodeVM vm, i32 slot, const T& val)
+		{
+			App::CodeSetClass<T>(vm, slot);
+			new (App::CodeSetSlotNewObject(vm, slot, slot, sizeof(CodeObjPtr<T>))) CodeObjPtr<T>(const_cast<T*>(&val));
+		}
+	};
+
+	template<typename T>
+	struct CodeArg<T*>
+	{
+		static T* Get(sCodeVM vm, i32 slot)
+		{
+			CodeObj* obj = static_cast<CodeObj*>(App::CodeGetSlotObject(vm, slot));
+			return static_cast<T*>(obj->Ptr());
+		}
+
+		static void Set(sCodeVM vm, i32 slot, T* val)
+		{
+			App::CodeSetClass<T>(vm, slot);
+			new (App::CodeSetSlotNewObject(vm, slot, slot, sizeof(CodeObjPtr<T>))) CodeObjPtr<T>(val);
+		}
+	};
+
+	template<typename T>
+	struct CodeArg<const T*>
+	{
+		static const T* Get(sCodeVM vm, i32 slot)
+		{
+			CodeObj* obj = static_cast<CodeObj*>(App::CodeGetSlotObject(vm, slot));
+			return static_cast<T*>(obj->Ptr());
+		}
+
+		static void Set(sCodeVM vm, i32 slot, const T* val)
+		{
+			App::CodeSetClass<T>(vm, slot);
+			new (App::CodeSetSlotNewObject(vm, slot, slot, sizeof(CodeObjPtr<T>))) CodeObjPtr<T>(const_cast<T*>(val));
+		}
+	};
+
+	// Invoke meta programming
+	class CodeInvokeImpl
+	{
+	private:
+		template<bool RetVoid>
+		friend class CodeInvoke;
+
+		// function pointer
+		template<typename R, typename... Args>
+		static R CallWithArguments(sCodeVM vm, R(*F)(Args...))
+		{
+			constexpr size_type arity = meta::function_traits<decltype(F)>::arity;
+			App::CodeEnsureSlots(vm, arity);
+			return CallImpl(vm, F, meta::make_index_sequence<arity>{});
+		}
+
+		// member function pointer
+		template<typename R, typename C, typename... Args>
+		static R CallWithArguments(sCodeVM vm, R(C::* F)(Args...))
+		{
+			constexpr size_type arity = meta::function_traits<decltype(F)>::arity;
+			App::CodeEnsureSlots(vm, arity);
+			return CallImpl(vm, F, meta::make_index_sequence<arity>{});
+		}
+
+		// const member function pointer
+		template<typename R, typename C, typename... Args>
+		static R CallWithArguments(sCodeVM vm, R(C::* F)(Args...) const)
+		{
+			constexpr size_type arity = meta::function_traits<decltype(F)>::arity;
+			App::CodeEnsureSlots(vm, arity);
+			return CallImpl(vm, F, meta::make_index_sequence<arity>{});
+		}
+
+		// function pointer
+		template<typename R, typename... Args, size_type... index>
+		static R CallImpl(sCodeVM vm, R(*F)(Args...), meta::index_sequence<index...>)
+		{
+			using Traits = meta::function_traits<meta::remove_reference_t<decltype(F)>>;
+			return F(CodeArg<typename Traits::template argument_t<index>>::Get(vm, index + 1)...);
+		}
+
+		// member function pointer
+		template<typename R, typename C, typename... Args, size_type... index>
+		static R CallImpl(sCodeVM vm, R(C::* F)(Args...), meta::index_sequence<index...>)
+		{
+			using Traits = meta::function_traits<decltype(F)>;
+			CodeObj* obj = static_cast<CodeObj*>(App::CodeGetSlotObject(vm, 0));
+			C* ptr = static_cast<C*>(obj->Ptr());
+			return (ptr->*F)(CodeArg<typename Traits::template argument_t<index>>::Get(vm, index + 1)...);
+		}
+
+		// const member function pointer
+		template<typename R, typename C, typename... Args, size_type... index>
+		static R CallImpl(sCodeVM vm, R(C::* F)(Args...) const, meta::index_sequence<index...>)
+		{
+			using Traits = meta::function_traits<decltype(F)>;
+			CodeObj* obj = static_cast<CodeObj*>(App::CodeGetSlotObject(vm, 0));
+			C* ptr = static_cast<C*>(obj->Ptr());
+			return (ptr->*F)(CodeArg<typename Traits::template argument_t<index>>::Get(vm, index + 1)...);
+		}
+	};
+
+	template<bool RetVoid>
+	class CodeInvoke;
+
+	template<>
+	class CodeInvoke<true>
+	{
+	private:
+		template<typename Signature, Signature>
+		friend class CodeInvokeWrapper;
+
+		// function pointer
+		template<typename R, typename... Args>
+		static void Call(sCodeVM vm, R(*F)(Args...))
+		{
+			CodeInvokeImpl::CallWithArguments(vm, std::forward<R(*)(Args...)>(F));
+		}
+
+		// member function pointer
+		template<typename R, typename C, typename... Args>
+		static void Call(sCodeVM vm, R(C::* F)(Args...))
+		{
+			CodeInvokeImpl::CallWithArguments(vm, std::forward<R(C::*)(Args...)>(F));
+		}
+
+		// const member function pointer
+		template<typename R, typename C, typename... Args>
+		static void Call(sCodeVM vm, R(C::* F)(Args...) const)
+		{
+			CodeInvokeImpl::CallWithArguments(vm, std::forward<R(C::*)(Args...) const>(F));
+		}
+	};
+
+	template<>
+	class CodeInvoke<false>
+	{
+	private:
+		template<typename Signature, Signature>
+		friend class CodeInvokeWrapper;
+
+		// function pointer
+		template<typename R, typename... Args>
+		static void Call(sCodeVM vm, R(*F)(Args...))
+		{
+			using ReturnType = typename meta::function_traits<meta::remove_reference_t<decltype(F)>>::return_type;
+			CodeArg<ReturnType>::Set(vm, 0, CodeInvokeImpl::CallWithArguments(vm, std::forward<R(*)(Args...)>(F)));
+		}
+
+		// member function pointer
+		template<typename R, typename C, typename... Args>
+		static void Call(sCodeVM vm, R(C::* F)(Args...))
+		{
+			using ReturnType = typename meta::function_traits<meta::remove_reference_t<decltype(F)>>::return_type;
+			CodeArg<ReturnType>::Set(vm, 0, CodeInvokeImpl::CallWithArguments(vm, std::forward<R(C::*)(Args...)>(F)));
+		}
+
+		// const member function pointer
+		template<typename R, typename C, typename... Args>
+		static void Call(sCodeVM vm, R(C::* F)(Args...) const)
+		{
+			using ReturnType = typename meta::function_traits<meta::remove_reference_t<decltype(F)>>::return_type;
+			CodeArg<ReturnType>::Set(vm, 0, CodeInvokeImpl::CallWithArguments(vm, std::forward<R(C::*)(Args...) const>(F)));
+		}
+	};
+
+	template<typename Signature, Signature>
+	class CodeInvokeWrapper;
+
+	template<typename R, typename... Args, R(*F)(Args...)>
+	class CodeInvokeWrapper<R(*)(Args...), F>
+	{
+	private:
+		friend class App;
+
+		static void Call(sCodeVM vm)
+		{
+			CodeInvoke<std::is_void<R>::value>::Call(vm, F);
+		}
+	};
+
+	template<typename R, typename C, typename... Args, R(C::* F)(Args...)>
+	class CodeInvokeWrapper<R(C::*)(Args...), F>
+	{
+	private:
+		friend class App;
+
+		static void Call(sCodeVM vm)
+		{
+			CodeInvoke<std::is_void<R>::value>::Call(vm, F);
+		}
+	};
+
+	template<typename R, typename C, typename... Args, R(C::* F)(Args...) const>
+	class CodeInvokeWrapper<R(C::*)(Args...) const, F>
+	{
+	private:
+		friend class App;
+
+		static void Call(sCodeVM vm)
+		{
+			CodeInvoke<std::is_void<R>::value>::Call(vm, F);
+		}
+	};
+
+	template<typename T, typename U, U T::* Field>
+	class ScriptProperty
+	{
+	private:
+		friend class App;
+
+		static void Get(sCodeVM vm)
+		{
+			T* obj = CodeArg<T*>::Get(vm, 0);
+			CodeArg<U>::Set(vm, 0, obj->*Field);
+		}
+
+		static void Set(sCodeVM vm)
+		{
+			T* obj = CodeArg<T*>::Get(vm, 0);
+			obj->*Field = CodeArg<U>::Get(vm, 1);
+		}
+	};
+
+	template<typename T, T Val>
+	class ScriptEnumVal
+	{
+	private:
+		friend class App;
+
+		static void Get(sCodeVM vm)
+		{
+			CodeArg<T>::Set(vm, 0, Val);
+		}
+	};
+
+	// Script implementation
+	template<typename T>
+	void App::CodeBeginClass(cstring className)
+	{
+		CodeBeginClass(className, Type<T>::Id());
+	}
+
+	template <typename T, typename U>
+	void App::CodeBeginEnum(cstring className)
+	{
+		CodeBeginClass(className, Type<T>::Id());
+
+		CodeBindConstructor("",
+			[](sCodeVM vm)
+			{
+				void* memory = App::CodeSetSlotNewObject(vm, 0, 0, sizeof(CodeObjVal<T>));
+				App::CodeEnsureSlots(vm, 1);
+				CodeObjVal<T>* obj = new (memory) CodeObjVal<T>{};
+				new (obj->Ptr()) T(Enum::as_type<T>(CodeArg<U>::Get(vm, 1)));
+			});
+
+		CodeBindDestructor(
+			[](void* data)
+			{
+				CodeObj* obj = static_cast<CodeObj*>(data);
+				obj->~CodeObj();
+			});
+	}
+
+	template<typename T, typename... Args, size_type... Index>
+	void App::CodeConstruct(sCodeVM vm, void* memory, meta::index_sequence<Index...>)
+	{
+		using Traits = meta::parameter_pack_traits<Args...>;
+		App::CodeEnsureSlots(vm, Traits::count);
+		CodeObjVal<T>* obj = new (memory) CodeObjVal<T>{};
+		new (obj->Ptr()) T{ CodeArg<typename Traits::template parameter_t<Index>>::Get(vm, Index + 1)... };
+	}
+
+	template<typename T, typename... Args>
+	void App::CodeAllocate(sCodeVM vm)
+	{
+		void* memory = App::CodeSetSlotNewObject(vm, 0, 0, sizeof(CodeObjVal<T>));
+		CodeConstruct<T, Args...>(vm, memory, meta::make_index_sequence<meta::parameter_pack_traits<Args...>::count>{});
+	}
+
+	template<typename T>
+	void App::CodeFinalize(void* data)
+	{
+		CodeObj* obj = static_cast<CodeObj*>(data);
+		obj->~CodeObj();
+	}
+
+	template<typename T, typename... Args>
+	void App::CodeBindConstructor(cstring signature)
+	{
+		fCodeMethod allocate = &Allocate<T, Args...>;
+		CodeBindConstructor(signature, allocate);
+	}
+
+	template<typename T>
+	void App::CodeBindDestructor()
+	{
+		fCodeFinalizer finalize = &Finalize<T>;
+		CodeBindDestructor(finalize);
+	}
+
+	template<typename Fn, Fn F>
+	void App::CodeBindFunction(bool isStatic, cstring signature)
+	{
+		CodeBindFunction(isStatic, signature, CodeInvokeWrapper<decltype(F), F>::Call);
+	}
+
+	template<typename T, typename U, U T::* Field>
+	void App::CodeBindGetter(cstring signature)
+	{
+		CodeBindFunction(false, signature, ScriptProperty<T, U, Field>::Get);
+	}
+
+	template<typename T, typename U, U T::* Field>
+	void App::CodeBindSetter(cstring signature)
+	{
+		CodeBindFunction(false, signature, ScriptProperty<T, U, Field>::Set);
+	}
+
+	template <typename T, T Val>
+	void App::CodeBindEnumVal(cstring signature)
+	{
+		CodeBindFunction(true, signature, ScriptEnumVal<T, Val>::Get);
+	}
+
+	template <typename T>
+	T App::CodeGetSlotArg(sCodeVM vm, i32 slot)
+	{
+		return CodeArg<T>::Get(vm, slot);
+	}
+
+	template <typename T>
+	void App::CodeSetSlotArg(sCodeVM vm, i32 slot, T&& val)
+	{
+		CodeArg<T>::Set(vm, slot, val);
+	}
 }

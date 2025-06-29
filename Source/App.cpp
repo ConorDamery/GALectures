@@ -42,7 +42,7 @@ namespace GASandbox
 		f64 fps{ 0 };
 		f64 spf{ 0 };
 
-		int currentIndex{ 0 };
+		i32 currentIndex{ 0 };
 
 		bool breakpoint{ false };
 		bool reload{ true };
@@ -92,7 +92,7 @@ namespace GASandbox
 		va_copy(args_copy, args);
 
 		// Determine the size of the formatted string
-		int size = std::vsnprintf(nullptr, 0, format, args_copy);
+		i32 size = std::vsnprintf(nullptr, 0, format, args_copy);
 		if (size < 0)
 		{
 			va_end(args_copy);
@@ -316,7 +316,7 @@ namespace GASandbox
 				if (ImGui::BeginMenu("App"))
 				{
 					const auto& index = FileGetIndex();
-					int idx = 0;
+					i32 idx = 0;
 					for (const auto& i : index)
 					{
 						if (ImGui::MenuItem(i.path.c_str()))
@@ -469,7 +469,7 @@ namespace GASandbox
 		}
 	}
 
-	bool App::Configure(int argc, char** args, sAppConfig& config)
+	bool App::Configure(i32 argc, char** args, sAppConfig& config)
 	{
 		config.title = "GA Sandbox";
 		config.width = 800;
@@ -481,7 +481,7 @@ namespace GASandbox
 		return true;
 	}
 
-	int App::Run(int argc, char** args)
+	i32 App::Run(i32 argc, char** args)
 	{
 		sAppConfig config{};
 		LOGD("App configuring ...");
